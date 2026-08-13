@@ -34,10 +34,12 @@ function keyFor(char: string | null): { key: string | null; shift: boolean } {
 interface Props {
   nextChar: string | null;
   errorFlash: boolean;
+  pressedChar?: string | null;
 }
 
-export function Keyboard({ nextChar, errorFlash }: Props) {
+export function Keyboard({ nextChar, errorFlash, pressedChar }: Props) {
   const { key: target, shift } = keyFor(nextChar);
+  const { key: pressed } = keyFor(pressedChar ?? null);
 
   return (
     <div className="panel select-none space-y-1.5 p-3 sm:p-4" aria-hidden="true">
@@ -50,7 +52,15 @@ export function Keyboard({ nextChar, errorFlash }: Props) {
             return (
               <div
                 key={k}
-                data-state={isTarget ? (errorFlash ? "error" : "active") : undefined}
+                data-state={
+                  isTarget
+                    ? errorFlash
+                      ? "error"
+                      : "active"
+                    : k === pressed
+                      ? "pressed"
+                      : undefined
+                }
                 className={`keycap flex h-9 items-center justify-center px-1 font-mono text-[11px] uppercase sm:h-11 sm:text-xs ${
                   WIDTHS[k] ?? "flex-1"
                 }`}
