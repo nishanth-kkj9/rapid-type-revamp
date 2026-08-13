@@ -99,7 +99,7 @@
     color 90ms ease;
 }
 
-@layer components {
+@layer utilities {
   .keycap[data-state="active"] {
     background: linear-gradient(180deg, var(--color-primary), oklch(0.72 0.16 78));
     color: var(--color-primary-foreground);
