@@ -1,20 +1,55 @@
-# Typing Pro
+# Typing Trainer Pro
 
-https://github.com/nishanth-kkj9/typing-trainer-pro.git, can you improve it
+A fast, keyboard-first typing trainer for the web. Timed drills with live WPM,
+accuracy, consistency, a highlighted virtual keyboard and local progress tracking.
 
-This project was built with [Lovable](https://lovable.dev).
+Web rebuild of the original [typing-trainer-pro](https://github.com/nishanth-kkj9/typing-trainer-pro)
+Python/PyQt desktop app — same sentence generator and stats logic, ported to TypeScript.
 
-## Build with Lovable
+## Features
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/b5faee97-0ff9-43b3-b63a-cf04c3d92a9d).
+- **Timed tests** — 15s, 30s, 60s and 120s runs with a live countdown and progress bar.
+- **Three difficulties** — easy, medium and hard word pools plus grammar templates, so
+  no two passages repeat.
+- **Live stats** — WPM, raw WPM, accuracy, error count and consistency updated as you type.
+- **Virtual keyboard** — highlights the next key (with Shift), flashes red on a mistake and
+  shows the key you just pressed.
+- **Problem keys** — after each run, the characters you missed most, ranked.
+- **Endless text** — the passage extends itself so you never run out mid-run.
+- **Progress tracking** — best/average WPM, a run chart and recent history, saved in
+  your browser via `localStorage`. Personal bests are called out.
+- **Shortcuts** — `Esc` or `Tab` restarts instantly from anywhere.
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+## How it works
+
+| Metric | Formula |
+| --- | --- |
+| WPM | correct characters ÷ 5 ÷ minutes elapsed |
+| Raw WPM | all typed characters ÷ 5 ÷ minutes elapsed |
+| Accuracy | correct ÷ total typed × 100 |
+| Consistency | 100 − coefficient of variation of per-second typing speed |
+
+Nothing is sent to a server — every run stays in your browser.
+
+## Project structure
+
+```text
+src/
+  lib/sentenceGenerator.ts   word pools + templates, difficulty-aware passages
+  lib/typingStats.ts         WPM / accuracy / consistency + localStorage history
+  components/TypingText.tsx  per-character feedback and caret
+  components/Keyboard.tsx    virtual keyboard with next-key highlighting
+  components/StatCard.tsx    stat tiles
+  components/HistoryPanel.tsx best/average, chart and recent runs
+  components/ProblemKeys.tsx most-missed characters
+  routes/index.tsx           the trainer screen
+```
+
+Built with TanStack Start (React 19), Vite and Tailwind CSS v4.
 
 ## Development
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Requires Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
 
 ```sh
 git clone <this-repository-url>
@@ -22,3 +57,11 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+The app runs at `http://localhost:8080`.
+
+## Build with Lovable
+
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/b5faee97-0ff9-43b3-b63a-cf04c3d92a9d).
+Every change made in Lovable is committed straight to this repository, and pushes to
+`main` on GitHub sync back into Lovable.
