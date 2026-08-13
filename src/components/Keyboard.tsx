@@ -50,9 +50,10 @@ export function Keyboard({ nextChar, errorFlash }: Props) {
             return (
               <div
                 key={k}
+                data-state={isTarget ? (errorFlash ? "error" : "active") : undefined}
                 className={`keycap flex h-9 items-center justify-center px-1 font-mono text-[11px] uppercase sm:h-11 sm:text-xs ${
                   WIDTHS[k] ?? "flex-1"
-                } ${isTarget ? (errorFlash ? "keycap-error" : "keycap-active") : ""}`}
+                }`}
               >
                 {label}
               </div>
