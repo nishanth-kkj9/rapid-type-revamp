@@ -64,7 +64,7 @@ const TEMPLATES: Record<Difficulty, string[]> = {
   ],
 };
 
-const pick = <T,>(arr: readonly T[]) => arr[Math.floor(Math.random() * arr.length)];
+const pick = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)] as T;
 
 function fill(template: string, d: Difficulty): string {
   const p = POOLS[d];
