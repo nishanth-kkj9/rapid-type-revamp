@@ -107,6 +107,13 @@
     border-bottom-width: 1px;
   }
 
+  .keycap[data-state="pressed"] {
+    background: linear-gradient(180deg, oklch(0.38 0.02 62), oklch(0.33 0.016 62));
+    color: var(--color-foreground);
+    transform: translateY(2px);
+    border-bottom-width: 1px;
+  }
+
   .keycap[data-state="error"] {
     background: linear-gradient(180deg, var(--color-destructive), oklch(0.52 0.19 25));
     color: var(--color-destructive-foreground);
