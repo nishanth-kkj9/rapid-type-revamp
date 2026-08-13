@@ -16,6 +16,19 @@ export default defineTool({
       .max(3600)
       .describe("How long the run took, in seconds."),
   },
+  outputSchema: {
+    wpm: z.number(),
+    rawWpm: z.number(),
+    accuracy: z.number(),
+    correct: z.number(),
+    incorrect: z.number(),
+    typed: z.number(),
+    elapsed: z.number(),
+    consistency: z.number(),
+    mistakes: z.array(
+      z.object({ index: z.number(), expected: z.string(), got: z.string() }),
+    ),
+  },
   annotations: { readOnlyHint: true, openWorldHint: false },
   handler: ({ target, typed, seconds }) => {
     let correct = 0;
@@ -28,7 +41,7 @@ export default defineTool({
       } else {
         incorrect++;
         if (mistakes.length < 25) {
-          mistakes.push({ index: i, expected, got: typed[i] });
+          mistakes.push({ index: i, expected, got: typed[i] ?? "" });
         }
       }
     }

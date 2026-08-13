@@ -43,7 +43,26 @@
             }
           }
         },
-        "outputSchema": null
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "difficulty": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            },
+            "length": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "difficulty",
+            "text",
+            "length"
+          ]
+        }
       },
       {
         "name": "analyze_typing",
@@ -79,7 +98,69 @@
             "seconds"
           ]
         },
-        "outputSchema": null
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "wpm": {
+              "type": "number"
+            },
+            "rawWpm": {
+              "type": "number"
+            },
+            "accuracy": {
+              "type": "number"
+            },
+            "correct": {
+              "type": "number"
+            },
+            "incorrect": {
+              "type": "number"
+            },
+            "typed": {
+              "type": "number"
+            },
+            "elapsed": {
+              "type": "number"
+            },
+            "consistency": {
+              "type": "number"
+            },
+            "mistakes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "index": {
+                    "type": "number"
+                  },
+                  "expected": {
+                    "type": "string"
+                  },
+                  "got": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "index",
+                  "expected",
+                  "got"
+                ]
+              }
+            }
+          },
+          "required": [
+            "wpm",
+            "rawWpm",
+            "accuracy",
+            "correct",
+            "incorrect",
+            "typed",
+            "elapsed",
+            "consistency",
+            "mistakes"
+          ]
+        }
       }
     ]
   }

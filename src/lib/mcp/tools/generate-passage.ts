@@ -20,6 +20,11 @@ export default defineTool({
       .default(220)
       .describe("Approximate minimum number of characters in the passage."),
   },
+  outputSchema: {
+    difficulty: z.string(),
+    text: z.string(),
+    length: z.number(),
+  },
   annotations: { readOnlyHint: true, openWorldHint: false },
   handler: ({ difficulty, minChars }) => {
     const text = generatePassage(difficulty, minChars);
