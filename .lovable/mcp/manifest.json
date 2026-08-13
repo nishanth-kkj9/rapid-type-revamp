@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "sdk_version": "0.26.2",
+  "path": "/mcp",
+  "auth": {
+    "type": "none"
+  },
+  "mcp": {
+    "server": {
+      "name": "typing-pro",
+      "version": "0.1.0",
+      "title": "Typing Pro"
+    },
+    "tools": [
+      {
+        "name": "generate_passage",
+        "title": "Generate typing passage",
+        "description": "Generate a typing practice passage at an easy, medium, or hard difficulty level.",
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "difficulty": {
+              "default": "medium",
+              "description": "Difficulty of the vocabulary and sentence structure.",
+              "type": "string",
+              "enum": [
+                "easy",
+                "medium",
+                "hard"
+              ]
+            },
+            "minChars": {
+              "default": 220,
+              "description": "Approximate minimum number of characters in the passage.",
+              "type": "integer",
+              "minimum": 40,
+              "maximum": 2000
+            }
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "difficulty": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            },
+            "length": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "difficulty",
+            "text",
+            "length"
+          ]
+        }
+      },
+      {
+        "name": "analyze_typing",
+        "title": "Analyze a typing run",
+        "description": "Compare typed text against the target passage and return WPM, raw WPM, accuracy and error details for the run.",
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "target": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The passage that was meant to be typed."
+            },
+            "typed": {
+              "type": "string",
+              "description": "The text the user actually typed."
+            },
+            "seconds": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 3600,
+              "description": "How long the run took, in seconds."
+            }
+          },
+          "required": [
+            "target",
+            "typed",
+            "seconds"
+          ]
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "wpm": {
+              "type": "number"
+            },
+            "rawWpm": {
+              "type": "number"
+            },
+            "accuracy": {
+              "type": "number"
+            },
+            "correct": {
+              "type": "number"
+            },
+            "incorrect": {
+              "type": "number"
+            },
+            "typed": {
+              "type": "number"
+            },
+            "elapsed": {
+              "type": "number"
+            },
+            "consistency": {
+              "type": "number"
+            },
+            "mistakes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "index": {
+                    "type": "number"
+                  },
+                  "expected": {
+                    "type": "string"
+                  },
+                  "got": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "index",
+                  "expected",
+                  "got"
+                ]
+              }
+            }
+          },
+          "required": [
+            "wpm",
+            "rawWpm",
+            "accuracy",
+            "correct",
+            "incorrect",
+            "typed",
+            "elapsed",
+            "consistency",
+            "mistakes"
+          ]
+        }
+      }
+    ]
+  }
+}
