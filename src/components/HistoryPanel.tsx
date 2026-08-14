@@ -169,16 +169,16 @@ export function HistoryPanel({ history, onClear, onImport }: Props) {
           <div className="mt-5 h-44 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
-                <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
+                <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
                 <XAxis
                   dataKey="run"
-                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
                   yAxisId="left"
-                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
                   axisLine={false}
                   tickLine={false}
                 />
@@ -186,14 +186,14 @@ export function HistoryPanel({ history, onClear, onImport }: Props) {
                   yAxisId="right"
                   orientation="right"
                   domain={[0, 100]}
-                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <Tooltip
                   contentStyle={{
-                    background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
+                    background: "var(--card)",
+                    border: "1px solid var(--border)",
                     borderRadius: 8,
                     fontSize: 12,
                   }}
@@ -203,7 +203,7 @@ export function HistoryPanel({ history, onClear, onImport }: Props) {
                   type="monotone"
                   dataKey="wpm"
                   name="WPM"
-                  stroke="hsl(var(--primary))"
+                  stroke="var(--primary)"
                   strokeWidth={2}
                   dot={false}
                 />
@@ -212,7 +212,7 @@ export function HistoryPanel({ history, onClear, onImport }: Props) {
                   type="monotone"
                   dataKey="accuracy"
                   name="Accuracy %"
-                  stroke="hsl(var(--accent))"
+                  stroke="var(--accent)"
                   strokeWidth={2}
                   strokeDasharray="4 3"
                   dot={false}
