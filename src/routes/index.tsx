@@ -45,7 +45,8 @@ function Index() {
   const [text, setText] = useState("");
   const [typed, setTyped] = useState("");
   const [startedAt, setStartedAt] = useState<number | null>(null);
-  const [now, setNow] = useState(0);
+  const [elapsedMs, setElapsedMs] = useState(0);
+
   const [finished, setFinished] = useState(false);
   const [errorFlash, setErrorFlash] = useState(false);
   const [pressedChar, setPressedChar] = useState<string | null>(null);
