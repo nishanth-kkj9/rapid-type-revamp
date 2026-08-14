@@ -4,11 +4,12 @@ export type Difficulty = "easy" | "medium" | "hard";
 
 const POOLS = {
   easy: {
-    nouns: ["cat","dog","bird","car","book","house","tree","ball","girl","boy","mom","dad","sun","moon","fish","frog","star","door","bell","cake","duck","hand","foot","rain"],
-    verbs: ["run","jump","play","read","eat","sleep","swim","sing","dance","draw","walk","talk","see","like","make","help","find","give","take","hold","pull","push","sit","stand"],
-    adjs: ["big","small","red","blue","happy","sad","fast","slow","hot","cold","new","old","good","bad","tall","short","soft","hard","wet","dry","clean","dark","bright","empty"],
-    advs: ["quickly","slowly","happily","loudly","softly","well","badly","fast","gently","neatly","eagerly","bravely","cheerfully","silently"],
+    nouns: ["cat","dog","bird","car","book","house","tree","ball","girl","boy","mom","dad","sun","moon","fish","frog","star","door","bell","cake","duck","hand","foot","rain","road","lamp","chair","cloud","river","apple","kite","farm"],
+    verbs: ["run","jump","play","read","eat","sleep","swim","sing","dance","draw","walk","talk","see","like","make","help","find","give","take","hold","pull","push","sit","stand","open","close","wash","climb","carry","share"],
+    adjs: ["big","small","red","blue","happy","sad","fast","slow","hot","cold","new","old","good","bad","tall","short","soft","hard","wet","dry","clean","dark","bright","empty","funny","quiet","busy","kind","round","warm"],
+    advs: ["quickly","slowly","happily","loudly","softly","well","badly","fast","gently","neatly","eagerly","bravely","cheerfully","silently","calmly","kindly","early","often"],
   },
+
   medium: {
     nouns: ["student","teacher","computer","garden","library","market","window","bottle","picture","journey","village","problem","message","concert","restaurant","mountain","captain","doctor","bridge","castle","dinner","engine","forest","guitar"],
     verbs: ["discover","imagine","prepare","explore","describe","consider","arrange","collect","connect","develop","explain","improve","observe","perform","receive","suggest","complete","deliver","encourage","establish","generate","identify"],
