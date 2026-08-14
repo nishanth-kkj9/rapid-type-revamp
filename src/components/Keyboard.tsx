@@ -2,7 +2,7 @@ const ROWS: string[][] = [
   ["`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "Backspace"],
   ["Tab", "q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]", "\\"],
   ["Caps", "a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'", "Enter"],
-  ["Shift", "z", "x", "c", "v", "b", "n", "m", ",", ".", "/", "Shift "],
+  ["Shift-L", "z", "x", "c", "v", "b", "n", "m", ",", ".", "/", "Shift-R"],
   ["Space"],
 ];
 
@@ -12,8 +12,8 @@ const WIDTHS: Record<string, string> = {
   "\\": "flex-[1.4]",
   Caps: "flex-[1.9]",
   Enter: "flex-[2.1]",
-  Shift: "flex-[2.5]",
-  "Shift ": "flex-[2.5]",
+  "Shift-L": "flex-[2.5]",
+  "Shift-R": "flex-[2.5]",
   Space: "flex-[10]",
 };
 
@@ -43,15 +43,15 @@ export function Keyboard({ nextChar, errorFlash, pressedChar }: Props) {
 
   return (
     <div className="panel select-none space-y-1.5 p-3 sm:p-4" aria-hidden="true">
-      {ROWS.map((row, i) => (
-        <div key={i} className="flex gap-1.5">
+      {ROWS.map((row, rowIndex) => (
+        <div key={rowIndex} className="flex gap-1.5">
           {row.map((k) => {
-            const isTarget =
-              k === target || (shift && (k === "Shift" || k === "Shift "));
-            const label = k === "Shift " ? "Shift" : k === "Space" ? "" : k;
+            const isShift = k === "Shift-L" || k === "Shift-R";
+            const isTarget = k === target || (shift && isShift);
+            const displayLabel = isShift ? "Shift" : k === "Space" ? "" : k;
             return (
               <div
-                key={k}
+                key={`${rowIndex}-${k}`}
                 data-state={
                   isTarget
                     ? errorFlash
@@ -65,7 +65,7 @@ export function Keyboard({ nextChar, errorFlash, pressedChar }: Props) {
                   WIDTHS[k] ?? "flex-1"
                 }`}
               >
-                {label}
+                {displayLabel}
               </div>
             );
           })}

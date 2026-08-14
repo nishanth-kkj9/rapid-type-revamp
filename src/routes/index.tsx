@@ -45,7 +45,8 @@ function Index() {
   const [text, setText] = useState("");
   const [typed, setTyped] = useState("");
   const [startedAt, setStartedAt] = useState<number | null>(null);
-  const [now, setNow] = useState(0);
+  const [elapsedMs, setElapsedMs] = useState(0);
+
   const [finished, setFinished] = useState(false);
   const [errorFlash, setErrorFlash] = useState(false);
   const [pressedChar, setPressedChar] = useState<string | null>(null);
@@ -57,6 +58,8 @@ function Index() {
   const [focused, setFocused] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const savedRef = useRef(false);
+  const startTimeRef = useRef<number | null>(null);
+
 
   useEffect(() => setHistory(loadHistory()), []);
 
@@ -65,7 +68,9 @@ function Index() {
       setText(generatePassage(d, 320));
       setTyped("");
       setStartedAt(null);
-      setNow(0);
+      setElapsedMs(0);
+      startTimeRef.current = null;
+
       setFinished(false);
       setCorrect(0);
       setIncorrect(0);
@@ -83,14 +88,24 @@ function Index() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [difficulty, duration]);
 
-  const elapsed = startedAt ? Math.max(0, now - startedAt) : 0;
+  const elapsed = startedAt ? Math.max(0, elapsedMs) : 0;
   const remaining = Math.max(0, duration - elapsed / 1000);
 
+  // High-precision timer: requestAnimationFrame + performance.now (no drift).
   useEffect(() => {
     if (!startedAt || finished) return;
-    const id = window.setInterval(() => setNow(Date.now()), 100);
-    return () => window.clearInterval(id);
+    if (startTimeRef.current === null) startTimeRef.current = performance.now();
+    let raf = 0;
+    const tick = () => {
+      const start = startTimeRef.current;
+      if (start === null) return;
+      setElapsedMs(performance.now() - start);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
   }, [startedAt, finished]);
+
 
   // sample correct-char count each second for consistency
   useEffect(() => {

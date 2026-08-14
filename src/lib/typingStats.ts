@@ -1,6 +1,8 @@
 export interface RunStats {
   wpm: number;
   rawWpm: number;
+  /** Net WPM, penalized for errors. */
+  adjustedWpm: number;
   accuracy: number;
   correct: number;
   incorrect: number;
@@ -19,6 +21,7 @@ export function computeStats(
   const typed = correct + incorrect;
   const wpm = Math.max(0, correct / 5 / minutes);
   const rawWpm = typed / 5 / minutes;
+  const adjustedWpm = Math.max(0, (correct - incorrect) / 5 / minutes);
   const accuracy = typed === 0 ? 100 : (correct / typed) * 100;
 
   let consistency = 100;
@@ -33,6 +36,7 @@ export function computeStats(
   return {
     wpm: round(wpm),
     rawWpm: round(rawWpm),
+    adjustedWpm: round(adjustedWpm),
     accuracy: round(accuracy),
     correct,
     incorrect,
@@ -52,6 +56,7 @@ export interface HistoryEntry extends RunStats {
 }
 
 const KEY = "ttp:history";
+const LIMIT = 100;
 
 export function loadHistory(): HistoryEntry[] {
   if (typeof window === "undefined") return [];
@@ -64,7 +69,7 @@ export function loadHistory(): HistoryEntry[] {
 }
 
 export function saveRun(entry: HistoryEntry): HistoryEntry[] {
-  const next = [entry, ...loadHistory()].slice(0, 50);
+  const next = [entry, ...loadHistory()].slice(0, LIMIT);
   try {
     window.localStorage.setItem(KEY, JSON.stringify(next));
   } catch {
@@ -80,4 +85,29 @@ export function clearHistory(): HistoryEntry[] {
     /* noop */
   }
   return [];
+}
+
+export function exportHistory(): string {
+  return JSON.stringify(loadHistory(), null, 2);
+}
+
+export function importHistory(json: string): HistoryEntry[] | null {
+  try {
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed)) return null;
+    const valid = parsed.every(
+      (p) =>
+        p &&
+        p.id &&
+        p.date &&
+        typeof p.wpm === "number" &&
+        typeof p.accuracy === "number",
+    );
+    if (!valid) return null;
+    const next = (parsed as HistoryEntry[]).slice(0, LIMIT);
+    window.localStorage.setItem(KEY, JSON.stringify(next));
+    return next;
+  } catch {
+    return null;
+  }
 }
