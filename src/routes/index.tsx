@@ -173,9 +173,8 @@ function Index() {
   const handleChange = (value: string) => {
     if (finished) return;
     if (!startedAt) {
-      const t = Date.now();
-      setStartedAt(t);
-      setNow(t);
+      startTimeRef.current = performance.now();
+      setStartedAt(Date.now());
     }
     if (value.length < typed.length) {
       setTyped(value);
@@ -304,9 +303,26 @@ function Index() {
           autoFocus
           autoCapitalize="off"
           autoCorrect="off"
+          autoComplete="off"
+          data-lpignore="true"
           spellCheck={false}
           aria-label="Typing input"
-          onChange={(e) => handleChange(e.target.value)}
+          onChange={(e) => {
+            // Anti-cheat: reject multi-character input (paste / autofill).
+            if (e.target.value.length - typed.length > 1) {
+              e.target.value = typed;
+              return;
+            }
+            handleChange(e.target.value);
+          }}
+          onPaste={(e) => e.preventDefault()}
+          onDrop={(e) => e.preventDefault()}
+          onContextMenu={(e) => e.preventDefault()}
+          onKeyDown={(e) => {
+            if ((e.ctrlKey || e.metaKey) && ["a", "v", "x"].includes(e.key.toLowerCase())) {
+              e.preventDefault();
+            }
+          }}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           className="absolute inset-0 h-full w-full cursor-text opacity-0"
