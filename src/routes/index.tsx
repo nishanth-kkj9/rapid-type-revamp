@@ -176,12 +176,14 @@ function Index() {
     if (startedAt && !finished && remaining <= 0) finish();
   }, [remaining, startedAt, finished, finish]);
 
-  // Global shortcuts: Esc / Tab restart from anywhere.
+  // Global shortcuts: Esc / Tab restart, unless a dialog (command palette) is open.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (document.querySelector('[role="dialog"]')) return;
       if (e.key === "Escape" || e.key === "Tab") {
         e.preventDefault();
         reset();
+        inputRef.current?.focus();
       }
     };
     window.addEventListener("keydown", onKey);
