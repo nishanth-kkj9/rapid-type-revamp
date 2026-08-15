@@ -373,8 +373,20 @@ function Index() {
       </div>
 
       <footer className="mt-10 text-center text-xs text-muted-foreground">
-        Web edition of Typing Trainer Pro. Runs stay in your browser.
+        Web edition of Typing Trainer Pro. Runs stay in your browser. Press{" "}
+        <kbd className="rounded border border-border bg-secondary px-1 font-mono">Ctrl/⌘ K</kbd> for
+        the command palette.
       </footer>
+
+      <CommandPalette
+        difficulty={difficulty}
+        duration={duration}
+        difficulties={DIFFICULTIES}
+        durations={DURATIONS}
+        onDifficulty={setDifficulty}
+        onDuration={setDuration}
+        onRestart={() => reset()}
+      />
     </main>
   );
 }
