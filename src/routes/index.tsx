@@ -13,6 +13,8 @@ import { TypingText } from "@/components/TypingText";
 import { StatCard } from "@/components/StatCard";
 import { HistoryPanel } from "@/components/HistoryPanel";
 import { ProblemKeys } from "@/components/ProblemKeys";
+import { WpmChart } from "@/components/WpmChart";
+import { CommandPalette } from "@/components/CommandPalette";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -173,9 +175,8 @@ function Index() {
   const handleChange = (value: string) => {
     if (finished) return;
     if (!startedAt) {
-      const t = Date.now();
-      setStartedAt(t);
-      setNow(t);
+      startTimeRef.current = performance.now();
+      setStartedAt(Date.now());
     }
     if (value.length < typed.length) {
       setTyped(value);
@@ -304,9 +305,26 @@ function Index() {
           autoFocus
           autoCapitalize="off"
           autoCorrect="off"
+          autoComplete="off"
+          data-lpignore="true"
           spellCheck={false}
           aria-label="Typing input"
-          onChange={(e) => handleChange(e.target.value)}
+          onChange={(e) => {
+            // Anti-cheat: reject multi-character input (paste / autofill).
+            if (e.target.value.length - typed.length > 1) {
+              e.target.value = typed;
+              return;
+            }
+            handleChange(e.target.value);
+          }}
+          onPaste={(e) => e.preventDefault()}
+          onDrop={(e) => e.preventDefault()}
+          onContextMenu={(e) => e.preventDefault()}
+          onKeyDown={(e) => {
+            if ((e.ctrlKey || e.metaKey) && ["a", "v", "x"].includes(e.key.toLowerCase())) {
+              e.preventDefault();
+            }
+          }}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           className="absolute inset-0 h-full w-full cursor-text opacity-0"
@@ -331,9 +349,10 @@ function Index() {
             </div>
             <div className="text-sm text-muted-foreground">
               {stats.accuracy.toFixed(1)}% accuracy · {stats.correct} correct ·{" "}
-              {stats.incorrect} errors · raw {stats.rawWpm.toFixed(0)} · consistency{" "}
-              {stats.consistency.toFixed(0)}%
+              {stats.incorrect} errors · raw {stats.rawWpm.toFixed(0)} · net{" "}
+              {stats.adjustedWpm.toFixed(0)} · consistency {stats.consistency.toFixed(0)}%
             </div>
+            <WpmChart samples={samples} />
             <ProblemKeys mistakes={mistakes} />
             <button
               onClick={() => reset()}
@@ -354,8 +373,20 @@ function Index() {
       </div>
 
       <footer className="mt-10 text-center text-xs text-muted-foreground">
-        Web edition of Typing Trainer Pro. Runs stay in your browser.
+        Web edition of Typing Trainer Pro. Runs stay in your browser. Press{" "}
+        <kbd className="rounded border border-border bg-secondary px-1 font-mono">Ctrl/⌘ K</kbd> for
+        the command palette.
       </footer>
+
+      <CommandPalette
+        difficulty={difficulty}
+        duration={duration}
+        difficulties={DIFFICULTIES}
+        durations={DURATIONS}
+        onDifficulty={setDifficulty}
+        onDuration={setDuration}
+        onRestart={() => reset()}
+      />
     </main>
   );
 }
