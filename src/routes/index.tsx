@@ -94,29 +94,45 @@ function Index() {
   const remaining = Math.max(0, duration - elapsed / 1000);
 
   // High-precision timer: requestAnimationFrame + performance.now (no drift).
+  // State only updates ~10x/sec so typing never competes with the clock.
   useEffect(() => {
     if (!startedAt || finished) return;
     if (startTimeRef.current === null) startTimeRef.current = performance.now();
     let raf = 0;
+    let last = -1;
     const tick = () => {
       const start = startTimeRef.current;
-      if (start === null) return;
-      setElapsedMs(performance.now() - start);
+      if (start !== null) {
+        const ms = performance.now() - start;
+        const bucket = Math.floor(ms / 100);
+        if (bucket !== last) {
+          last = bucket;
+          setElapsedMs(ms);
+        }
+        if (ms >= duration * 1000) {
+          setElapsedMs(duration * 1000);
+          return;
+        }
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [startedAt, finished]);
+  }, [startedAt, finished, duration]);
 
-
-  // sample correct-char count each second for consistency
+  // Sample the correct-char count once per second (consistency + WPM graph).
+  // Reads through a ref so fast typing never restarts the interval.
+  const correctRef = useRef(0);
+  useEffect(() => {
+    correctRef.current = correct;
+  }, [correct]);
   useEffect(() => {
     if (!startedAt || finished) return;
     const id = window.setInterval(() => {
-      setSamples((s) => [...s, correct]);
+      setSamples((s) => [...s, correctRef.current]);
     }, 1000);
     return () => window.clearInterval(id);
-  }, [startedAt, finished, correct]);
+  }, [startedAt, finished]);
 
   const stats = useMemo(
     () =>
