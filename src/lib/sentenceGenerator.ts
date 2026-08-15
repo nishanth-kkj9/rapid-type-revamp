@@ -88,7 +88,10 @@ function fill(template: string, d: Difficulty): string {
 }
 
 function tidy(s: string): string {
-  return s.replace(/\ss\b/g, "s").replace(/\s+/g, " ").trim();
+  return s
+    .replace(/\s+([,.;:?!])/g, "$1") // no space before punctuation
+    .replace(/\s{2,}/g, " ") // collapse repeated spaces
+    .trim();
 }
 
 const history: string[] = [];
