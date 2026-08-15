@@ -13,6 +13,8 @@ import { TypingText } from "@/components/TypingText";
 import { StatCard } from "@/components/StatCard";
 import { HistoryPanel } from "@/components/HistoryPanel";
 import { ProblemKeys } from "@/components/ProblemKeys";
+import { WpmChart } from "@/components/WpmChart";
+import { CommandPalette } from "@/components/CommandPalette";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -347,9 +349,10 @@ function Index() {
             </div>
             <div className="text-sm text-muted-foreground">
               {stats.accuracy.toFixed(1)}% accuracy · {stats.correct} correct ·{" "}
-              {stats.incorrect} errors · raw {stats.rawWpm.toFixed(0)} · consistency{" "}
-              {stats.consistency.toFixed(0)}%
+              {stats.incorrect} errors · raw {stats.rawWpm.toFixed(0)} · net{" "}
+              {stats.adjustedWpm.toFixed(0)} · consistency {stats.consistency.toFixed(0)}%
             </div>
+            <WpmChart samples={samples} />
             <ProblemKeys mistakes={mistakes} />
             <button
               onClick={() => reset()}
