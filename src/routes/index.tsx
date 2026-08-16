@@ -311,7 +311,9 @@ function Index() {
       </div>
 
       <section
-        className="panel relative mt-3 cursor-text p-6 sm:p-8"
+        className={`panel relative mt-3 cursor-text p-6 transition-shadow sm:p-8 ${
+          errorFlash ? "shake" : ""
+        } ${isRecord ? "record-glow" : ""}`}
         onClick={() => inputRef.current?.focus()}
       >
         <div className={!focused && !finished ? "blur-[3px] transition-[filter]" : "transition-[filter]"}>
