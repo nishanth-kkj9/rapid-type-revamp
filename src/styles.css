@@ -136,3 +136,34 @@
 @utility caret {
   animation: caret-blink 1.05s steps(1, end) infinite;
 }
+
+@keyframes shake-x {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+@utility shake {
+  animation: shake-x 140ms ease-in-out;
+}
+
+@keyframes record-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 oklch(0.78 0.16 160 / 0.5);
+  }
+  50% {
+    box-shadow: 0 0 32px 6px oklch(0.78 0.16 160 / 0.35);
+  }
+}
+
+@utility record-glow {
+  animation: record-glow 2s ease-in-out infinite;
+}
