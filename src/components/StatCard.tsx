@@ -7,7 +7,7 @@ interface Props {
 
 export function StatCard({ label, value, hint, emphasis }: Props) {
   return (
-    <div className="panel px-4 py-3">
+    <div className="panel px-4 py-3 transition-transform duration-200 hover:-translate-y-0.5">
       <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
         {label}
       </div>
