@@ -167,3 +167,11 @@
 @utility record-glow {
   animation: record-glow 2s ease-in-out infinite;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .shake,
+  .record-glow,
+  .caret {
+    animation: none !important;
+  }
+}
