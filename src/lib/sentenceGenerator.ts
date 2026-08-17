@@ -94,14 +94,16 @@ function tidy(s: string): string {
     .trim();
 }
 
-const history: string[] = [];
+/** Per-difficulty dedupe buffers so recent sentences don't repeat. */
+const recentByDifficulty: Record<Difficulty, string[]> = { easy: [], medium: [], hard: [] };
 
 export function generateSentence(difficulty: Difficulty): string {
+  const recent = recentByDifficulty[difficulty];
   for (let i = 0; i < 20; i++) {
     const s = tidy(fill(pick(TEMPLATES[difficulty]), difficulty));
-    if (!history.includes(s)) {
-      history.push(s);
-      if (history.length > 10) history.shift();
+    if (!recent.includes(s)) {
+      recent.push(s);
+      if (recent.length > 10) recent.shift();
       return s;
     }
   }

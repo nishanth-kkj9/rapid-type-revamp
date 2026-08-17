@@ -98,8 +98,8 @@ LICENSE                         MIT License
 ### Clone the repository
 
 ```bash
-git clone https://github.com/nishanth-kkj9/typing-trainer-pro.git
-cd typing-trainer-pro
+git clone https://github.com/nishanth-kkj9/rapid-type-revamp.git
+cd rapid-type-revamp
 ```
 
 ### Install dependencies

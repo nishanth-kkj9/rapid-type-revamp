@@ -15,6 +15,11 @@ export interface RunStats {
 
 const round = (n: number) => Math.round(n * 10) / 10;
 
+/** Cumulative per-second counts -> per-second deltas. */
+export function toDeltas(cumulative: number[]): number[] {
+  return cumulative.map((v, i, a) => (i === 0 ? v : v - (a[i - 1] ?? 0)));
+}
+
 export function computeStats(
   correct: number,
   incorrect: number,

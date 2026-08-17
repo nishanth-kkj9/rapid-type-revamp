@@ -27,9 +27,26 @@ function splitWords(text: string): Word[] {
   return words;
 }
 
+/** Words rendered before/after the caret word — keeps renders O(1) on long passages. */
+const WINDOW_BEFORE = 12;
+const WINDOW_AFTER = 40;
+
 export function TypingText({ text, typed }: Props) {
   const cursorRef = useRef<HTMLSpanElement>(null);
   const words = useMemo(() => splitWords(text), [text]);
+
+  const caretIndex = useMemo(() => {
+    const i = words.findIndex(
+      (w) => typed.length >= w.start && typed.length < w.start + w.chars.length,
+    );
+    return i === -1 ? words.length - 1 : i;
+  }, [words, typed.length]);
+
+  const visible = useMemo(
+    () =>
+      words.slice(Math.max(0, caretIndex - WINDOW_BEFORE), caretIndex + WINDOW_AFTER + 1),
+    [words, caretIndex],
+  );
 
   useEffect(() => {
     cursorRef.current?.scrollIntoView({ block: "nearest", behavior: "auto" });
@@ -38,7 +55,7 @@ export function TypingText({ text, typed }: Props) {
   return (
     <div className="max-h-[9.5rem] overflow-hidden sm:max-h-[11rem]">
       <p className="flex flex-wrap font-mono text-xl leading-[2.1rem] tracking-tight sm:text-2xl sm:leading-[2.6rem]">
-        {words.map((word) => (
+        {visible.map((word) => (
           <span key={word.start} className="whitespace-pre">
             {word.chars.map((ch, j) => {
               const i = word.start + j;
