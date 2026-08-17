@@ -5,6 +5,7 @@ import {
   clearHistory,
   computeStats,
   loadHistory,
+  newRunId,
   saveRun,
   type HistoryEntry,
 } from "@/lib/typingStats";
@@ -160,15 +161,14 @@ function Index() {
     if (savedRef.current) return;
     savedRef.current = true;
     if (correct + incorrect > 0) {
-      setHistory(
-        saveRun({
-          ...stats,
-          id: `${Date.now()}`,
-          date: Date.now(),
-          difficulty,
-          mode: `${duration}s`,
-        }),
-      );
+      const { list } = saveRun({
+        ...stats,
+        id: newRunId(),
+        date: Date.now(),
+        difficulty,
+        mode: `${duration}s`,
+      });
+      setHistory(list);
     }
   }, [stats, correct, incorrect, difficulty, duration]);
 
