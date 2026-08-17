@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { generatePassage, type Difficulty } from "@/lib/sentenceGenerator";
 import {
   clearHistory,
@@ -7,6 +8,7 @@ import {
   loadHistory,
   newRunId,
   saveRun,
+  toDeltas,
   type HistoryEntry,
 } from "@/lib/typingStats";
 import { Keyboard } from "@/components/Keyboard";
@@ -42,15 +44,39 @@ export const Route = createFileRoute("/")({
 const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
 const DURATIONS = [15, 30, 60, 120] as const;
 
+const MemoKeyboard = memo(Keyboard);
+const MemoHistory = memo(HistoryPanel);
+
+/** Recompute counters from the whole typed string so backspaces reconcile. */
+function reconcile(text: string, value: string) {
+  let correct = 0;
+  let incorrect = 0;
+  const mistakes: Record<string, number> = {};
+  for (let i = 0; i < value.length; i++) {
+    const expected = text[i];
+    if (expected === undefined) {
+      incorrect++;
+      continue;
+    }
+    if (value[i] === expected) correct++;
+    else {
+      incorrect++;
+      mistakes[expected] = (mistakes[expected] ?? 0) + 1;
+    }
+  }
+  return { correct, incorrect, mistakes };
+}
+
 function Index() {
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [duration, setDuration] = useState<number>(30);
-  const [text, setText] = useState("");
+  const [text, setText] = useState<string>(() => generatePassage("medium", 320));
   const [typed, setTyped] = useState("");
-  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [running, setRunning] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
 
   const [finished, setFinished] = useState(false);
+  const [isRecord, setIsRecord] = useState(false);
   const [errorFlash, setErrorFlash] = useState(false);
   const [pressedChar, setPressedChar] = useState<string | null>(null);
   const [correct, setCorrect] = useState(0);
@@ -59,45 +85,65 @@ function Index() {
   const [samples, setSamples] = useState<number[]>([]);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [focused, setFocused] = useState(true);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const savedRef = useRef(false);
   const startTimeRef = useRef<number | null>(null);
+  const flashTimerRef = useRef<number | null>(null);
+  const correctRef = useRef(0);
+  const incorrectRef = useRef(0);
+  const samplesRef = useRef<number[]>([]);
+  const historyRef = useRef<HistoryEntry[]>([]);
 
+  useEffect(() => {
+    const loaded = loadHistory();
+    historyRef.current = loaded;
+    setHistory(loaded);
+  }, []);
 
-  useEffect(() => setHistory(loadHistory()), []);
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
 
-  const reset = useCallback(
-    (d: Difficulty = difficulty) => {
-      setText(generatePassage(d, 320));
-      setTyped("");
-      setStartedAt(null);
-      setElapsedMs(0);
-      startTimeRef.current = null;
-
-      setFinished(false);
-      setCorrect(0);
-      setIncorrect(0);
-      setMistakes({});
-      setSamples([]);
-      setPressedChar(null);
-      savedRef.current = false;
-      inputRef.current?.focus();
+  useEffect(
+    () => () => {
+      if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
     },
-    [difficulty],
+    [],
   );
+
+  const reset = useCallback((d: Difficulty) => {
+    setText(generatePassage(d, 320));
+    setTyped("");
+    setRunning(false);
+    setElapsedMs(0);
+    startTimeRef.current = null;
+    setFinished(false);
+    setIsRecord(false);
+    setCorrect(0);
+    setIncorrect(0);
+    correctRef.current = 0;
+    incorrectRef.current = 0;
+    setMistakes({});
+    setSamples([]);
+    samplesRef.current = [];
+    setPressedChar(null);
+    savedRef.current = false;
+    inputRef.current?.focus();
+  }, []);
+
+  const restart = useCallback(() => reset(difficulty), [reset, difficulty]);
 
   useEffect(() => {
     reset(difficulty);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [difficulty, duration]);
+  }, [difficulty, duration, reset]);
 
-  const elapsed = startedAt ? Math.max(0, elapsedMs) : 0;
+  const elapsed = running ? Math.max(0, elapsedMs) : 0;
   const remaining = Math.max(0, duration - elapsed / 1000);
 
-  // High-precision timer: requestAnimationFrame + performance.now (no drift).
-  // State only updates ~10x/sec so typing never competes with the clock.
+  // High-precision clock: rAF + performance.now, state throttled to ~10 Hz.
   useEffect(() => {
-    if (!startedAt || finished) return;
+    if (!running || finished) return;
     if (startTimeRef.current === null) startTimeRef.current = performance.now();
     let raf = 0;
     let last = -1;
@@ -119,30 +165,20 @@ function Index() {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [startedAt, finished, duration]);
+  }, [running, finished, duration]);
 
-  // Sample the correct-char count once per second (consistency + WPM graph).
-  // Reads through a ref so fast typing never restarts the interval.
-  const correctRef = useRef(0);
+  // Sample cumulative correct chars once per second (consistency + WPM graph).
   useEffect(() => {
-    correctRef.current = correct;
-  }, [correct]);
-  useEffect(() => {
-    if (!startedAt || finished) return;
+    if (!running || finished) return;
     const id = window.setInterval(() => {
-      setSamples((s) => [...s, correctRef.current]);
+      samplesRef.current = [...samplesRef.current, correctRef.current];
+      setSamples(samplesRef.current);
     }, 1000);
     return () => window.clearInterval(id);
-  }, [startedAt, finished]);
+  }, [running, finished]);
 
   const stats = useMemo(
-    () =>
-      computeStats(
-        correct,
-        incorrect,
-        elapsed || 1,
-        samples.map((v, i, a) => (i === 0 ? v : v - (a[i - 1] ?? 0))),
-      ),
+    () => computeStats(correct, incorrect, elapsed || 1, toDeltas(samples)),
     [correct, incorrect, elapsed, samples],
   );
 
@@ -150,88 +186,87 @@ function Index() {
     () => history.reduce((m, h) => Math.max(m, h.wpm), 0),
     [history],
   );
-  const bestRef = useRef(0);
-  useEffect(() => {
-    if (!finished) bestRef.current = previousBest;
-  }, [finished, previousBest]);
-  const isRecord = finished && stats.wpm > bestRef.current && stats.wpm > 0;
 
   const finish = useCallback(() => {
     setFinished(true);
     if (savedRef.current) return;
     savedRef.current = true;
-    if (correct + incorrect > 0) {
-      const { list } = saveRun({
-        ...stats,
+    const finalStats = computeStats(
+      correctRef.current,
+      incorrectRef.current,
+      duration * 1000,
+      toDeltas(samplesRef.current),
+    );
+    const prevBest = historyRef.current.reduce((m, h) => Math.max(m, h.wpm), 0);
+    setIsRecord(finalStats.wpm > prevBest && finalStats.wpm > 0);
+    if (finalStats.typed > 0) {
+      const { list, ok } = saveRun({
+        ...finalStats,
         id: newRunId(),
         date: Date.now(),
         difficulty,
         mode: `${duration}s`,
       });
+      historyRef.current = list;
       setHistory(list);
+      if (!ok) {
+        toast.error("Couldn't save this run — storage is full. Export and clear old runs.");
+      }
     }
-  }, [stats, correct, incorrect, difficulty, duration]);
+  }, [difficulty, duration]);
 
   useEffect(() => {
-    if (startedAt && !finished && remaining <= 0) finish();
-  }, [remaining, startedAt, finished, finish]);
+    if (running && !finished && remaining <= 0) finish();
+  }, [remaining, running, finished, finish]);
 
-  // Global shortcuts: Esc / Tab restart, unless a dialog (command palette) is open.
+  // Esc restarts. Tab is deliberately left alone so keyboard navigation works.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (document.querySelector('[role="dialog"]')) return;
-      if (e.key === "Escape" || e.key === "Tab") {
+      if (e.key === "Escape") {
         e.preventDefault();
-        reset();
+        restart();
         inputRef.current?.focus();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [reset]);
+  }, [restart]);
 
   const handleChange = (value: string) => {
     if (finished) return;
-    if (!startedAt) {
+    if (!running) {
       startTimeRef.current = performance.now();
-      setStartedAt(Date.now());
+      setRunning(true);
     }
-    if (value.length < typed.length) {
-      setTyped(value);
-      return;
-    }
-    const added = value.slice(typed.length);
-    let ok = 0;
-    let bad = 0;
-    const missed: Record<string, number> = {};
-    for (let i = 0; i < added.length; i++) {
-      const expected = text[typed.length + i];
-      if (added[i] === expected) ok++;
-      else {
-        bad++;
-        if (expected) missed[expected] = (missed[expected] ?? 0) + 1;
+
+    const grew = value.length > typed.length;
+    const next = reconcile(text, value);
+    setCorrect(next.correct);
+    setIncorrect(next.incorrect);
+    correctRef.current = next.correct;
+    incorrectRef.current = next.incorrect;
+    setMistakes(next.mistakes);
+
+    if (grew) {
+      const last = value[value.length - 1] ?? null;
+      setPressedChar(last);
+      if (last !== text[value.length - 1]) {
+        setErrorFlash(true);
+        if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
+        flashTimerRef.current = window.setTimeout(() => setErrorFlash(false), 140);
       }
     }
-    setCorrect((c) => c + ok);
-    setIncorrect((c) => c + bad);
-    setPressedChar(added[added.length - 1] ?? null);
-    if (bad > 0) {
-      setMistakes((m) => {
-        const next = { ...m };
-        for (const [k, v] of Object.entries(missed)) next[k] = (next[k] ?? 0) + v;
-        return next;
-      });
-      setErrorFlash(true);
-      window.setTimeout(() => setErrorFlash(false), 140);
-    }
+
     setTyped(value);
-    if (value.length >= text.length - 60) {
-      setText((t) => t + " " + generatePassage(difficulty, 200));
+    if (value.length >= text.length - 60 && text.length < 6000) {
+      setText((t) => `${t} ${generatePassage(difficulty, 200)}`);
     }
   };
 
   const nextChar = finished ? null : (text[typed.length] ?? null);
-  const progress = Math.min(100, startedAt ? (elapsed / 1000 / duration) * 100 : 0);
+  const progress = Math.min(100, running ? (elapsed / 1000 / duration) * 100 : 0);
+  const settled = elapsed > 1000;
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
@@ -245,11 +280,10 @@ function Index() {
           </p>
         </div>
         <button
-          onClick={() => reset()}
+          onClick={restart}
           className="rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
         >
-          Restart{" "}
-          <span className="ml-1 font-mono text-xs text-muted-foreground">Esc / Tab</span>
+          Restart <span className="ml-1 font-mono text-xs text-muted-foreground">Esc</span>
         </button>
       </header>
 
@@ -289,7 +323,12 @@ function Index() {
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="WPM" value={stats.wpm.toFixed(0)} emphasis hint={`raw ${stats.rawWpm.toFixed(0)}`} />
+        <StatCard
+          label="WPM"
+          value={settled ? stats.wpm.toFixed(0) : "—"}
+          emphasis
+          hint={settled ? `raw ${stats.rawWpm.toFixed(0)}` : "start typing"}
+        />
         <StatCard
           label="Accuracy"
           value={`${stats.accuracy.toFixed(0)}%`}
@@ -316,7 +355,11 @@ function Index() {
         } ${isRecord ? "record-glow" : ""}`}
         onClick={() => inputRef.current?.focus()}
       >
-        <div className={!focused && !finished ? "blur-[3px] transition-[filter]" : "transition-[filter]"}>
+        <div
+          className={
+            !focused && !finished ? "blur-[3px] transition-[filter]" : "transition-[filter]"
+          }
+        >
           <TypingText text={text} typed={typed} />
         </div>
         <input
@@ -339,9 +382,8 @@ function Index() {
           }}
           onPaste={(e) => e.preventDefault()}
           onDrop={(e) => e.preventDefault()}
-          onContextMenu={(e) => e.preventDefault()}
           onKeyDown={(e) => {
-            if ((e.ctrlKey || e.metaKey) && ["a", "v", "x"].includes(e.key.toLowerCase())) {
+            if ((e.ctrlKey || e.metaKey) && ["v", "x"].includes(e.key.toLowerCase())) {
               e.preventDefault();
             }
           }}
@@ -349,6 +391,11 @@ function Index() {
           onBlur={() => setFocused(false)}
           className="absolute inset-0 h-full w-full cursor-text opacity-0"
         />
+        <p aria-live="polite" className="sr-only">
+          {finished
+            ? `Run complete. ${stats.wpm.toFixed(0)} words per minute, ${stats.accuracy.toFixed(0)} percent accuracy.`
+            : ""}
+        </p>
         {!focused && !finished ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <span className="rounded-lg bg-secondary/90 px-4 py-2 text-sm text-muted-foreground">
@@ -368,14 +415,14 @@ function Index() {
               <span className="ml-2 text-base font-normal text-muted-foreground">wpm</span>
             </div>
             <div className="text-sm text-muted-foreground">
-              {stats.accuracy.toFixed(1)}% accuracy · {stats.correct} correct ·{" "}
-              {stats.incorrect} errors · raw {stats.rawWpm.toFixed(0)} · net{" "}
-              {stats.adjustedWpm.toFixed(0)} · consistency {stats.consistency.toFixed(0)}%
+              {stats.accuracy.toFixed(1)}% accuracy · {stats.correct} correct · {stats.incorrect}{" "}
+              errors · raw {stats.rawWpm.toFixed(0)} · net {stats.adjustedWpm.toFixed(0)} ·
+              consistency {stats.consistency.toFixed(0)}%
             </div>
             <WpmChart samples={samples} />
             <ProblemKeys mistakes={mistakes} />
             <button
-              onClick={() => reset()}
+              onClick={restart}
               className="mt-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
             >
               Go again
@@ -385,11 +432,11 @@ function Index() {
       </section>
 
       <div className="mt-4">
-        <Keyboard nextChar={nextChar} errorFlash={errorFlash} pressedChar={pressedChar} />
+        <MemoKeyboard nextChar={nextChar} errorFlash={errorFlash} pressedChar={pressedChar} />
       </div>
 
       <div className="mt-4">
-        <HistoryPanel history={history} onClear={() => setHistory(clearHistory())} />
+        <MemoHistory history={history} onClear={() => setHistory(clearHistory())} />
       </div>
 
       <footer className="mt-10 text-center text-xs text-muted-foreground">
@@ -405,7 +452,7 @@ function Index() {
         durations={DURATIONS}
         onDifficulty={setDifficulty}
         onDuration={setDuration}
-        onRestart={() => reset()}
+        onRestart={restart}
       />
     </main>
   );
