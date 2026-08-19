@@ -271,7 +271,7 @@ function Index() {
   const settled = elapsed > 1000;
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
+    <main className="mx-auto min-h-dvh w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-mono text-2xl font-bold tracking-tight sm:text-3xl">
