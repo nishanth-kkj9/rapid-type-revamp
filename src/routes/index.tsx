@@ -200,17 +200,18 @@ function Index() {
     setFinished(true);
     if (savedRef.current) return;
     savedRef.current = true;
-    const finalStats = computeStats(
+    const fs = computeStats(
       correctRef.current,
       incorrectRef.current,
       duration * 1000,
       toDeltas(samplesRef.current),
     );
+    setFinalStats(fs);
     const prevBest = historyRef.current.reduce((m, h) => Math.max(m, h.wpm), 0);
-    setIsRecord(finalStats.wpm > prevBest && finalStats.wpm > 0);
-    if (finalStats.typed > 0) {
+    setIsRecord(fs.wpm > prevBest && fs.wpm > 0);
+    if (fs.typed > 0) {
       const { list, ok } = saveRun({
-        ...finalStats,
+        ...fs,
         id: newRunId(),
         date: Date.now(),
         difficulty,
@@ -223,6 +224,12 @@ function Index() {
       }
     }
   }, [difficulty, duration]);
+
+  // Move focus to the results action so keyboard users land on something useful.
+  useEffect(() => {
+    if (finished) againRef.current?.focus();
+  }, [finished]);
+
 
   useEffect(() => {
     if (running && !finished && remaining <= 0) finish();
