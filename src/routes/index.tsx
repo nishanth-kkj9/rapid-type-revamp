@@ -10,7 +10,9 @@ import {
   saveRun,
   toDeltas,
   type HistoryEntry,
+  type RunStats,
 } from "@/lib/typingStats";
+
 import { Keyboard } from "@/components/Keyboard";
 import { TypingText } from "@/components/TypingText";
 import { StatCard } from "@/components/StatCard";
@@ -77,6 +79,7 @@ function Index() {
   const [elapsedMs, setElapsedMs] = useState(0);
 
   const [finished, setFinished] = useState(false);
+  const [finalStats, setFinalStats] = useState<RunStats | null>(null);
   const [isRecord, setIsRecord] = useState(false);
   const [errorFlash, setErrorFlash] = useState(false);
   const [pressedChar, setPressedChar] = useState<string | null>(null);
@@ -88,9 +91,11 @@ function Index() {
   const [focused, setFocused] = useState(true);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const againRef = useRef<HTMLButtonElement>(null);
   const savedRef = useRef(false);
   const startTimeRef = useRef<number | null>(null);
   const flashTimerRef = useRef<number | null>(null);
+  const pressTimerRef = useRef<number | null>(null);
   const correctRef = useRef(0);
   const incorrectRef = useRef(0);
   const samplesRef = useRef<number[]>([]);
@@ -100,7 +105,6 @@ function Index() {
     const loaded = loadHistory();
     historyRef.current = loaded;
     setHistory(loaded);
-    setText((t) => (t ? t : generatePassage("medium", 320)));
   }, []);
 
   useEffect(() => {
@@ -110,6 +114,7 @@ function Index() {
   useEffect(
     () => () => {
       if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
+      if (pressTimerRef.current) window.clearTimeout(pressTimerRef.current);
     },
     [],
   );
@@ -121,6 +126,7 @@ function Index() {
     setElapsedMs(0);
     startTimeRef.current = null;
     setFinished(false);
+    setFinalStats(null);
     setIsRecord(false);
     setCorrect(0);
     setIncorrect(0);
@@ -133,6 +139,7 @@ function Index() {
     savedRef.current = false;
     inputRef.current?.focus();
   }, []);
+
 
   const restart = useCallback(() => reset(difficulty), [reset, difficulty]);
 
@@ -193,17 +200,18 @@ function Index() {
     setFinished(true);
     if (savedRef.current) return;
     savedRef.current = true;
-    const finalStats = computeStats(
+    const fs = computeStats(
       correctRef.current,
       incorrectRef.current,
       duration * 1000,
       toDeltas(samplesRef.current),
     );
+    setFinalStats(fs);
     const prevBest = historyRef.current.reduce((m, h) => Math.max(m, h.wpm), 0);
-    setIsRecord(finalStats.wpm > prevBest && finalStats.wpm > 0);
-    if (finalStats.typed > 0) {
+    setIsRecord(fs.wpm > prevBest && fs.wpm > 0);
+    if (fs.typed > 0) {
       const { list, ok } = saveRun({
-        ...finalStats,
+        ...fs,
         id: newRunId(),
         date: Date.now(),
         difficulty,
@@ -216,6 +224,12 @@ function Index() {
       }
     }
   }, [difficulty, duration]);
+
+  // Move focus to the results action so keyboard users land on something useful.
+  useEffect(() => {
+    if (finished) againRef.current?.focus();
+  }, [finished]);
+
 
   useEffect(() => {
     if (running && !finished && remaining <= 0) finish();
@@ -271,7 +285,7 @@ function Index() {
   const settled = elapsed > 1000;
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
+    <main className="mx-auto min-h-dvh w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-mono text-2xl font-bold tracking-tight sm:text-3xl">
