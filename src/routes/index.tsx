@@ -436,7 +436,11 @@ function Index() {
       </div>
 
       <div className="mt-4">
-        <MemoHistory history={history} onClear={() => setHistory(clearHistory())} />
+        <MemoHistory
+          history={history}
+          onClear={() => setHistory(clearHistory())}
+          onImport={(entries) => setHistory(entries)}
+        />
       </div>
 
       <footer className="mt-10 text-center text-xs text-muted-foreground">
