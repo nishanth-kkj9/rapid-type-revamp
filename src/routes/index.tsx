@@ -10,7 +10,9 @@ import {
   saveRun,
   toDeltas,
   type HistoryEntry,
+  type RunStats,
 } from "@/lib/typingStats";
+
 import { Keyboard } from "@/components/Keyboard";
 import { TypingText } from "@/components/TypingText";
 import { StatCard } from "@/components/StatCard";
