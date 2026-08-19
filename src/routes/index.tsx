@@ -100,6 +100,7 @@ function Index() {
     const loaded = loadHistory();
     historyRef.current = loaded;
     setHistory(loaded);
+    setText((t) => (t ? t : generatePassage("medium", 320)));
   }, []);
 
   useEffect(() => {
