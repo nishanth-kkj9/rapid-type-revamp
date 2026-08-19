@@ -79,6 +79,7 @@ function Index() {
   const [elapsedMs, setElapsedMs] = useState(0);
 
   const [finished, setFinished] = useState(false);
+  const [finalStats, setFinalStats] = useState<RunStats | null>(null);
   const [isRecord, setIsRecord] = useState(false);
   const [errorFlash, setErrorFlash] = useState(false);
   const [pressedChar, setPressedChar] = useState<string | null>(null);
@@ -90,9 +91,11 @@ function Index() {
   const [focused, setFocused] = useState(true);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const againRef = useRef<HTMLButtonElement>(null);
   const savedRef = useRef(false);
   const startTimeRef = useRef<number | null>(null);
   const flashTimerRef = useRef<number | null>(null);
+  const pressTimerRef = useRef<number | null>(null);
   const correctRef = useRef(0);
   const incorrectRef = useRef(0);
   const samplesRef = useRef<number[]>([]);
@@ -102,7 +105,6 @@ function Index() {
     const loaded = loadHistory();
     historyRef.current = loaded;
     setHistory(loaded);
-    setText((t) => (t ? t : generatePassage("medium", 320)));
   }, []);
 
   useEffect(() => {
@@ -112,6 +114,7 @@ function Index() {
   useEffect(
     () => () => {
       if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
+      if (pressTimerRef.current) window.clearTimeout(pressTimerRef.current);
     },
     [],
   );
@@ -123,6 +126,7 @@ function Index() {
     setElapsedMs(0);
     startTimeRef.current = null;
     setFinished(false);
+    setFinalStats(null);
     setIsRecord(false);
     setCorrect(0);
     setIncorrect(0);
@@ -135,6 +139,7 @@ function Index() {
     savedRef.current = false;
     inputRef.current?.focus();
   }, []);
+
 
   const restart = useCallback(() => reset(difficulty), [reset, difficulty]);
 
