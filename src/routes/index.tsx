@@ -70,7 +70,8 @@ function reconcile(text: string, value: string) {
 function Index() {
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [duration, setDuration] = useState<number>(30);
-  const [text, setText] = useState<string>(() => generatePassage("medium", 320));
+  // Generated after mount: random text during SSR would hydration-mismatch.
+  const [text, setText] = useState<string>("");
   const [typed, setTyped] = useState("");
   const [running, setRunning] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
