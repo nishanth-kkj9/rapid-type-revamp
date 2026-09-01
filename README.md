@@ -21,7 +21,7 @@ This is the web rebuild of the original [Typing Trainer Pro](https://github.com/
 - **Personal-best detection** — completed runs are compared against your previous best WPM and celebrated with a glow.
 - **Mistake shake** — the typing panel shakes on incorrect input for immediate tactile feedback.
 - **Command palette** — press `Ctrl+K` (or `⌘+K`) to change difficulty, duration, or restart without leaving the keyboard.
-- **Keyboard shortcuts** — `Esc` or `Tab` restarts a run; `Ctrl/⌘+K` opens the command palette.
+- **Keyboard shortcuts** — `Esc` restarts a run; `Ctrl/⌘+K` opens the command palette.
 - **Responsive, terminal-style UI** — designed for desktop and smaller screens with a focused dark interface.
 
 ## 📊 Performance metrics
@@ -144,9 +144,8 @@ npm run format
 
 | Shortcut | Action |
 | --- | --- |
-| `Esc` or `Tab` | Restart the current test |
+| `Esc` | Restart the current test |
 | `Ctrl+K` / `⌘+K` | Open the command palette |
-| `Ctrl/⌘ + number` | Select a command palette item when open |
 
 ## 🔒 Privacy
 
