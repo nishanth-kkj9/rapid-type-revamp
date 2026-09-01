@@ -37,8 +37,7 @@ export function computeStats(
   let consistency = 100;
   if (samples.length > 1) {
     const mean = samples.reduce((a, b) => a + b, 0) / samples.length;
-    const variance =
-      samples.reduce((a, b) => a + (b - mean) ** 2, 0) / samples.length;
+    const variance = samples.reduce((a, b) => a + (b - mean) ** 2, 0) / samples.length;
     const cv = mean > 0 ? Math.sqrt(variance) / mean : 0;
     consistency = Math.max(0, Math.min(100, 100 - cv * 100));
   }
@@ -114,9 +113,7 @@ export function loadHistory(): HistoryEntry[] {
 
 /** Persist and return the new list. `ok` is false when storage is unavailable/full. */
 export function saveRun(entry: HistoryEntry): { list: HistoryEntry[]; ok: boolean } {
-  const next = [entry, ...loadHistory()]
-    .sort((a, b) => b.date - a.date)
-    .slice(0, LIMIT);
+  const next = [entry, ...loadHistory()].sort((a, b) => b.date - a.date).slice(0, LIMIT);
   if (!isBrowser()) return { list: next, ok: false };
   try {
     window.localStorage.setItem(KEY, JSON.stringify(next));
@@ -150,9 +147,7 @@ export function importHistory(json: string): HistoryEntry[] | null {
     const byId = new Map<string, HistoryEntry>();
     for (const e of loadHistory()) byId.set(e.id, e);
     for (const e of parsed.data as HistoryEntry[]) byId.set(e.id, e);
-    const merged = [...byId.values()]
-      .sort((a, b) => b.date - a.date)
-      .slice(0, LIMIT);
+    const merged = [...byId.values()].sort((a, b) => b.date - a.date).slice(0, LIMIT);
     window.localStorage.setItem(KEY, JSON.stringify(merged));
     return merged;
   } catch {

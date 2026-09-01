@@ -26,13 +26,13 @@ This is the web rebuild of the original [Typing Trainer Pro](https://github.com/
 
 ## 📊 Performance metrics
 
-| Metric | Calculation |
-| --- | --- |
-| **WPM** | Correct characters ÷ 5 ÷ elapsed minutes |
-| **Raw WPM** | Total typed characters ÷ 5 ÷ elapsed minutes |
-| **Net WPM** | (Correct characters − errors × penalty) ÷ 5 ÷ elapsed minutes |
-| **Accuracy** | Correct characters ÷ total typed characters × 100 |
-| **Consistency** | `100 − coefficient of variation × 100`, clamped to 0–100 |
+| Metric          | Calculation                                                   |
+| --------------- | ------------------------------------------------------------- |
+| **WPM**         | Correct characters ÷ 5 ÷ elapsed minutes                      |
+| **Raw WPM**     | Total typed characters ÷ 5 ÷ elapsed minutes                  |
+| **Net WPM**     | (Correct characters − errors × penalty) ÷ 5 ÷ elapsed minutes |
+| **Accuracy**    | Correct characters ÷ total typed characters × 100             |
+| **Consistency** | `100 − coefficient of variation × 100`, clamped to 0–100      |
 
 A completed run records correct characters, errors, total typed characters, elapsed time, difficulty, duration mode, per-second character samples, and a mistake map.
 
@@ -142,9 +142,9 @@ npm run format
 
 ## ⌨️ Keyboard shortcuts
 
-| Shortcut | Action |
-| --- | --- |
-| `Esc` | Restart the current test |
+| Shortcut         | Action                   |
+| ---------------- | ------------------------ |
+| `Esc`            | Restart the current test |
 | `Ctrl+K` / `⌘+K` | Open the command palette |
 
 ## 🔒 Privacy

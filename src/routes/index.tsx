@@ -140,7 +140,6 @@ function Index() {
     inputRef.current?.focus();
   }, []);
 
-
   const restart = useCallback(() => reset(difficulty), [reset, difficulty]);
 
   useEffect(() => {
@@ -191,10 +190,7 @@ function Index() {
     [correct, incorrect, elapsed, samples],
   );
 
-  const previousBest = useMemo(
-    () => history.reduce((m, h) => Math.max(m, h.wpm), 0),
-    [history],
-  );
+  const previousBest = useMemo(() => history.reduce((m, h) => Math.max(m, h.wpm), 0), [history]);
 
   const finish = useCallback(() => {
     setFinished(true);
@@ -229,7 +225,6 @@ function Index() {
   useEffect(() => {
     if (finished) againRef.current?.focus();
   }, [finished]);
-
 
   useEffect(() => {
     if (running && !finished && remaining <= 0) finish();
