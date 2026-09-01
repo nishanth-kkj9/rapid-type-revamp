@@ -354,7 +354,7 @@ function Index() {
           label="Time left"
           value={`${Math.ceil(remaining)}s`}
           hint={`${duration}s run`}
-          warn={started && !finished && remaining <= 5}
+          warn={running && !finished && remaining <= 5}
         />
         <StatCard
           label="Consistency"
