@@ -43,8 +43,7 @@ export function TypingText({ text, typed }: Props) {
   }, [words, typed.length]);
 
   const visible = useMemo(
-    () =>
-      words.slice(Math.max(0, caretIndex - WINDOW_BEFORE), caretIndex + WINDOW_AFTER + 1),
+    () => words.slice(Math.max(0, caretIndex - WINDOW_BEFORE), caretIndex + WINDOW_AFTER + 1),
     [words, caretIndex],
   );
 

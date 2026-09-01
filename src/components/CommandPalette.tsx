@@ -53,7 +53,11 @@ export function CommandPalette({
         <CommandEmpty>No matching command.</CommandEmpty>
         <CommandGroup heading="Difficulty">
           {difficulties.map((d) => (
-            <CommandItem key={d} value={`difficulty ${d}`} onSelect={() => run(() => onDifficulty(d))}>
+            <CommandItem
+              key={d}
+              value={`difficulty ${d}`}
+              onSelect={() => run(() => onDifficulty(d))}
+            >
               <span className="capitalize">{d}</span>
               {difficulty === d ? (
                 <span className="ml-auto text-xs text-muted-foreground">current</span>
@@ -63,7 +67,11 @@ export function CommandPalette({
         </CommandGroup>
         <CommandGroup heading="Test length">
           {durations.map((s) => (
-            <CommandItem key={s} value={`duration ${s} seconds`} onSelect={() => run(() => onDuration(s))}>
+            <CommandItem
+              key={s}
+              value={`duration ${s} seconds`}
+              onSelect={() => run(() => onDuration(s))}
+            >
               <span className="font-mono">{s}s</span>
               {duration === s ? (
                 <span className="ml-auto text-xs text-muted-foreground">current</span>

@@ -8,11 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  exportHistory,
-  importHistory,
-  type HistoryEntry,
-} from "@/lib/typingStats";
+import { exportHistory, importHistory, type HistoryEntry } from "@/lib/typingStats";
 
 interface Props {
   history: HistoryEntry[];
@@ -25,9 +21,7 @@ export function HistoryPanel({ history, onClear, onImport }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const best = history.reduce((m, h) => Math.max(m, h.wpm), 0);
-  const avg = history.length
-    ? history.reduce((a, h) => a + h.wpm, 0) / history.length
-    : 0;
+  const avg = history.length ? history.reduce((a, h) => a + h.wpm, 0) / history.length : 0;
 
   const chartData = useMemo(
     () =>
@@ -114,9 +108,7 @@ export function HistoryPanel({ history, onClear, onImport }: Props) {
         </div>
       </div>
 
-      {importError ? (
-        <p className="mt-3 text-xs text-destructive">{importError}</p>
-      ) : null}
+      {importError ? <p className="mt-3 text-xs text-destructive">{importError}</p> : null}
 
       {history.length === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">
@@ -137,17 +129,13 @@ export function HistoryPanel({ history, onClear, onImport }: Props) {
               <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                 Average
               </div>
-              <div className="font-mono text-2xl font-semibold tabular-nums">
-                {avg.toFixed(0)}
-              </div>
+              <div className="font-mono text-2xl font-semibold tabular-nums">{avg.toFixed(0)}</div>
             </div>
             <div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                 Runs
               </div>
-              <div className="font-mono text-2xl font-semibold tabular-nums">
-                {history.length}
-              </div>
+              <div className="font-mono text-2xl font-semibold tabular-nums">{history.length}</div>
             </div>
             {history.length >= 20 ? (
               <div>

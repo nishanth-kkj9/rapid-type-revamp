@@ -140,7 +140,6 @@ function Index() {
     inputRef.current?.focus();
   }, []);
 
-
   const restart = useCallback(() => reset(difficulty), [reset, difficulty]);
 
   useEffect(() => {
@@ -191,10 +190,7 @@ function Index() {
     [correct, incorrect, elapsed, samples],
   );
 
-  const previousBest = useMemo(
-    () => history.reduce((m, h) => Math.max(m, h.wpm), 0),
-    [history],
-  );
+  const previousBest = useMemo(() => history.reduce((m, h) => Math.max(m, h.wpm), 0), [history]);
 
   const finish = useCallback(() => {
     setFinished(true);
@@ -229,7 +225,6 @@ function Index() {
   useEffect(() => {
     if (finished) againRef.current?.focus();
   }, [finished]);
-
 
   useEffect(() => {
     if (running && !finished && remaining <= 0) finish();
@@ -350,7 +345,12 @@ function Index() {
           value={`${stats.accuracy.toFixed(0)}%`}
           hint={`${stats.incorrect} errors`}
         />
-        <StatCard label="Time left" value={`${Math.ceil(remaining)}s`} hint={`${duration}s run`} />
+        <StatCard
+          label="Time left"
+          value={`${Math.ceil(remaining)}s`}
+          hint={`${duration}s run`}
+          warn={running && !finished && remaining <= 5}
+        />
         <StatCard
           label="Consistency"
           value={`${stats.consistency.toFixed(0)}%`}
@@ -389,8 +389,10 @@ function Index() {
           spellCheck={false}
           aria-label="Typing input"
           onChange={(e) => {
-            // Anti-cheat: reject multi-character input (paste / autofill).
-            if (e.target.value.length - typed.length > 1) {
+            // Anti-cheat: reject multi-character input (paste / autofill),
+            // but allow IME composition commits through.
+            const composing = (e.nativeEvent as unknown as { isComposing?: boolean }).isComposing;
+            if (!composing && e.target.value.length - typed.length > 1) {
               e.target.value = typed;
               return;
             }

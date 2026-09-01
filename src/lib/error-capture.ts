@@ -52,15 +52,21 @@ function isErrorLike(value: unknown): value is Error {
 // Wrap console.error so errors logged by any layer — including h3's internal
 // unhandled-error logging, which this file cannot hook directly — are both
 // recorded for consumeLastCapturedError and expanded before serialization.
-const originalConsoleError = console.error.bind(console);
-console.error = (...args: unknown[]) => {
-  const expanded = args.map((arg) => {
-    if (!isErrorLike(arg)) return arg;
-    record(arg);
-    return describeError(arg);
-  });
-  originalConsoleError(...expanded);
-};
+type WrappedConsoleError = typeof console.error & { __lovableWrapped?: true };
+
+if (!(console.error as WrappedConsoleError).__lovableWrapped) {
+  const originalConsoleError = console.error.bind(console);
+  const wrapped: WrappedConsoleError = (...args: unknown[]) => {
+    const expanded = args.map((arg) => {
+      if (!isErrorLike(arg)) return arg;
+      record(arg);
+      return describeError(arg);
+    });
+    originalConsoleError(...expanded);
+  };
+  wrapped.__lovableWrapped = true;
+  console.error = wrapped;
+}
 
 if (typeof globalThis.addEventListener === "function") {
   globalThis.addEventListener("error", (event) => record((event as ErrorEvent).error ?? event));
