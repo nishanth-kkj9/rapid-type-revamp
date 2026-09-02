@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { generatePassage, type Difficulty } from "@/lib/sentenceGenerator";
+import { useTheme } from "@/lib/useTheme";
 import {
   clearHistory,
   computeStats,
@@ -70,6 +72,7 @@ function reconcile(text: string, value: string) {
 }
 
 function Index() {
+  const { theme, toggleTheme } = useTheme();
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [duration, setDuration] = useState<number>(30);
   // Generated after mount: random text during SSR would hydration-mismatch.
@@ -290,12 +293,22 @@ function Index() {
             Timed drills with live WPM, accuracy and a keyboard that shows your next key.
           </p>
         </div>
-        <button
-          onClick={restart}
-          className="rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
-        >
-          Restart <span className="ml-1 font-mono text-xs text-muted-foreground">Esc</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleTheme}
+            aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+            title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+            className="rounded-lg border border-border bg-secondary p-2 transition-colors hover:bg-muted"
+          >
+            {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          </button>
+          <button
+            onClick={restart}
+            className="rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            Restart <span className="ml-1 font-mono text-xs text-muted-foreground">Esc</span>
+          </button>
+        </div>
       </header>
 
       <div className="mt-6 flex flex-wrap items-center gap-2">
