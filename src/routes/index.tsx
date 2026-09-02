@@ -382,7 +382,7 @@ function Index() {
       </div>
 
       <section
-        className={`panel relative mt-3 cursor-text p-6 transition-shadow sm:p-8 ${
+        className={`panel relative mt-3 cursor-text p-4 transition-shadow sm:p-8 ${
           errorFlash ? "shake" : ""
         } ${isRecord ? "record-glow" : ""}`}
         onClick={() => inputRef.current?.focus()}
@@ -438,17 +438,17 @@ function Index() {
           </div>
         ) : null}
         {finished ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-xl bg-card/95 px-6 text-center backdrop-blur-sm">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 overflow-y-auto rounded-xl bg-card/95 px-4 text-center backdrop-blur-sm sm:gap-3 sm:px-6">
             {isRecord ? (
               <span className="rounded-full bg-accent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent-foreground">
                 New personal best
               </span>
             ) : null}
-            <div className="font-mono text-5xl font-bold text-primary">
+            <div className="font-mono text-4xl font-bold text-primary sm:text-5xl">
               {stats.wpm.toFixed(0)}
               <span className="ml-2 text-base font-normal text-muted-foreground">wpm</span>
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-xs text-muted-foreground sm:text-sm">
               {stats.accuracy.toFixed(1)}% accuracy · {stats.correct} correct · {stats.incorrect}{" "}
               errors · raw {stats.rawWpm.toFixed(0)} · net {stats.adjustedWpm.toFixed(0)} ·
               consistency {stats.consistency.toFixed(0)}%
