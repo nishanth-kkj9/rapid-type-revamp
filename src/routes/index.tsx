@@ -293,7 +293,7 @@ function Index() {
             Timed drills with live WPM, accuracy and a keyboard that shows your next key.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <button
             onClick={toggleTheme}
             aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
@@ -304,9 +304,12 @@ function Index() {
           </button>
           <button
             onClick={restart}
-            className="rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
+            className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-medium transition-colors hover:bg-muted sm:px-4"
           >
-            Restart <span className="ml-1 font-mono text-xs text-muted-foreground">Esc</span>
+            Restart{" "}
+            <span className="ml-1 hidden font-mono text-xs text-muted-foreground sm:inline">
+              Esc
+            </span>
           </button>
         </div>
       </header>
