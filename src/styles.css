@@ -210,3 +210,12 @@
     animation: none !important;
   }
 }
+
+/* Light theme keycap tuning */
+html.light .keycap {
+  background: linear-gradient(180deg, oklch(0.97 0.008 82), var(--color-key));
+}
+
+html.light .keycap[data-state="pressed"] {
+  background: linear-gradient(180deg, oklch(0.85 0.014 80), oklch(0.88 0.012 80));
+}

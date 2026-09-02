@@ -115,6 +115,13 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
+        {/* Applies the saved theme before first paint to avoid a dark flash. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{if(localStorage.getItem('ttp:theme:v1')==='light')document.documentElement.classList.add('light')}catch(e){}",
+          }}
+        />
         <HeadContent />
       </head>
       <body>
