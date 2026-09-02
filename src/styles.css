@@ -112,46 +112,6 @@
     );
   }
 }
-  --foreground: oklch(0.94 0.012 85);
-  --card: oklch(0.23 0.015 62);
-  --card-foreground: oklch(0.94 0.012 85);
-  --popover: oklch(0.23 0.015 62);
-  --popover-foreground: oklch(0.94 0.012 85);
-  --primary: oklch(0.82 0.17 82);
-  --primary-foreground: oklch(0.21 0.03 70);
-  --secondary: oklch(0.28 0.016 62);
-  --secondary-foreground: oklch(0.92 0.012 85);
-  --muted: oklch(0.27 0.014 62);
-  --muted-foreground: oklch(0.68 0.018 75);
-  --accent: oklch(0.78 0.16 160);
-  --accent-foreground: oklch(0.2 0.03 160);
-  --destructive: oklch(0.62 0.2 25);
-  --destructive-foreground: oklch(0.97 0.01 25);
-  --success: oklch(0.78 0.16 150);
-  --border: oklch(0.32 0.015 62);
-  --input: oklch(0.32 0.015 62);
-  --ring: oklch(0.82 0.17 82);
-  --key: oklch(0.27 0.014 62);
-  --key-edge: oklch(0.16 0.012 60);
-}
-
-@layer base {
-  * {
-    border-color: var(--color-border);
-  }
-
-  body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
-    font-family: var(--font-sans);
-    background-image: radial-gradient(
-      ellipse 80% 60% at 50% -10%,
-      oklch(0.3 0.05 82 / 0.5),
-      transparent 70%
-    );
-    background-attachment: fixed;
-  }
-}
 
 @utility panel {
   background-color: var(--color-card);
