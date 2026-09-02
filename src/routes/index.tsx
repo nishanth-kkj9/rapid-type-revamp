@@ -284,16 +284,16 @@ function Index() {
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-mono text-2xl font-bold tracking-tight sm:text-3xl">
+      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-wrap sm:items-end sm:justify-between sm:gap-4">
+        <div className="min-w-0">
+          <h1 className="truncate font-mono text-xl font-bold tracking-tight sm:text-3xl">
             Typing<span className="text-primary">Trainer</span>Pro
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
             Timed drills with live WPM, accuracy and a keyboard that shows your next key.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <button
             onClick={toggleTheme}
             aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
@@ -304,9 +304,12 @@ function Index() {
           </button>
           <button
             onClick={restart}
-            className="rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
+            className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-medium transition-colors hover:bg-muted sm:px-4"
           >
-            Restart <span className="ml-1 font-mono text-xs text-muted-foreground">Esc</span>
+            Restart{" "}
+            <span className="ml-1 hidden font-mono text-xs text-muted-foreground sm:inline">
+              Esc
+            </span>
           </button>
         </div>
       </header>
@@ -379,7 +382,7 @@ function Index() {
       </div>
 
       <section
-        className={`panel relative mt-3 cursor-text p-6 transition-shadow sm:p-8 ${
+        className={`panel relative mt-3 cursor-text p-4 transition-shadow sm:p-8 ${
           errorFlash ? "shake" : ""
         } ${isRecord ? "record-glow" : ""}`}
         onClick={() => inputRef.current?.focus()}
@@ -435,17 +438,17 @@ function Index() {
           </div>
         ) : null}
         {finished ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-xl bg-card/95 px-6 text-center backdrop-blur-sm">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 overflow-y-auto rounded-xl bg-card/95 px-4 text-center backdrop-blur-sm sm:gap-3 sm:px-6">
             {isRecord ? (
               <span className="rounded-full bg-accent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent-foreground">
                 New personal best
               </span>
             ) : null}
-            <div className="font-mono text-5xl font-bold text-primary">
+            <div className="font-mono text-4xl font-bold text-primary sm:text-5xl">
               {stats.wpm.toFixed(0)}
               <span className="ml-2 text-base font-normal text-muted-foreground">wpm</span>
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-xs text-muted-foreground sm:text-sm">
               {stats.accuracy.toFixed(1)}% accuracy · {stats.correct} correct · {stats.incorrect}{" "}
               errors · raw {stats.rawWpm.toFixed(0)} · net {stats.adjustedWpm.toFixed(0)} ·
               consistency {stats.consistency.toFixed(0)}%
