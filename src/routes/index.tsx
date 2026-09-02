@@ -284,12 +284,12 @@ function Index() {
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-mono text-2xl font-bold tracking-tight sm:text-3xl">
+      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-wrap sm:items-end sm:justify-between sm:gap-4">
+        <div className="min-w-0">
+          <h1 className="truncate font-mono text-xl font-bold tracking-tight sm:text-3xl">
             Typing<span className="text-primary">Trainer</span>Pro
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
             Timed drills with live WPM, accuracy and a keyboard that shows your next key.
           </p>
         </div>
