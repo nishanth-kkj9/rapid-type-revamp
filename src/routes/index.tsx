@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { generatePassage, type Difficulty } from "@/lib/sentenceGenerator";
+import { useTheme } from "@/lib/useTheme";
 import {
   clearHistory,
   computeStats,
