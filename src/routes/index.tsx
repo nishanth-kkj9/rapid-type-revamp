@@ -72,6 +72,7 @@ function reconcile(text: string, value: string) {
 }
 
 function Index() {
+  const { theme, toggleTheme } = useTheme();
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [duration, setDuration] = useState<number>(30);
   // Generated after mount: random text during SSR would hydration-mismatch.
