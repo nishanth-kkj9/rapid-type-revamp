@@ -211,8 +211,8 @@ export function HistoryPanel({ history, onClear, onImport }: Props) {
 
           <ul className="mt-5 divide-y divide-border/70 text-sm">
             {history.slice(0, 5).map((h) => (
-              <li key={h.id} className="flex items-center justify-between py-2">
-                <span className="text-muted-foreground">
+              <li key={h.id} className="flex items-center justify-between gap-3 py-2">
+                <span className="min-w-0 truncate text-muted-foreground">
                   {new Date(h.date).toLocaleString(undefined, {
                     month: "short",
                     day: "numeric",
@@ -223,7 +223,7 @@ export function HistoryPanel({ history, onClear, onImport }: Props) {
                     {h.difficulty}
                   </span>
                 </span>
-                <span className="font-mono tabular-nums">
+                <span className="shrink-0 font-mono tabular-nums">
                   <span className="text-primary">{h.wpm.toFixed(0)}</span> wpm ·{" "}
                   {h.accuracy.toFixed(0)}%
                 </span>
