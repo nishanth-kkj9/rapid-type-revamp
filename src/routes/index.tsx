@@ -241,14 +241,31 @@ function Index() {
         e.preventDefault();
         restart();
         inputRef.current?.focus();
+        return;
       }
+      // "Press any key to focus": a printable key resumes typing from anywhere.
+      if (finished || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key.length !== 1) return;
+      const active = document.activeElement;
+      if (active === inputRef.current) return;
+      if (
+        active instanceof HTMLElement &&
+        (active.isContentEditable ||
+          ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName) ||
+          active.tagName === "BUTTON")
+      ) {
+        return;
+      }
+      inputRef.current?.focus();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [restart]);
+  }, [restart, finished]);
 
-  const handleChange = (value: string) => {
-    if (finished) return;
+  const handleChange = (raw: string) => {
+    if (finished || !text) return;
+    // Never let the caret run past the passage — extra chars only inflate errors.
+    const value = raw.length > text.length ? raw.slice(0, text.length) : raw;
     if (!running) {
       startTimeRef.current = performance.now();
       setRunning(true);
@@ -265,6 +282,8 @@ function Index() {
     if (grew) {
       const last = value[value.length - 1] ?? null;
       setPressedChar(last);
+      if (pressTimerRef.current) window.clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = window.setTimeout(() => setPressedChar(null), 160);
       if (last !== text[value.length - 1]) {
         setErrorFlash(true);
         if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
@@ -281,6 +300,8 @@ function Index() {
   const nextChar = finished ? null : (text[typed.length] ?? null);
   const progress = Math.min(100, running ? (elapsed / 1000 / duration) * 100 : 0);
   const settled = elapsed > 1000;
+  // Results must show the frozen end-of-run snapshot, not the live counters.
+  const shown = finished && finalStats ? finalStats : stats;
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-5xl px-3 py-6 sm:px-6 sm:py-14">
@@ -369,7 +390,7 @@ function Index() {
         />
         <StatCard
           label="Consistency"
-          value={`${stats.consistency.toFixed(0)}%`}
+          value={samples.length >= 3 ? `${stats.consistency.toFixed(0)}%` : "—"}
           hint={previousBest ? `best ${previousBest.toFixed(0)} wpm` : "no record yet"}
         />
       </div>
@@ -427,7 +448,7 @@ function Index() {
         />
         <p aria-live="polite" className="sr-only">
           {finished
-            ? `Run complete. ${stats.wpm.toFixed(0)} words per minute, ${stats.accuracy.toFixed(0)} percent accuracy.`
+            ? `Run complete. ${shown.wpm.toFixed(0)} words per minute, ${shown.accuracy.toFixed(0)} percent accuracy.`
             : ""}
         </p>
         {!focused && !finished ? (
@@ -445,14 +466,15 @@ function Index() {
               </span>
             ) : null}
             <div className="font-mono text-4xl font-bold text-primary sm:text-5xl">
-              {stats.wpm.toFixed(0)}
+              {shown.wpm.toFixed(0)}
               <span className="ml-2 text-base font-normal text-muted-foreground">wpm</span>
             </div>
             <div className="text-xs text-muted-foreground sm:text-sm">
-              {stats.accuracy.toFixed(1)}% accuracy · {stats.correct} correct · {stats.incorrect}{" "}
-              errors · raw {stats.rawWpm.toFixed(0)} · net {stats.adjustedWpm.toFixed(0)} ·
-              consistency {stats.consistency.toFixed(0)}%
+              {shown.accuracy.toFixed(1)}% accuracy · {shown.correct} correct · {shown.incorrect}{" "}
+              errors · raw {shown.rawWpm.toFixed(0)} · net {shown.adjustedWpm.toFixed(0)} ·
+              consistency {shown.consistency.toFixed(0)}%
             </div>
+
             <WpmChart samples={samples} />
             <ProblemKeys mistakes={mistakes} />
             <button
