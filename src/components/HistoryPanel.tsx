@@ -223,7 +223,7 @@ export function HistoryPanel({ history, onClear, onImport }: Props) {
                     {h.difficulty}
                   </span>
                 </span>
-                <span className="font-mono tabular-nums">
+                <span className="shrink-0 font-mono tabular-nums">
                   <span className="text-primary">{h.wpm.toFixed(0)}</span> wpm ·{" "}
                   {h.accuracy.toFixed(0)}%
                 </span>
