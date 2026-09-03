@@ -390,7 +390,7 @@ function Index() {
         />
         <StatCard
           label="Consistency"
-          value={`${stats.consistency.toFixed(0)}%`}
+          value={samples.length >= 3 ? `${stats.consistency.toFixed(0)}%` : "—"}
           hint={previousBest ? `best ${previousBest.toFixed(0)} wpm` : "no record yet"}
         />
       </div>
