@@ -433,7 +433,7 @@ function Index() {
         />
         <p aria-live="polite" className="sr-only">
           {finished
-            ? `Run complete. ${stats.wpm.toFixed(0)} words per minute, ${stats.accuracy.toFixed(0)} percent accuracy.`
+            ? `Run complete. ${shown.wpm.toFixed(0)} words per minute, ${shown.accuracy.toFixed(0)} percent accuracy.`
             : ""}
         </p>
         {!focused && !finished ? (
@@ -451,14 +451,15 @@ function Index() {
               </span>
             ) : null}
             <div className="font-mono text-4xl font-bold text-primary sm:text-5xl">
-              {stats.wpm.toFixed(0)}
+              {shown.wpm.toFixed(0)}
               <span className="ml-2 text-base font-normal text-muted-foreground">wpm</span>
             </div>
             <div className="text-xs text-muted-foreground sm:text-sm">
-              {stats.accuracy.toFixed(1)}% accuracy · {stats.correct} correct · {stats.incorrect}{" "}
-              errors · raw {stats.rawWpm.toFixed(0)} · net {stats.adjustedWpm.toFixed(0)} ·
-              consistency {stats.consistency.toFixed(0)}%
+              {shown.accuracy.toFixed(1)}% accuracy · {shown.correct} correct · {shown.incorrect}{" "}
+              errors · raw {shown.rawWpm.toFixed(0)} · net {shown.adjustedWpm.toFixed(0)} ·
+              consistency {shown.consistency.toFixed(0)}%
             </div>
+
             <WpmChart samples={samples} />
             <ProblemKeys mistakes={mistakes} />
             <button
