@@ -283,7 +283,7 @@ function Index() {
   const settled = elapsed > 1000;
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
+    <main className="mx-auto min-h-dvh w-full max-w-5xl px-3 py-6 sm:px-6 sm:py-14">
       <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-wrap sm:items-end sm:justify-between sm:gap-4">
         <div className="min-w-0">
           <h1 className="truncate font-mono text-xl font-bold tracking-tight sm:text-3xl">
