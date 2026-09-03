@@ -241,11 +241,26 @@ function Index() {
         e.preventDefault();
         restart();
         inputRef.current?.focus();
+        return;
       }
+      // "Press any key to focus": a printable key resumes typing from anywhere.
+      if (finished || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key.length !== 1) return;
+      const active = document.activeElement;
+      if (active === inputRef.current) return;
+      if (
+        active instanceof HTMLElement &&
+        (active.isContentEditable ||
+          ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName) ||
+          active.tagName === "BUTTON")
+      ) {
+        return;
+      }
+      inputRef.current?.focus();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [restart]);
+  }, [restart, finished]);
 
   const handleChange = (raw: string) => {
     if (finished || !text) return;
