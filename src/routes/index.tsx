@@ -247,8 +247,10 @@ function Index() {
     return () => window.removeEventListener("keydown", onKey);
   }, [restart]);
 
-  const handleChange = (value: string) => {
-    if (finished) return;
+  const handleChange = (raw: string) => {
+    if (finished || !text) return;
+    // Never let the caret run past the passage — extra chars only inflate errors.
+    const value = raw.length > text.length ? raw.slice(0, text.length) : raw;
     if (!running) {
       startTimeRef.current = performance.now();
       setRunning(true);
@@ -265,6 +267,8 @@ function Index() {
     if (grew) {
       const last = value[value.length - 1] ?? null;
       setPressedChar(last);
+      if (pressTimerRef.current) window.clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = window.setTimeout(() => setPressedChar(null), 160);
       if (last !== text[value.length - 1]) {
         setErrorFlash(true);
         if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
@@ -281,6 +285,8 @@ function Index() {
   const nextChar = finished ? null : (text[typed.length] ?? null);
   const progress = Math.min(100, running ? (elapsed / 1000 / duration) * 100 : 0);
   const settled = elapsed > 1000;
+  // Results must show the frozen end-of-run snapshot, not the live counters.
+  const shown = finished && finalStats ? finalStats : stats;
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-5xl px-3 py-6 sm:px-6 sm:py-14">
