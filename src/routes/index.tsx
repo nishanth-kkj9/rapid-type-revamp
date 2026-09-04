@@ -123,6 +123,9 @@ function Index() {
   );
 
   const reset = useCallback((d: Difficulty) => {
+    if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
+    if (pressTimerRef.current) window.clearTimeout(pressTimerRef.current);
+    setErrorFlash(false);
     setText(generatePassage(d, 320));
     setTyped("");
     setRunning(false);
@@ -478,6 +481,7 @@ function Index() {
             <WpmChart samples={samples} />
             <ProblemKeys mistakes={mistakes} />
             <button
+              ref={againRef}
               onClick={restart}
               className="mt-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
             >
