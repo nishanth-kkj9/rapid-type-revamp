@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import generatePassageTool from "./generate-passage";
 
+const ctx = {} as Parameters<typeof generatePassageTool.handler>[1];
+
 const run = (difficulty: "easy" | "medium" | "hard", minChars: number) =>
-  generatePassageTool.handler({ difficulty, minChars }) as unknown as {
+  generatePassageTool.handler({ difficulty, minChars }, ctx) as unknown as {
     content: { type: string; text: string }[];
     structuredContent: { text: string; difficulty: string; length: number };
   };

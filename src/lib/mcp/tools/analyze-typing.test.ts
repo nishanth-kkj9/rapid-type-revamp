@@ -5,12 +5,15 @@ type Structured = {
   correct: number;
   incorrect: number;
   accuracy: number;
+  typed: number;
   wpm: number;
   problemKeys: { key: string; count: number }[];
 };
 
+const ctx = {} as Parameters<typeof analyzeTyping.handler>[1];
+
 const run = (target: string, typed: string, elapsedSeconds: number) =>
-  analyzeTyping.handler({ target, typed, elapsedSeconds }) as unknown as {
+  analyzeTyping.handler({ target, typed, elapsedSeconds }, ctx) as unknown as {
     content: { type: string; text: string }[];
     structuredContent: Structured;
   };
@@ -44,6 +47,6 @@ describe("analyze_typing tool", () => {
     const r = run(target, target, 3600);
     expect(r.structuredContent.correct).toBe(20000);
     const empty = run("abc", "", 0.001);
-    expect(empty.structuredContent.typed ?? 0).toBe(0);
+    expect(empty.structuredContent.typed).toBe(0);
   });
 });
