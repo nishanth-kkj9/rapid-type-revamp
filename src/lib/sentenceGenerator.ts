@@ -405,30 +405,37 @@ function tidy(s: string): string {
     .trim();
 }
 
-/** Per-difficulty dedupe buffers so recent sentences don't repeat. */
-const recentByDifficulty: Record<Difficulty, string[]> = { easy: [], medium: [], hard: [] };
+const DEDUPE_WINDOW = 10;
 
-export function generateSentence(difficulty: Difficulty): string {
-  const recent = recentByDifficulty[difficulty];
+/**
+ * Generate one sentence, avoiding anything in the caller-owned `recent` buffer.
+ * The buffer is returned (never mutated in place) so no state is shared between
+ * callers — important because this module also runs server-side.
+ */
+export function generateSentence(
+  difficulty: Difficulty,
+  recent: readonly string[] = [],
+): { sentence: string; recent: string[] } {
   for (let i = 0; i < 20; i++) {
     const s = tidy(fill(pick(TEMPLATES[difficulty]), difficulty));
     if (!recent.includes(s)) {
-      recent.push(s);
-      if (recent.length > 10) recent.shift();
-      return s;
+      return { sentence: s, recent: [...recent, s].slice(-DEDUPE_WINDOW) };
     }
   }
-  return tidy(fill(pick(TEMPLATES[difficulty]), difficulty));
+  const fallback = tidy(fill(pick(TEMPLATES[difficulty]), difficulty));
+  return { sentence: fallback, recent: [...recent, fallback].slice(-DEDUPE_WINDOW) };
 }
 
-/** Build a passage of roughly `minChars` characters. */
+/** Build a passage of roughly `minChars` characters, deduped within the passage. */
 export function generatePassage(difficulty: Difficulty, minChars = 220): string {
   const parts: string[] = [];
+  let recent: string[] = [];
   let len = 0;
   while (len < minChars) {
-    const s = generateSentence(difficulty);
-    parts.push(s);
-    len += s.length + 1;
+    const next = generateSentence(difficulty, recent);
+    recent = next.recent;
+    parts.push(next.sentence);
+    len += next.sentence.length + 1;
   }
   return parts.join(" ");
 }
