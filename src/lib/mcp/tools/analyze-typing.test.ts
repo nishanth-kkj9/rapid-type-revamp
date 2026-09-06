@@ -13,7 +13,7 @@ type Structured = {
 const ctx = {} as Parameters<typeof analyzeTyping.handler>[1];
 
 const run = (target: string, typed: string, elapsedSeconds: number) =>
-  analyzeTyping.handler({ target, typed, elapsedSeconds }, ctx) as unknown as {
+  analyzeTyping.handler({ target, typed, elapsedSeconds, perSecondCorrect: undefined }, ctx) as unknown as {
     content: { type: string; text: string }[];
     structuredContent: Structured;
   };
