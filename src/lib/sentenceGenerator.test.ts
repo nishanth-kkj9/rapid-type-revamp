@@ -9,21 +9,30 @@ describe("generatePassage", () => {
 });
 
 describe("generateSentence", () => {
-  it("avoids repeats within the dedupe window", () => {
+  it("avoids repeats within the caller-owned dedupe window", () => {
     const seen: string[] = [];
+    let recent: string[] = [];
     for (let i = 0; i < 15; i++) {
-      const s = generateSentence("easy");
-      expect(seen.slice(-10)).not.toContain(s);
-      seen.push(s);
+      const next = generateSentence("easy", recent);
+      expect(recent).not.toContain(next.sentence);
+      recent = next.recent;
+      seen.push(next.sentence);
     }
+    expect(recent.length).toBeLessThanOrEqual(10);
+  });
+
+  it("does not mutate the buffer it was given", () => {
+    const recent: string[] = [];
+    generateSentence("easy", recent);
+    expect(recent).toHaveLength(0);
   });
 
   it("produces tidy, punctuated sentences", () => {
     for (let i = 0; i < 20; i++) {
-      const s = generateSentence("medium");
-      expect(s).not.toMatch(/\s{2,}/);
-      expect(s).not.toMatch(/\s[,.;:?!]/);
-      expect(s).toMatch(/[.?!]$/);
+      const { sentence } = generateSentence("medium");
+      expect(sentence).not.toMatch(/\s{2,}/);
+      expect(sentence).not.toMatch(/\s[,.;:?!]/);
+      expect(sentence).toMatch(/[.?!]$/);
     }
   });
 });
