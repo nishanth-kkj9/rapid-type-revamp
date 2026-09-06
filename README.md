@@ -147,6 +147,34 @@ npm run format
 | `Esc`            | Restart the current test |
 | `Ctrl+K` / `⌘+K` | Open the command palette |
 
+## 🚢 Deployment
+
+The app ships an agent (MCP) endpoint at `/mcp`, plus its discovery document at
+`/.well-known/oauth-protected-resource`. Both generated route files set:
+
+```ts
+trustForwardedHost: true,
+trustForwardedProto: true,
+```
+
+That is only safe on Lovable's own hosting, where the proxy always overwrites
+`X-Forwarded-Host` / `X-Forwarded-Proto`. **Before deploying anywhere else**
+(custom reverse proxy, self-hosted worker, another platform), set both flags to
+`false` — or scope them to the one proxy you actually trust — in:
+
+- `src/routes/mcp.ts`
+- `src/routes/[.well-known]/oauth-protected-resource.ts`
+
+Both files carry an auto-generated banner; delete the banner's first line to take
+ownership so the generator stops overwriting your change.
+
+The MCP tools are currently unauthenticated (`auth: none` in
+`.lovable/mcp/manifest.json`) and read-only. If you expose them publicly, put
+rate limiting in front of `/mcp` at the edge.
+
+Never run `vite dev --host` on a network-exposed machine without a firewall in
+front of it; Vite dev-server CVEs historically target exactly that setup.
+
 ## 🔒 Privacy
 
 Typing performance history is stored in the browser using `localStorage`. The application does not require a typing-data backend or account to record runs locally.
@@ -165,7 +193,6 @@ The project is intentionally focused on fast typing practice rather than account
 - Keyboard heatmaps and long-term weak-key trends
 - Additional test modes and challenge formats
 - Global or friend leaderboards
-- Automated tests for typing statistics and sentence generation
 
 ## 🤝 Development notes
 
