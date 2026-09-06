@@ -142,7 +142,9 @@ export function exportHistory(): string {
 export function importHistory(json: string): HistoryEntry[] | null {
   if (!isBrowser()) return null;
   try {
-    const parsed = z.array(HistoryEntrySchema).safeParse(JSON.parse(json));
+    const raw: unknown = JSON.parse(json);
+    if (!Array.isArray(raw) || raw.length > 1000) return null;
+    const parsed = z.array(HistoryEntrySchema).safeParse(raw);
     if (!parsed.success) return null;
     const byId = new Map<string, HistoryEntry>();
     for (const e of loadHistory()) byId.set(e.id, e);
