@@ -55,13 +55,14 @@ jobs:
     name: Dependency audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Advisories can appear without a fix being available; never block a PR on this.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - run: bun audit --audit-level=high
+      # Advisories often have no fix available yet, and the audit service can be
+      # unreachable — report, never block. Read the log to see what it found.
+      - name: Audit (report only)
+        run: bun audit --audit-level=high || echo "::warning::bun audit reported issues or was unavailable - see log"
 
   ci:
     name: CI
