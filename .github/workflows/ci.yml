@@ -4,16 +4,72 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+  workflow_dispatch:
+
+# A newer push to the same branch/PR cancels the older, still-running check.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CI: true
 
 jobs:
-  build:
+  verify:
+    name: ${{ matrix.task.name }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        task:
+          - { name: Lint, run: bun run lint }
+          - { name: Format, run: bun run format:check }
+          - { name: Types, run: bun run typecheck }
+          - { name: Tests, run: bun run test }
+          - { name: Build, run: bun run build }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock', 'bun.lockb', 'package.json') }}
+          restore-keys: ${{ runner.os }}-bun-
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: ${{ matrix.task.name }}
+        run: ${{ matrix.task.run }}
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Advisories can appear without a fix being available; never block a PR on this.
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
-      - run: bun install
+      - run: bun install --frozen-lockfile
       - run: bun audit --audit-level=high
-      - run: bun run lint
-      - run: bun run test
-      - run: bun run build
+
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    needs: [verify]
+    if: always()
+    steps:
+      - name: Fail if any check failed
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
+      - run: echo "All checks passed."
