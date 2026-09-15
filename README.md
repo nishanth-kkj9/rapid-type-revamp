@@ -13,7 +13,7 @@ This is the web rebuild of the original [Typing Trainer Pro](https://github.com/
 - **Visual typing feedback** — typed characters are marked correct or incorrect; the caret shows your current position and auto-scrolls.
 - **Interactive virtual keyboard** — highlights the next key to press (including Shift), flashes the last pressed key, and pulses on errors.
 - **Problem-key analysis** — ranks the characters you miss most often after each run.
-- **Anti-cheat input guard** — rejects paste, drag-and-drop, and context-menu input so runs stay fair.
+- **Fair-play input guard** — rejects paste, drag-and-drop, and context-menu-style input so ordinary runs stay fair. This is a client-side UX control, not a tamper-proof security boundary.
 - **Endless passages** — new text is generated automatically before you reach the end of a run.
 - **Personal progress tracking** — best WPM, average WPM, run count, accuracy history, and recent runs.
 - **Local-first history** — run history is stored in browser `localStorage`; no backend or account required.
@@ -23,6 +23,8 @@ This is the web rebuild of the original [Typing Trainer Pro](https://github.com/
 - **Command palette** — press `Ctrl+K` (or `⌘+K`) to change difficulty, duration, or restart without leaving the keyboard.
 - **Keyboard shortcuts** — `Esc` restarts a run; `Ctrl/⌘+K` opens the command palette.
 - **Responsive, terminal-style UI** — designed for desktop and smaller screens with a focused dark interface.
+
+> **Game mode status:** `src/components/WordShooter.tsx` contains a separate falling-word game implementation, but it is currently **not mounted by the active route**. Treat it as an integration-ready component rather than an active user-facing feature until a game-mode route/toggle is wired up.
 
 ## 📊 Performance metrics
 
@@ -55,20 +57,31 @@ src/
 │   ├── HistoryPanel.tsx       Progress summary, chart, import/export, and recent runs
 │   ├── Keyboard.tsx           Virtual keyboard with next-key and pressed-key feedback
 │   ├── ProblemKeys.tsx        Most-missed character analysis
-│   ├── StatCard.tsx            Live statistic cards with hover lift
-│   ├── TypingText.tsx          Per-character typing feedback and caret
-│   └── WpmChart.tsx            Per-second WPM line chart
+│   ├── StatCard.tsx           Live statistic cards
+│   ├── TypingText.tsx         Per-character typing feedback and caret
+│   ├── WordShooter.tsx        Falling-word game component; not currently mounted
+│   └── WpmChart.tsx           Per-second WPM line chart
+├── hooks/
+│   └── use-mobile.tsx         Responsive viewport helper
 ├── lib/
 │   ├── sentenceGenerator.ts   Difficulty-aware passage generation
 │   ├── typingStats.ts         WPM, accuracy, consistency, history, import/export
-│   └── lovable-error-reporting.ts  Runtime error reporting for Lovable previews
+│   ├── error-capture.ts       SSR/runtime error capture
+│   ├── error-page.ts          User-facing error page renderer
+│   └── mcp/                    MCP server registry and tools
 ├── routes/
-│   ├── __root.tsx              Root layout, metadata, error and 404 handling
-│   └── index.tsx               Main typing trainer screen
+│   ├── __root.tsx              Root layout, metadata, and error handling
+│   ├── index.tsx               Main typing trainer screen
+│   ├── mcp.ts                  MCP transport route (generated)
+│   └── [.well-known]/          MCP resource metadata (generated)
+├── server.ts                   SSR server wrapper
 └── styles.css                  Global application styles and animations
 
+.github/workflows/ci.yml        CI verification pipeline
 package.json                    Scripts and dependencies
 vite.config.ts                  TanStack Start/Vite configuration
+ARCHITECTURE.md                 Runtime and source architecture guide
+AUDIT.md                        Repository and security audit
 LICENSE                         MIT License
 ```
 
@@ -79,13 +92,13 @@ LICENSE                         MIT License
 - **TanStack Start / TanStack Router** — routing and application framework
 - **Vite** — development server and build tooling
 - **Tailwind CSS v4** — styling
-- **Radix UI** — accessible UI primitives used by the component library
-- **cmdk** — command palette dialog
+- **Radix UI** — accessible UI primitives
+- **cmdk** — command palette
 - **Lucide React** — icons
-- **Recharts** — progress and WPM visualization
-- **Zod / React Hook Form** — supporting utilities available in the project
+- **Recharts** — WPM visualization
+- **Zod** — runtime input/data validation
 - **localStorage** — client-side typing history
-- **Lovable** — project/editor integration
+- **Lovable MCP SDK** — MCP endpoint and tool integration
 
 ## 🚀 Getting started
 
@@ -106,6 +119,12 @@ cd rapid-type-revamp
 
 ```bash
 npm install
+```
+
+The repository also includes `bun.lock` and CI uses Bun. For reproducible CI-style installs, use Bun and its frozen lockfile:
+
+```bash
+bun install --frozen-lockfile
 ```
 
 ### Start the development server
@@ -134,10 +153,22 @@ npm run preview
 npm run lint
 ```
 
-### Format the project
+### Typecheck
 
 ```bash
-npm run format
+npm run typecheck
+```
+
+### Run tests
+
+```bash
+npm run test
+```
+
+### Check formatting
+
+```bash
+npm run format:check
 ```
 
 ## ⌨️ Keyboard shortcuts
@@ -147,56 +178,68 @@ npm run format
 | `Esc`            | Restart the current test |
 | `Ctrl+K` / `⌘+K` | Open the command palette |
 
-## 🚢 Deployment
+## 🚢 Deployment and MCP security
 
-The app ships an agent (MCP) endpoint at `/mcp`, plus its discovery document at
-`/.well-known/oauth-protected-resource`. Both generated route files set:
+The app ships an MCP endpoint at `/mcp`, plus its discovery document at
+`/.well-known/oauth-protected-resource`.
+
+The current MCP manifest declares **no authentication** and exposes read-only tools. If `/mcp` is reachable from the public internet, protect it with edge rate limiting and/or an access-control layer when public anonymous use is not intended.
+
+The generated MCP routes use:
 
 ```ts
 trustForwardedHost: true,
 trustForwardedProto: true,
 ```
 
-That is only safe on Lovable's own hosting, where the proxy always overwrites
-`X-Forwarded-Host` / `X-Forwarded-Proto`. **Before deploying anywhere else**
-(custom reverse proxy, self-hosted worker, another platform), set both flags to
-`false` — or scope them to the one proxy you actually trust — in:
+That is only safe when the deployment proxy is trusted to overwrite `X-Forwarded-Host` and `X-Forwarded-Proto` correctly, as expected by the Lovable deployment setup. **Before deploying elsewhere** (custom reverse proxy, self-hosted worker, another platform), set both flags to `false` or scope trust to the proxy you actually control.
+
+Both generated files carry an ownership banner. Take ownership before editing so the generator does not overwrite your changes:
 
 - `src/routes/mcp.ts`
 - `src/routes/[.well-known]/oauth-protected-resource.ts`
 
-Both files carry an auto-generated banner; delete the banner's first line to take
-ownership so the generator stops overwriting your change.
+Never run `vite dev --host` on a network-exposed machine without appropriate firewall/access controls.
 
-The MCP tools are currently unauthenticated (`auth: none` in
-`.lovable/mcp/manifest.json`) and read-only. If you expose them publicly, put
-rate limiting in front of `/mcp` at the edge.
+For the complete repository audit, see [`AUDIT.md`](AUDIT.md). For the source/runtime architecture, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
-Never run `vite dev --host` on a network-exposed machine without a firewall in
-front of it; Vite dev-server CVEs historically target exactly that setup.
-
-## 🔒 Privacy
+## 🔒 Privacy and data boundaries
 
 Typing performance history is stored in the browser using `localStorage`. The application does not require a typing-data backend or account to record runs locally.
 
 Because the history is browser-local, clearing site data or browser storage can remove saved results. Use the **Export history** button to back up your progress.
 
+Local history, personal-best values, and the anti-paste typing guard are browser-side controls. They should not be treated as authoritative evidence for competitive scoring.
+
 ## 🧪 Current scope
 
-The project is intentionally focused on fast typing practice rather than accounts, leaderboards, or server-side analytics. The main experience is a single-page trainer with local progress tracking.
+The active product is intentionally focused on fast typing practice rather than accounts, leaderboards, or server-side analytics. The main experience is a single-page trainer with local progress tracking.
+
+MCP currently provides two read-only capabilities:
+
+- `generate_passage` — generate a practice passage.
+- `analyze_typing` — calculate typing statistics and problem keys for supplied text.
 
 ## 🗺️ Possible future improvements
 
-- User accounts and optional cloud synchronization
-- Custom text and user-created practice lists
-- More detailed performance analytics
-- Keyboard heatmaps and long-term weak-key trends
-- Additional test modes and challenge formats
-- Global or friend leaderboards
+- Integrate `WordShooter` through an explicit game-mode route/toggle.
+- User accounts and optional cloud synchronization.
+- Custom text and user-created practice lists.
+- More detailed performance analytics.
+- Keyboard heatmaps and long-term weak-key trends.
+- Additional test modes and challenge formats.
+- Global or friend leaderboards with server-side validation.
 
 ## 🤝 Development notes
 
 This repository is connected to [Lovable](https://lovable.dev). Changes pushed to the connected branch can sync back to the Lovable project. Avoid rewriting published Git history such as force-pushing, rebasing, amending, or squashing already-pushed commits.
+
+The project uses generated TanStack/Lovable route files. Follow the generator ownership comments before making persistent manual changes to generated files.
+
+## 📚 Maintainer documentation
+
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — runtime, data flow, source ownership, and extension points.
+- [`AUDIT.md`](AUDIT.md) — source audit, security/deployment findings, verification posture, and priority backlog.
 
 ## 📄 License
 
