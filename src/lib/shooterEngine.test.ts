@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyKeyToEnemies,
   createInitialEnemies,
+  isBossLevel,
   stepEnemies,
   wordPoolFor,
   type Enemy,
@@ -19,6 +20,8 @@ describe("shooterEngine", () => {
     const result = applyKeyToEnemies(mockEnemies, "s", null, 0);
     expect(result.nextTargetId).toBe(3);
     expect(result.wrongKey).toBe(false);
+    expect(result.expectedChar).toBe("s");
+    expect(result.pressedChar).toBe("s");
     expect(result.nextEnemies.find((e) => e.id === 3)?.typed).toBe(1);
   });
 
@@ -27,6 +30,8 @@ describe("shooterEngine", () => {
     expect(result.wrongKey).toBe(true);
     expect(result.newStreak).toBe(0);
     expect(result.nextTargetId).toBeNull();
+    expect(result.expectedChar).toBeNull();
+    expect(result.pressedChar).toBe("z");
   });
 
   it("advances progress on locked target and destroys word on completion", () => {
@@ -39,6 +44,16 @@ describe("shooterEngine", () => {
     expect(result.nextTargetId).toBeNull();
     expect(result.scoreGained).toBeGreaterThan(0);
     expect(result.newStreak).toBe(5);
+    expect(result.expectedChar).toBe("r");
+    expect(result.pressedChar).toBe("r");
+  });
+
+  it("reports expectedChar and pressedChar on targeted wrong key", () => {
+    const targetEnemy: Enemy[] = [{ id: 1, word: "laser", typed: 2, x: 25, y: 10, speed: 5 }];
+    const result = applyKeyToEnemies(targetEnemy, "x", 1, 3);
+    expect(result.wrongKey).toBe(true);
+    expect(result.expectedChar).toBe("s");
+    expect(result.pressedChar).toBe("x");
   });
 
   it("correctly steps enemies and identifies breached enemies", () => {
@@ -86,5 +101,36 @@ describe("shooterEngine", () => {
     expect(getLevel(799)).toBe(2);
     expect(getLevel(800)).toBe(3);
     expect(getLevel(1200)).toBe(4);
+  });
+
+  it("identifies boss levels at every 5 levels", () => {
+    expect(isBossLevel(0)).toBe(false);
+    expect(isBossLevel(1)).toBe(false);
+    expect(isBossLevel(4)).toBe(false);
+    expect(isBossLevel(5)).toBe(true);
+    expect(isBossLevel(10)).toBe(true);
+    expect(isBossLevel(15)).toBe(true);
+    expect(isBossLevel(22)).toBe(false);
+  });
+
+  it("awards double score and reports multiplier 2 for destroyed boss enemies", () => {
+    const regular: Enemy = { id: 10, word: "corrupted", typed: 8, x: 20, y: 10, speed: 2 };
+    const boss: Enemy = {
+      id: 11,
+      word: "corrupted",
+      typed: 8,
+      x: 20,
+      y: 10,
+      speed: 1.1,
+      boss: true,
+    };
+
+    const regResult = applyKeyToEnemies([regular], "d", 10, 0);
+    expect(regResult.multiplier).toBe(1);
+    expect(regResult.scoreGained).toBe(90); // 9 * 10 * 1 * 1
+
+    const bossResult = applyKeyToEnemies([boss], "d", 11, 0);
+    expect(bossResult.multiplier).toBe(2);
+    expect(bossResult.scoreGained).toBe(180); // 9 * 10 * 1 * 2 (double!)
   });
 });

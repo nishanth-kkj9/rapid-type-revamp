@@ -8,6 +8,7 @@ export interface Enemy {
   x: number; // percentage 10..90
   y: number; // percentage 0..100
   speed: number; // percentage per second
+  boss?: boolean;
 }
 
 export interface KeyResult {
@@ -18,6 +19,13 @@ export interface KeyResult {
   wrongKey: boolean;
   scoreGained: number;
   newStreak: number;
+  expectedChar: string | null;
+  pressedChar: string;
+  multiplier: number;
+}
+
+export function isBossLevel(lvl: number): boolean {
+  return lvl > 0 && lvl % 5 === 0;
 }
 
 export function wordPoolFor(difficulty: Difficulty): string[] {
@@ -119,9 +127,15 @@ export function applyKeyToEnemies(
         wrongKey: true,
         scoreGained: 0,
         newStreak: 0,
+        expectedChar: null,
+        pressedChar: char,
+        multiplier: 1,
       };
     }
   }
+
+  const expected = target.word[target.typed] ?? null;
+  const multiplier = target.boss ? 2 : 1;
 
   if (target.word[target.typed] !== char) {
     return {
@@ -132,6 +146,9 @@ export function applyKeyToEnemies(
       wrongKey: true,
       scoreGained: 0,
       newStreak: 0,
+      expectedChar: expected,
+      pressedChar: char,
+      multiplier,
     };
   }
 
@@ -141,7 +158,7 @@ export function applyKeyToEnemies(
   if (isDestroyed) {
     const nextStreak = currentStreak + 1;
     const streakBonus = Math.min(5, 1 + Math.floor(nextStreak / 5));
-    const scoreGained = target.word.length * 10 * streakBonus;
+    const scoreGained = target.word.length * 10 * streakBonus * multiplier;
 
     return {
       nextEnemies: enemies.filter((e) => e.id !== target!.id),
@@ -151,6 +168,9 @@ export function applyKeyToEnemies(
       wrongKey: false,
       scoreGained,
       newStreak: nextStreak,
+      expectedChar: expected,
+      pressedChar: char,
+      multiplier,
     };
   }
 
@@ -162,5 +182,8 @@ export function applyKeyToEnemies(
     wrongKey: false,
     scoreGained: 0,
     newStreak: currentStreak,
+    expectedChar: expected,
+    pressedChar: char,
+    multiplier,
   };
 }

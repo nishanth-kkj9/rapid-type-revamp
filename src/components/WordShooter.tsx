@@ -9,6 +9,7 @@ import {
 import {
   applyKeyToEnemies,
   createInitialEnemies,
+  isBossLevel,
   stepEnemies,
   wordPoolFor,
   type Enemy,
@@ -45,6 +46,8 @@ interface WordShooterProps {
   onActiveTargetCharChange?: (char: string | null) => void;
   onCharPressed?: (char: string) => void;
   onRunComplete?: (s: ShooterRunSummary) => void;
+  onWrongKey?: (expectedChar: string) => void;
+  onStart?: () => void;
 }
 
 export function WordShooter({
@@ -53,6 +56,8 @@ export function WordShooter({
   onActiveTargetCharChange,
   onCharPressed,
   onRunComplete,
+  onWrongKey,
+  onStart,
 }: WordShooterProps) {
   const [mounted, setMounted] = useState(false);
   const [phase, setPhase] = useState<"idle" | "playing" | "paused" | "over">("idle");
@@ -91,6 +96,7 @@ export function WordShooter({
   const stateRef = useRef({ phase, targetId, settings, soundMuted });
   stateRef.current = { phase, targetId, settings, soundMuted };
   const startedAtRef = useRef<number>(0);
+  const lastBossLevelSpawnedRef = useRef(0);
 
   // Reset local override when settings change
   useEffect(() => {
@@ -156,12 +162,14 @@ export function WordShooter({
     setPopups([]);
     setLevelBanner(null);
     prevLevelRef.current = 1;
+    lastBossLevelSpawnedRef.current = 0;
     setScore(0);
     setLives(settings.startingLives);
     setStreak(0);
     setHits(0);
     setMisses(0);
     setWrongKeys(0);
+    onStart?.();
     // reset ref eagerly — independent of render timing
     targetIdRef.current = null;
     setTargetId(null);
@@ -171,7 +179,7 @@ export function WordShooter({
     setPhase("playing");
     setLiveAnnouncement("Game started. Type the falling words.");
     requestAnimationFrame(() => inputRef.current?.focus());
-  }, [settings.difficulty, settings.speedMultiplier, settings.startingLives]);
+  }, [settings.difficulty, settings.speedMultiplier, settings.startingLives, onStart]);
 
   const togglePause = useCallback(() => {
     if (phase === "playing") {
@@ -275,15 +283,17 @@ export function WordShooter({
       prevLevelRef.current = currentLevel;
       setLevelBanner(currentLevel);
       setLiveAnnouncement(`Level up! Level ${currentLevel}`);
-      const t = setTimeout(() => {
-        setLevelBanner(null);
-      }, 1200);
-      return () => {
-        clearTimeout(t);
-      };
     }
     return undefined;
   }, [score, phase]);
+
+  // Banner auto-dismiss timer — keyed on the banner itself so pause/resume
+  // can never orphan it (cleanup only fires on change/unmount).
+  useEffect(() => {
+    if (levelBanner === null) return undefined;
+    const t = setTimeout(() => setLevelBanner(null), 1200);
+    return () => clearTimeout(t);
+  }, [levelBanner]);
 
   // Main game physics loop (pure step logic, decoupled side-effects)
   useEffect(() => {
@@ -323,6 +333,30 @@ export function WordShooter({
       }
 
       let next = surviving;
+
+      // Boss word every 5 levels
+      if (isBossLevel(lvl) && lastBossLevelSpawnedRef.current < lvl && !next.some((e) => e.boss)) {
+        lastBossLevelSpawnedRef.current = lvl;
+        const candidates = poolRef.current
+          .filter((w) => w.length >= 8 && !next.some((e) => e.word === w))
+          .sort((a, b) => b.length - a.length);
+        const bossWord = candidates[0] ?? "corrupted";
+        const baseSpeed = (3.2 + lvl * 0.8 + Math.random() * 1.5) * speedMult;
+        next = [
+          ...next,
+          {
+            id: idRef.current++,
+            word: bossWord,
+            typed: 0,
+            x: 20 + Math.random() * 60,
+            y: 0,
+            speed: baseSpeed * 0.55,
+            boss: true,
+          },
+        ];
+        setLiveAnnouncement("Boss word incoming!");
+      }
+
       const maxSimultaneous = Math.min(8, 3 + Math.floor(lvl / 2));
       if (spawnRef.current <= 0 && next.length < maxSimultaneous) {
         const spawnInterval = Math.max(0.8, (2.2 - lvl * 0.15) / Math.sqrt(speedMult));
@@ -446,6 +480,9 @@ export function WordShooter({
       if (res.wrongKey) {
         setStreak(0);
         setWrongKeys((w) => w + 1);
+        if (res.expectedChar) {
+          onWrongKey?.(res.expectedChar);
+        }
         return;
       }
 
@@ -463,7 +500,7 @@ export function WordShooter({
         spawnPopup(res.wordDestroyed.x, res.wordDestroyed.y, `+${res.scoreGained}`);
       }
     },
-    [phase, fire, soundMuted, spawnExplosion, spawnPopup, onCharPressed],
+    [phase, fire, soundMuted, spawnExplosion, spawnPopup, onCharPressed, onWrongKey],
   );
 
   // Global key listener
@@ -637,12 +674,14 @@ export function WordShooter({
               }}
             >
               <div
-                className={`relative flex items-center gap-1 rounded-xl border px-3 py-1.5 font-mono text-sm shadow-md transition-colors ${
-                  isTarget
-                    ? "border-primary bg-primary/20 text-primary-foreground ring-2 ring-primary"
-                    : isDanger
-                      ? "border-destructive/80 bg-destructive/15 text-foreground animate-pulse"
-                      : "border-border/80 bg-secondary/90 text-foreground"
+                className={`relative flex items-center gap-1 rounded-xl border font-mono shadow-md transition-colors ${
+                  enemy.boss
+                    ? "border-destructive ring-2 ring-destructive animate-pulse bg-destructive/20 text-foreground text-base px-3.5 py-2 font-semibold"
+                    : isTarget
+                      ? "border-primary bg-primary/20 text-primary-foreground ring-2 ring-primary text-sm px-3 py-1.5"
+                      : isDanger
+                        ? "border-destructive/80 bg-destructive/15 text-foreground animate-pulse text-sm px-3 py-1.5"
+                        : "border-border/80 bg-secondary/90 text-foreground text-sm px-3 py-1.5"
                 }`}
               >
                 {/* Crosshair indicator on active targeted enemy */}
@@ -707,7 +746,7 @@ export function WordShooter({
         {popups.map((pop) => (
           <span
             key={pop.id}
-            className="score-popup pointer-events-none absolute z-20 font-mono text-sm font-bold text-primary drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+            className="score-popup pointer-events-none absolute z-20 -translate-x-1/2 font-mono text-sm font-bold text-primary drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
             style={{
               left: `${pop.x}%`,
               top: `${pop.y}%`,

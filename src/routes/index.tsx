@@ -31,6 +31,14 @@ import { WpmChart } from "@/components/WpmChart";
 import { CommandPalette } from "@/components/CommandPalette";
 import { WordShooter } from "@/components/WordShooter";
 import { ShooterSettingsDialog } from "@/components/ShooterSettingsDialog";
+import { DailyGoal } from "@/components/DailyGoal";
+import {
+  loadDaily,
+  saveDaily,
+  recordRunToday,
+  getLocalDateString,
+  type DailyState,
+} from "@/lib/daily";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -104,8 +112,11 @@ function Index() {
   const [correct, setCorrect] = useState(0);
   const [incorrect, setIncorrect] = useState(0);
   const [mistakes, setMistakes] = useState<Record<string, number>>({});
+  const [shooterMistakes, setShooterMistakes] = useState<Record<string, number>>({});
   const [samples, setSamples] = useState<number[]>([]);
+  const [ghostSamples, setGhostSamples] = useState<number[] | undefined>(undefined);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [daily, setDaily] = useState<DailyState | null>(null);
   const [focused, setFocused] = useState(true);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -118,12 +129,17 @@ function Index() {
   const incorrectRef = useRef(0);
   const samplesRef = useRef<number[]>([]);
   const historyRef = useRef<HistoryEntry[]>([]);
+  const dailyRef = useRef<DailyState | null>(null);
 
   useEffect(() => {
     setMounted(true);
     const loaded = loadHistory();
     historyRef.current = loaded;
     setHistory(loaded);
+
+    const loadedDaily = loadDaily();
+    dailyRef.current = loadedDaily;
+    setDaily(loadedDaily);
 
     const loadedSettings = loadShooterSettings();
     setShooterSettings(loadedSettings);
@@ -163,6 +179,26 @@ function Index() {
     if (!ok) {
       toast.error("Couldn't save this run — storage is full. Export and clear old runs.");
     }
+    const today = getLocalDateString();
+    const prevDaily = dailyRef.current;
+    const nextDaily = recordRunToday(prevDaily, today);
+    dailyRef.current = nextDaily;
+    setDaily(nextDaily);
+    saveDaily(nextDaily);
+    if ((prevDaily?.runsToday ?? 0) < 3 && nextDaily.runsToday >= 3) {
+      toast.success("Daily goal complete!");
+    }
+  }, []);
+
+  const handleShooterWrongKey = useCallback((expectedChar: string) => {
+    setShooterMistakes((prev) => ({
+      ...prev,
+      [expectedChar]: (prev[expectedChar] ?? 0) + 1,
+    }));
+  }, []);
+
+  const handleShooterStart = useCallback(() => {
+    setShooterMistakes({});
   }, []);
 
   const handleDifficultyChange = useCallback((d: Difficulty) => {
@@ -215,6 +251,22 @@ function Index() {
   useEffect(() => {
     reset(difficulty);
   }, [difficulty, duration, reset]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`ttp:best:samples:v1:${duration}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.every((x) => typeof x === "number")) {
+          setGhostSamples(parsed);
+          return;
+        }
+      }
+    } catch {
+      // safe storage fallback
+    }
+    setGhostSamples(undefined);
+  }, [duration]);
 
   const elapsed = running ? Math.max(0, elapsedMs) : 0;
   const remaining = Math.max(0, duration - elapsed / 1000);
@@ -279,6 +331,14 @@ function Index() {
       .reduce((m, h) => Math.max(m, h.wpm), 0);
     setIsRecord(fs.wpm > prevBest && fs.wpm > 0);
     if (fs.typed > 0) {
+      if (fs.wpm >= prevBest && samplesRef.current.length > 0) {
+        try {
+          const toSave = samplesRef.current.slice(0, 240);
+          localStorage.setItem(`ttp:best:samples:v1:${duration}`, JSON.stringify(toSave));
+        } catch {
+          // safe storage fallback
+        }
+      }
       const { list, ok } = saveRun({
         ...fs,
         id: newRunId(),
@@ -290,6 +350,15 @@ function Index() {
       setHistory(list);
       if (!ok) {
         toast.error("Couldn't save this run — storage is full. Export and clear old runs.");
+      }
+      const today = getLocalDateString();
+      const prevDaily = dailyRef.current;
+      const nextDaily = recordRunToday(prevDaily, today);
+      dailyRef.current = nextDaily;
+      setDaily(nextDaily);
+      saveDaily(nextDaily);
+      if ((prevDaily?.runsToday ?? 0) < 3 && nextDaily.runsToday >= 3) {
+        toast.success("Daily goal complete!");
       }
     }
   }, [difficulty, duration]);
@@ -645,7 +714,7 @@ function Index() {
                   {shown.adjustedWpm.toFixed(0)} · consistency {shown.consistency.toFixed(0)}%
                 </div>
 
-                <WpmChart samples={samples} />
+                <WpmChart samples={samples} ghost={ghostSamples} />
                 <ProblemKeys mistakes={mistakes} />
                 <button
                   type="button"
@@ -675,7 +744,13 @@ function Index() {
               pressTimerRef.current = window.setTimeout(() => setPressedChar(null), 160);
             }}
             onRunComplete={handleShooterRunComplete}
+            onWrongKey={handleShooterWrongKey}
+            onStart={handleShooterStart}
           />
+
+          <div className="mt-4">
+            <ProblemKeys mistakes={shooterMistakes} />
+          </div>
 
           <div className="mt-4">
             <MemoKeyboard
@@ -686,6 +761,10 @@ function Index() {
           </div>
         </>
       )}
+
+      <div className="mt-4">
+        <DailyGoal daily={daily} />
+      </div>
 
       <div className="mt-4">
         <MemoHistory
