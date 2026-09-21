@@ -82,11 +82,12 @@ function migrateLegacy(): void {
   }
 }
 
-const HistoryEntrySchema = z.object({
+export const HistoryEntrySchema = z.object({
   id: z.union([z.string(), z.number()]).transform(String),
   date: z.number(),
   difficulty: z.string(),
-  mode: z.string(),
+  /** Legacy (pre-shooter) entries have no mode; they were standard 30s drills. */
+  mode: z.string().default("30"),
   wpm: z.number(),
   rawWpm: z.number().default(0),
   adjustedWpm: z.number().default(0),

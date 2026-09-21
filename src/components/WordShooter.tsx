@@ -59,9 +59,11 @@ export function WordShooter({
   const [wrongKeys, setWrongKeys] = useState(0);
   const [targetId, setTargetId] = useState<number | null>(null);
   const [shipX, setShipX] = useState(50);
-  const [soundMuted, setSoundMuted] = useState(!settings.soundEnabled);
+  const [localMuteOverride, setLocalMuteOverride] = useState<boolean | null>(null);
+  const soundMuted = localMuteOverride ?? !settings.soundEnabled;
   const [liveAnnouncement, setLiveAnnouncement] = useState("");
 
+  const enemiesRef = useRef<Enemy[]>([]);
   const idRef = useRef(10);
   const poolRef = useRef<string[]>([]);
   const spawnRef = useRef(2.0);
@@ -76,22 +78,21 @@ export function WordShooter({
   const stateRef = useRef({ phase, targetId, settings, soundMuted });
   stateRef.current = { phase, targetId, settings, soundMuted };
 
-  // Sync sound muted with settings
+  // Reset local override when settings change
   useEffect(() => {
-    setSoundMuted(!settings.soundEnabled);
+    setLocalMuteOverride(null);
   }, [settings.soundEnabled]);
 
   // Load high score and mount
   useEffect(() => {
     setMounted(true);
-    poolRef.current = wordPoolFor(settings.difficulty);
     try {
       const raw = localStorage.getItem(HIGH_SCORE_KEY);
       if (raw) setBest(Number(raw) || 0);
     } catch {
       // safe storage fallback
     }
-  }, [settings.difficulty]);
+  }, []);
 
   // Smoothly update speed on existing enemies without resetting the field
   const prevSpeedRef = useRef(settings.speedMultiplier);
@@ -99,7 +100,9 @@ export function WordShooter({
     const prevSpeed = prevSpeedRef.current;
     if (prevSpeed !== settings.speedMultiplier && prevSpeed > 0) {
       const ratio = settings.speedMultiplier / prevSpeed;
-      setEnemies((prev) => prev.map((e) => ({ ...e, speed: e.speed * ratio })));
+      const next = enemiesRef.current.map((e) => ({ ...e, speed: e.speed * ratio }));
+      enemiesRef.current = next;
+      setEnemies(next);
     }
     prevSpeedRef.current = settings.speedMultiplier;
   }, [settings.speedMultiplier]);
@@ -132,6 +135,7 @@ export function WordShooter({
     idRef.current = 10;
     spawnRef.current = 2.0;
     const initial = createInitialEnemies(pool, settings.speedMultiplier, 1);
+    enemiesRef.current = initial;
     setEnemies(initial);
     setShots([]);
     setExplosions([]);
@@ -219,7 +223,7 @@ export function WordShooter({
     });
 
     const exp: Explosion = {
-      id: Date.now() + Math.random(),
+      id: idRef.current++,
       x,
       y,
       particles,
@@ -247,58 +251,61 @@ export function WordShooter({
 
       spawnRef.current -= dt;
 
-      setEnemies((prev) => {
-        const { surviving, breached, clearedTargetId } = stepEnemies(prev, dt, targetIdRef.current);
+      // PURE step — computed outside setState
+      const { surviving, breached, clearedTargetId } = stepEnemies(
+        enemiesRef.current,
+        dt,
+        targetIdRef.current,
+      );
 
-        if (breached.length > 0) {
-          const count = breached.length;
-          setLives((l) => Math.max(0, l - count));
-          setMisses((m) => m + count);
-          setStreak(0);
-          playBreachSound(stateRef.current.soundMuted);
-          setLiveAnnouncement(`${count} word${count > 1 ? "s" : ""} breached defense!`);
-          if (clearedTargetId) {
-            setTargetId(null);
-          }
+      // Side effects of breaching — OUTSIDE the updater
+      if (breached.length > 0) {
+        const count = breached.length;
+        setLives((l) => Math.max(0, l - count));
+        setMisses((m) => m + count);
+        setStreak(0);
+        playBreachSound(stateRef.current.soundMuted);
+        setLiveAnnouncement(`${count} word${count > 1 ? "s" : ""} breached defense!`);
+        if (clearedTargetId) {
+          targetIdRef.current = null;
+          setTargetId(null);
         }
+      }
 
-        let next = surviving;
-        const maxSimultaneous = Math.min(8, 3 + Math.floor(lvl / 2));
-        if (spawnRef.current <= 0 && next.length < maxSimultaneous) {
-          const spawnInterval = Math.max(0.8, (2.2 - lvl * 0.15) / Math.sqrt(speedMult));
-          spawnRef.current = spawnInterval;
+      let next = surviving;
+      const maxSimultaneous = Math.min(8, 3 + Math.floor(lvl / 2));
+      if (spawnRef.current <= 0 && next.length < maxSimultaneous) {
+        const spawnInterval = Math.max(0.8, (2.2 - lvl * 0.15) / Math.sqrt(speedMult));
+        spawnRef.current = spawnInterval;
 
-          const pool = poolRef.current.length
-            ? poolRef.current
-            : ["type", "swift", "laser", "focus", "speed"];
-          const available = pool.filter(
-            (w) => !next.some((e) => e.word === w || e.word[0] === w[0]),
-          );
-          const word =
-            (available.length > 0
-              ? available[Math.floor(Math.random() * available.length)]
-              : null) ??
-            pool[Math.floor(Math.random() * pool.length)] ??
-            "arcade";
+        const pool = poolRef.current.length
+          ? poolRef.current
+          : ["type", "swift", "laser", "focus", "speed"];
+        const available = pool.filter((w) => !next.some((e) => e.word === w || e.word[0] === w[0]));
+        const word =
+          (available.length > 0 ? available[Math.floor(Math.random() * available.length)] : null) ??
+          pool[Math.floor(Math.random() * pool.length)] ??
+          "arcade";
 
-          if (!next.some((e) => e.word === word)) {
-            const baseSpeed = (3.2 + lvl * 0.8 + Math.random() * 1.5) * speedMult;
-            next = [
-              ...next,
-              {
-                id: idRef.current++,
-                word,
-                typed: 0,
-                x: 15 + Math.random() * 70,
-                y: 0,
-                speed: baseSpeed,
-              },
-            ];
-          }
+        if (!next.some((e) => e.word === word)) {
+          const baseSpeed = (3.2 + lvl * 0.8 + Math.random() * 1.5) * speedMult;
+          next = [
+            ...next,
+            {
+              id: idRef.current++,
+              word,
+              typed: 0,
+              x: 15 + Math.random() * 70,
+              y: 0,
+              speed: baseSpeed,
+            },
+          ];
         }
+      }
 
-        return next;
-      });
+      // Commit plain value; keep ref mirror in sync
+      enemiesRef.current = next;
+      setEnemies(next);
 
       // Advance shots
       setShots((prev) =>
@@ -337,56 +344,41 @@ export function WordShooter({
     }
   }, [lives, phase, soundMuted, best]);
 
-  // Pure key handler using applyKeyToEnemies
+  // Key handler: pure resolution OUTSIDE setState, side effects after.
   const handleKey = useCallback(
     (char: string) => {
       if (phase !== "playing") return;
       onCharPressed?.(char);
 
-      let sideEffects: {
-        hit: Enemy | null;
-        destroyed: Enemy | null;
-        wrongKey: boolean;
-        points: number;
-        newStreak: number;
-      } = {
-        hit: null,
-        destroyed: null,
-        wrongKey: false,
-        points: 0,
-        newStreak: 0,
-      };
+      const res = applyKeyToEnemies(
+        enemiesRef.current,
+        char,
+        targetIdRef.current,
+        streakRef.current,
+      );
 
-      setEnemies((prev) => {
-        const res = applyKeyToEnemies(prev, char, targetIdRef.current, streakRef.current);
-        sideEffects = {
-          hit: res.targetHit,
-          destroyed: res.wordDestroyed,
-          wrongKey: res.wrongKey,
-          points: res.scoreGained,
-          newStreak: res.newStreak,
-        };
-        setTargetId(res.nextTargetId);
-        return res.nextEnemies;
-      });
+      // Commit plain values — no functional updaters, no side effects inside.
+      enemiesRef.current = res.nextEnemies;
+      setEnemies(res.nextEnemies);
+      targetIdRef.current = res.nextTargetId;
+      setTargetId(res.nextTargetId);
 
-      // Side effects run purely OUTSIDE updaters
-      if (sideEffects.wrongKey) {
+      if (res.wrongKey) {
         setStreak(0);
         setWrongKeys((w) => w + 1);
         return;
       }
 
-      if (sideEffects.hit) {
-        fire(sideEffects.hit);
+      if (res.targetHit) {
+        fire(res.targetHit);
       }
 
-      if (sideEffects.destroyed) {
+      if (res.wordDestroyed) {
         setHits((h) => h + 1);
-        setStreak(sideEffects.newStreak);
-        setScore((s) => s + sideEffects.points);
+        setStreak(res.newStreak);
+        setScore((s) => s + res.scoreGained);
         playExplosionSound(soundMuted);
-        spawnExplosion(sideEffects.destroyed.x, sideEffects.destroyed.y);
+        spawnExplosion(res.wordDestroyed.x, res.wordDestroyed.y);
       }
     },
     [phase, fire, soundMuted, spawnExplosion, onCharPressed],
@@ -405,7 +397,11 @@ export function WordShooter({
 
       if (e.key === "Escape") {
         e.preventDefault();
-        start();
+        if (phase === "playing" || phase === "paused") {
+          togglePause(); // Esc pauses / resumes — never destroys progress
+        } else {
+          start(); // idle or game-over screen: start a fresh run
+        }
         return;
       }
 
@@ -477,7 +473,7 @@ export function WordShooter({
 
           <button
             type="button"
-            onClick={() => setSoundMuted(!soundMuted)}
+            onClick={() => setLocalMuteOverride(!soundMuted)}
             className="rounded-lg border border-border bg-secondary p-1.5 text-muted-foreground transition-colors hover:text-foreground"
             aria-label={soundMuted ? "Unmute audio" : "Mute audio"}
           >
@@ -803,9 +799,10 @@ export function WordShooter({
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <p>
           Type falling word letters to fire cannon ·{" "}
-          <kbd className="rounded border border-border bg-secondary px-1 font-mono">F2</kbd> Pause ·{" "}
-          <kbd className="rounded border border-border bg-secondary px-1 font-mono">Esc</kbd>{" "}
-          Restart
+          <kbd className="rounded border border-border bg-secondary px-1 font-mono">F2/Esc</kbd>{" "}
+          Pause ·{" "}
+          <kbd className="rounded border border-border bg-secondary px-1 font-mono">Esc</kbd> (on
+          menus) Start
         </p>
         <span className="font-mono text-[11px]">
           Target:{" "}

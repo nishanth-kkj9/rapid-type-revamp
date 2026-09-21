@@ -67,4 +67,14 @@ describe("shooterEngine", () => {
     expect(pool.length).toBeGreaterThan(0);
     expect(pool.every((w) => w.length >= 2)).toBe(true);
   });
+
+  it("locks onto a partially-typed enemy by its next expected char", () => {
+    const partials: Enemy[] = [
+      { id: 1, word: "laser", typed: 2, x: 20, y: 10, speed: 4 }, // expects 's'
+      { id: 2, word: "type", typed: 0, x: 60, y: 30, speed: 5 },
+    ];
+    const res = applyKeyToEnemies(partials, "s", null, 0);
+    expect(res.nextTargetId).toBe(1);
+    expect(res.wrongKey).toBe(false);
+  });
 });

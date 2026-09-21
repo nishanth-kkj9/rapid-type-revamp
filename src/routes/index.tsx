@@ -144,6 +144,9 @@ function Index() {
     saveShooterSettings(newSettings);
   }, []);
 
+  const handleClearHistory = useCallback(() => setHistory(clearHistory()), []);
+  const handleImportHistory = useCallback((entries: HistoryEntry[]) => setHistory(entries), []);
+
   const handleDifficultyChange = useCallback((d: Difficulty) => {
     setDifficulty(d);
     try {
@@ -645,8 +648,8 @@ function Index() {
           <div className="mt-4">
             <MemoHistory
               history={history}
-              onClear={() => setHistory(clearHistory())}
-              onImport={(entries) => setHistory(entries)}
+              onClear={handleClearHistory}
+              onImport={handleImportHistory}
             />
           </div>
         </>

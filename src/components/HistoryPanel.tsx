@@ -98,8 +98,15 @@ export function HistoryPanel({ history, onClear, onImport }: Props) {
       action: {
         label: "Undo",
         onClick: () => {
-          onImport?.(previous);
-          toast.success("History restored.");
+          // Merge instead of replace: any runs finished between clear and
+          // undo are preserved; dedupe by id prevents duplication.
+          const res = importHistoryResult(JSON.stringify(previous));
+          if (res.ok) {
+            onImport?.(res.list);
+            toast.success("History restored.");
+          } else {
+            setImportError("Could not restore history — storage is full.");
+          }
         },
       },
       duration: 6000,
@@ -187,6 +194,7 @@ export function HistoryPanel({ history, onClear, onImport }: Props) {
               <button
                 key={d}
                 type="button"
+                aria-pressed={active}
                 onClick={() => setDurationFilter(d)}
                 className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
                   active
@@ -215,7 +223,10 @@ export function HistoryPanel({ history, onClear, onImport }: Props) {
       ) : filteredHistory.length === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">
           No runs recorded for the{" "}
-          <span className="font-semibold text-foreground">{durationFilter}</span> duration yet.
+          <span className="font-semibold text-foreground">
+            {durationFilter === "all" ? "selected" : durationFilter}
+          </span>{" "}
+          duration yet.
         </p>
       ) : (
         <>

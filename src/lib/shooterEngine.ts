@@ -104,9 +104,9 @@ export function applyKeyToEnemies(
   let target = current;
 
   if (!target) {
-    // Lock onto the lowest enemy that starts with this char
+    // Lock onto the lowest enemy whose NEXT expected char matches.
     target = enemies
-      .filter((e) => e.word[0] === char)
+      .filter((e) => e.word[e.typed] === char)
       .sort((a, b) => b.y - a.y)
       .at(0);
 

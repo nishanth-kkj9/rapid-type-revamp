@@ -7,6 +7,7 @@ import {
   saveRun,
   importHistory,
   clearHistory,
+  HistoryEntrySchema,
   type HistoryEntry,
 } from "./typingStats";
 
@@ -90,5 +91,23 @@ describe("history storage", () => {
     saveRun(entry());
     expect(clearHistory()).toEqual([]);
     expect(loadHistory()).toEqual([]);
+  });
+
+  it("accepts legacy entries without a mode field (defaults to 30s)", () => {
+    const legacy = {
+      id: "legacy-1",
+      date: 1700000000000,
+      difficulty: "medium",
+      wpm: 55.2,
+      accuracy: 96.1,
+      correct: 140,
+      incorrect: 6,
+      typed: 146,
+      elapsed: 30,
+      consistency: 88.4,
+    };
+    const parsed = HistoryEntrySchema.safeParse(legacy);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.mode).toBe("30");
   });
 });

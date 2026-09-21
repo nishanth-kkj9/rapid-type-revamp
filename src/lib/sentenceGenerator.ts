@@ -416,10 +416,6 @@ export function pastTense(verb: string): string {
   if (irr) return irr;
   if (verb.endsWith("e")) return `${verb}d`; // improve -> improved
   if (/[^aeiou]y$/.test(verb)) return `${verb.slice(0, -1)}ied`; // identify -> identified
-  if (/^[a-z]*[aeiou][bcdfgklmnprstvz]$/.test(verb) && !/^[a-z]*(w|x|y)$/.test(verb)) {
-    // CVC doubling: stop -> stopped
-    return `${verb}${verb.at(-1)}ed`;
-  }
   return `${verb}ed`;
 }
 
