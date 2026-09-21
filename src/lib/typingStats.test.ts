@@ -110,4 +110,32 @@ describe("history storage", () => {
     expect(parsed.success).toBe(true);
     if (parsed.success) expect(parsed.data.mode).toBe("30");
   });
+
+  it("saves, loads, and filters shooter runs with mode 'shooter'", () => {
+    const shooterRun = entry({
+      id: "shooter-1",
+      mode: "shooter",
+      wpm: 60,
+      accuracy: 95,
+      correct: 25,
+      incorrect: 2,
+    });
+    const { list } = saveRun(shooterRun);
+    expect(list.some((e) => e.id === "shooter-1" && e.mode === "shooter")).toBe(true);
+
+    const loaded = loadHistory();
+    const found = loaded.find((e) => e.id === "shooter-1");
+    expect(found).toBeDefined();
+    expect(found?.mode).toBe("shooter");
+
+    // Standard drill filters exclude shooter runs
+    const drillOnly = loaded.filter(
+      (e) => e.mode !== "shooter" && (e.mode === "30" || e.mode === "30s"),
+    );
+    expect(drillOnly.some((e) => e.id === "shooter-1")).toBe(false);
+
+    // Shooter filter finds shooter runs
+    const shooterOnly = loaded.filter((e) => e.mode === "shooter");
+    expect(shooterOnly.some((e) => e.id === "shooter-1")).toBe(true);
+  });
 });

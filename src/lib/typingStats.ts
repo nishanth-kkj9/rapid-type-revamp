@@ -62,6 +62,16 @@ export interface HistoryEntry extends RunStats {
   mode: string;
 }
 
+export interface ShooterRunSummary {
+  score: number;
+  wordsDestroyed: number;
+  accuracy: number;
+  durationSec: number;
+  difficulty: string;
+  misses?: number;
+  wrongKeys?: number;
+}
+
 const KEY = "ttp:history:v1";
 const LEGACY_KEY = "ttp:history";
 const LIMIT = 100;

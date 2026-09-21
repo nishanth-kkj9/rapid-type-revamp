@@ -18,7 +18,7 @@ interface Props {
   onImport?: (entries: HistoryEntry[]) => void;
 }
 
-const DURATION_FILTERS = ["all", "15s", "30s", "60s", "120s"] as const;
+const DURATION_FILTERS = ["all", "15s", "30s", "60s", "120s", "shooter"] as const;
 type DurationFilter = (typeof DURATION_FILTERS)[number];
 
 export function HistoryPanel({ history, onClear, onImport }: Props) {
@@ -29,7 +29,11 @@ export function HistoryPanel({ history, onClear, onImport }: Props) {
 
   const filteredHistory = useMemo(() => {
     if (durationFilter === "all") return history;
+    if (durationFilter === "shooter") {
+      return history.filter((h) => h.mode === "shooter");
+    }
     return history.filter((h) => {
+      if (h.mode === "shooter") return false;
       if (!h.mode) return durationFilter === "30s"; // legacy fallback
       const m = h.mode.toLowerCase();
       return m === durationFilter || m === durationFilter.replace("s", "");
@@ -202,7 +206,7 @@ export function HistoryPanel({ history, onClear, onImport }: Props) {
                     : "bg-secondary text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {d === "all" ? "All Durations" : d}
+                {d === "all" ? "All Durations" : d === "shooter" ? "Shooter" : d}
               </button>
             );
           })}
@@ -340,7 +344,11 @@ export function HistoryPanel({ history, onClear, onImport }: Props) {
                   <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] uppercase font-mono tracking-wider text-foreground">
                     {h.difficulty}
                   </span>
-                  {h.mode ? (
+                  {h.mode === "shooter" ? (
+                    <span className="rounded border border-primary/40 bg-primary/15 px-1.5 py-0.5 text-[10px] font-mono text-primary font-semibold uppercase">
+                      SHOOTER
+                    </span>
+                  ) : h.mode ? (
                     <span className="rounded border border-border bg-secondary/60 px-1.5 py-0.5 text-[10px] font-mono text-primary font-semibold">
                       {h.mode.endsWith("s") ? h.mode : `${h.mode}s`}
                     </span>

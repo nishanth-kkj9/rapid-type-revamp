@@ -203,10 +203,50 @@
   animation: record-glow 2s ease-in-out infinite;
 }
 
+@keyframes score-popup-anim {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -40px) scale(1.15);
+  }
+}
+
+.score-popup {
+  animation: score-popup-anim 700ms ease-out forwards;
+}
+
+@keyframes level-banner-anim {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+  85% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+}
+
+.level-banner {
+  animation: level-banner-anim 1200ms ease-out forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .shake,
   .record-glow,
-  .caret {
+  .caret,
+  .score-popup,
+  .level-banner {
     animation: none !important;
   }
 }

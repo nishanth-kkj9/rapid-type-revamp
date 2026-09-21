@@ -13,6 +13,7 @@ import {
   toDeltas,
   type HistoryEntry,
   type RunStats,
+  type ShooterRunSummary,
 } from "@/lib/typingStats";
 import {
   loadShooterSettings,
@@ -146,6 +147,23 @@ function Index() {
 
   const handleClearHistory = useCallback(() => setHistory(clearHistory()), []);
   const handleImportHistory = useCallback((entries: HistoryEntry[]) => setHistory(entries), []);
+
+  const handleShooterRunComplete = useCallback((s: ShooterRunSummary) => {
+    const incorrect = (s.wrongKeys ?? 0) + (s.misses ?? 0);
+    const fs = computeStats(s.wordsDestroyed, incorrect, s.durationSec * 1000, []);
+    const { list, ok } = saveRun({
+      ...fs,
+      id: newRunId(),
+      date: Date.now(),
+      difficulty: s.difficulty,
+      mode: "shooter",
+    });
+    historyRef.current = list;
+    setHistory(list);
+    if (!ok) {
+      toast.error("Couldn't save this run — storage is full. Export and clear old runs.");
+    }
+  }, []);
 
   const handleDifficultyChange = useCallback((d: Difficulty) => {
     setDifficulty(d);
@@ -644,14 +662,6 @@ function Index() {
           <div className="mt-4">
             <MemoKeyboard nextChar={nextChar} errorFlash={errorFlash} pressedChar={pressedChar} />
           </div>
-
-          <div className="mt-4">
-            <MemoHistory
-              history={history}
-              onClear={handleClearHistory}
-              onImport={handleImportHistory}
-            />
-          </div>
         </>
       ) : (
         <>
@@ -664,6 +674,7 @@ function Index() {
               if (pressTimerRef.current) window.clearTimeout(pressTimerRef.current);
               pressTimerRef.current = window.setTimeout(() => setPressedChar(null), 160);
             }}
+            onRunComplete={handleShooterRunComplete}
           />
 
           <div className="mt-4">
@@ -675,6 +686,14 @@ function Index() {
           </div>
         </>
       )}
+
+      <div className="mt-4">
+        <MemoHistory
+          history={history}
+          onClear={handleClearHistory}
+          onImport={handleImportHistory}
+        />
+      </div>
 
       <footer className="mt-10 text-center text-xs text-muted-foreground">
         Web edition of Typing Trainer Pro. Runs stay in your browser. Press{" "}

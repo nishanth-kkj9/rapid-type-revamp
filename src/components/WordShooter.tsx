@@ -13,6 +13,7 @@ import {
   wordPoolFor,
   type Enemy,
 } from "@/lib/shooterEngine";
+import type { ShooterRunSummary } from "@/lib/typingStats";
 import { Sliders, Volume2, VolumeX, Pause, Play, RotateCcw, Crosshair, Award } from "lucide-react";
 
 interface Shot {
@@ -29,6 +30,13 @@ interface Explosion {
   particles: { dx: number; dy: number; color: string; size: number }[];
 }
 
+interface Popup {
+  id: number;
+  x: number;
+  y: number;
+  text: string;
+}
+
 const HIGH_SCORE_KEY = "ttp:shooter:best:v1";
 
 interface WordShooterProps {
@@ -36,6 +44,7 @@ interface WordShooterProps {
   onOpenSettings: () => void;
   onActiveTargetCharChange?: (char: string | null) => void;
   onCharPressed?: (char: string) => void;
+  onRunComplete?: (s: ShooterRunSummary) => void;
 }
 
 export function WordShooter({
@@ -43,12 +52,16 @@ export function WordShooter({
   onOpenSettings,
   onActiveTargetCharChange,
   onCharPressed,
+  onRunComplete,
 }: WordShooterProps) {
   const [mounted, setMounted] = useState(false);
   const [phase, setPhase] = useState<"idle" | "playing" | "paused" | "over">("idle");
   const [enemies, setEnemies] = useState<Enemy[]>([]);
   const [shots, setShots] = useState<Shot[]>([]);
   const [explosions, setExplosions] = useState<Explosion[]>([]);
+  const [popups, setPopups] = useState<Popup[]>([]);
+  const [levelBanner, setLevelBanner] = useState<number | null>(null);
+  const prevLevelRef = useRef(1);
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(settings.startingLives);
   const [streak, setStreak] = useState(0);
@@ -77,6 +90,7 @@ export function WordShooter({
 
   const stateRef = useRef({ phase, targetId, settings, soundMuted });
   stateRef.current = { phase, targetId, settings, soundMuted };
+  const startedAtRef = useRef<number>(0);
 
   // Reset local override when settings change
   useEffect(() => {
@@ -139,15 +153,21 @@ export function WordShooter({
     setEnemies(initial);
     setShots([]);
     setExplosions([]);
+    setPopups([]);
+    setLevelBanner(null);
+    prevLevelRef.current = 1;
     setScore(0);
     setLives(settings.startingLives);
     setStreak(0);
     setHits(0);
     setMisses(0);
     setWrongKeys(0);
+    // reset ref eagerly — independent of render timing
+    targetIdRef.current = null;
     setTargetId(null);
     setShipX(50);
     setIsNewRecord(false);
+    startedAtRef.current = performance.now();
     setPhase("playing");
     setLiveAnnouncement("Game started. Type the falling words.");
     requestAnimationFrame(() => inputRef.current?.focus());
@@ -234,6 +254,36 @@ export function WordShooter({
       setExplosions((prev) => prev.filter((e) => e.id !== exp.id));
     }, 400);
   }, []);
+
+  const spawnPopup = useCallback((x: number, y: number, text: string) => {
+    const p: Popup = {
+      id: idRef.current++,
+      x,
+      y,
+      text,
+    };
+    setPopups((prev) => [...prev, p]);
+    setTimeout(() => {
+      setPopups((prev) => prev.filter((item) => item.id !== p.id));
+    }, 700);
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "playing") return undefined;
+    const currentLevel = 1 + Math.floor(score / 400);
+    if (currentLevel > prevLevelRef.current) {
+      prevLevelRef.current = currentLevel;
+      setLevelBanner(currentLevel);
+      setLiveAnnouncement(`Level up! Level ${currentLevel}`);
+      const t = setTimeout(() => {
+        setLevelBanner(null);
+      }, 1200);
+      return () => {
+        clearTimeout(t);
+      };
+    }
+    return undefined;
+  }, [score, phase]);
 
   // Main game physics loop (pure step logic, decoupled side-effects)
   useEffect(() => {
@@ -324,6 +374,11 @@ export function WordShooter({
     return () => cancelAnimationFrame(raf);
   }, [phase]);
 
+  const totalActions = hits + misses + wrongKeys;
+  const hitRate = hits + misses > 0 ? Math.round((hits / (hits + misses)) * 100) : 100;
+  const typingAccuracy = totalActions > 0 ? Math.round((hits / totalActions) * 100) : 100;
+  const hasDangerEnemy = enemies.some((e) => e.y > 65);
+
   // Handle Game Over safely with try/catch
   useEffect(() => {
     if (phase === "playing" && lives <= 0) {
@@ -341,8 +396,33 @@ export function WordShooter({
           // Quota safe
         }
       }
+
+      const durationSec = Math.max(
+        1,
+        Math.round((performance.now() - startedAtRef.current) / 1000),
+      );
+      onRunComplete?.({
+        score: currentScore,
+        wordsDestroyed: hits,
+        accuracy: typingAccuracy,
+        durationSec,
+        difficulty: settings.difficulty,
+        misses,
+        wrongKeys,
+      });
     }
-  }, [lives, phase, soundMuted, best]);
+  }, [
+    lives,
+    phase,
+    soundMuted,
+    best,
+    hits,
+    misses,
+    wrongKeys,
+    typingAccuracy,
+    settings.difficulty,
+    onRunComplete,
+  ]);
 
   // Key handler: pure resolution OUTSIDE setState, side effects after.
   const handleKey = useCallback(
@@ -376,18 +456,15 @@ export function WordShooter({
       if (res.wordDestroyed) {
         setHits((h) => h + 1);
         setStreak(res.newStreak);
+        streakRef.current = res.newStreak; // mirror immediately so same-frame keystrokes read the fresh streak for the bonus tier
         setScore((s) => s + res.scoreGained);
         playExplosionSound(soundMuted);
         spawnExplosion(res.wordDestroyed.x, res.wordDestroyed.y);
+        spawnPopup(res.wordDestroyed.x, res.wordDestroyed.y, `+${res.scoreGained}`);
       }
     },
-    [phase, fire, soundMuted, spawnExplosion, onCharPressed],
+    [phase, fire, soundMuted, spawnExplosion, spawnPopup, onCharPressed],
   );
-
-  const totalActions = hits + misses + wrongKeys;
-  const hitRate = hits + misses > 0 ? Math.round((hits / (hits + misses)) * 100) : 100;
-  const typingAccuracy = totalActions > 0 ? Math.round((hits / totalActions) * 100) : 100;
-  const hasDangerEnemy = enemies.some((e) => e.y > 65);
 
   // Global key listener
   useEffect(() => {
@@ -625,6 +702,29 @@ export function WordShooter({
             ))}
           </div>
         ))}
+
+        {/* Floating Score Popups */}
+        {popups.map((pop) => (
+          <span
+            key={pop.id}
+            className="score-popup pointer-events-none absolute z-20 font-mono text-sm font-bold text-primary drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+            style={{
+              left: `${pop.x}%`,
+              top: `${pop.y}%`,
+            }}
+          >
+            {pop.text}
+          </span>
+        ))}
+
+        {/* Level Up Banner */}
+        {levelBanner !== null && (
+          <div className="level-banner pointer-events-none absolute left-1/2 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2 rounded-xl border border-primary/60 bg-card/95 px-6 py-3 shadow-2xl backdrop-blur-md">
+            <span className="font-mono text-xl font-extrabold uppercase tracking-widest text-primary sm:text-2xl">
+              LEVEL {levelBanner}
+            </span>
+          </div>
+        )}
 
         {/* Defender Ship Cannon */}
         <div
