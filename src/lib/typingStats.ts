@@ -138,23 +138,39 @@ export function exportHistory(): string {
   return JSON.stringify(loadHistory(), null, 2);
 }
 
-/** Merge imported entries with existing history (deduped by id), newest-first. */
-export function importHistory(json: string): HistoryEntry[] | null {
-  if (!isBrowser()) return null;
+export type ImportResult =
+  { ok: true; list: HistoryEntry[] } | { ok: false; reason: "invalid" | "quota" };
+
+/** Merge imported entries with existing history (deduped by id), newest-first with error detail. */
+export function importHistoryResult(json: string): ImportResult {
+  if (!isBrowser()) return { ok: false, reason: "invalid" };
+  let parsedEntries: HistoryEntry[];
   try {
     const raw: unknown = JSON.parse(json);
-    if (!Array.isArray(raw) || raw.length > 1000) return null;
+    if (!Array.isArray(raw) || raw.length > 1000) return { ok: false, reason: "invalid" };
     const parsed = z.array(HistoryEntrySchema).safeParse(raw);
-    if (!parsed.success) return null;
+    if (!parsed.success) return { ok: false, reason: "invalid" };
+    parsedEntries = parsed.data as HistoryEntry[];
+  } catch {
+    return { ok: false, reason: "invalid" };
+  }
+
+  try {
     const byId = new Map<string, HistoryEntry>();
     for (const e of loadHistory()) byId.set(e.id, e);
-    for (const e of parsed.data as HistoryEntry[]) byId.set(e.id, e);
+    for (const e of parsedEntries) byId.set(e.id, e);
     const merged = [...byId.values()].sort((a, b) => b.date - a.date).slice(0, LIMIT);
     window.localStorage.setItem(KEY, JSON.stringify(merged));
-    return merged;
+    return { ok: true, list: merged };
   } catch {
-    return null;
+    return { ok: false, reason: "quota" };
   }
+}
+
+/** Merge imported entries with existing history (deduped by id), newest-first. */
+export function importHistory(json: string): HistoryEntry[] | null {
+  const res = importHistoryResult(json);
+  return res.ok ? res.list : null;
 }
 
 /** Stable unique id for a new run. */

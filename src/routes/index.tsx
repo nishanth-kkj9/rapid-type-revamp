@@ -126,22 +126,31 @@ function Index() {
 
     const loadedSettings = loadShooterSettings();
     setShooterSettings(loadedSettings);
-    setDifficulty(loadedSettings.difficulty);
+
+    try {
+      const savedDrill = localStorage.getItem("ttp:drill:diff:v1") as Difficulty | null;
+      if (savedDrill && ["easy", "medium", "hard"].includes(savedDrill)) {
+        setDifficulty(savedDrill);
+      } else {
+        setDifficulty(loadedSettings.difficulty);
+      }
+    } catch {
+      setDifficulty(loadedSettings.difficulty);
+    }
   }, []);
 
   const handleSaveShooterSettings = useCallback((newSettings: ShooterSettings) => {
     setShooterSettings(newSettings);
     saveShooterSettings(newSettings);
-    setDifficulty(newSettings.difficulty);
   }, []);
 
   const handleDifficultyChange = useCallback((d: Difficulty) => {
     setDifficulty(d);
-    setShooterSettings((prev) => {
-      const updated = { ...prev, difficulty: d };
-      saveShooterSettings(updated);
-      return updated;
-    });
+    try {
+      localStorage.setItem("ttp:drill:diff:v1", d);
+    } catch {
+      // safe storage fallback
+    }
   }, []);
 
   useEffect(() => {
@@ -233,6 +242,7 @@ function Index() {
   const previousBest = useMemo(() => history.reduce((m, h) => Math.max(m, h.wpm), 0), [history]);
 
   const finish = useCallback(() => {
+    setRunning(false);
     setFinished(true);
     if (savedRef.current) return;
     savedRef.current = true;
@@ -243,7 +253,9 @@ function Index() {
       toDeltas(samplesRef.current),
     );
     setFinalStats(fs);
-    const prevBest = historyRef.current.reduce((m, h) => Math.max(m, h.wpm), 0);
+    const prevBest = historyRef.current
+      .filter((h) => h.mode === `${duration}s` || h.mode === String(duration))
+      .reduce((m, h) => Math.max(m, h.wpm), 0);
     setIsRecord(fs.wpm > prevBest && fs.wpm > 0);
     if (fs.typed > 0) {
       const { list, ok } = saveRun({
@@ -644,10 +656,19 @@ function Index() {
             settings={shooterSettings}
             onOpenSettings={() => setSettingsOpen(true)}
             onActiveTargetCharChange={setActiveShooterChar}
+            onCharPressed={(char) => {
+              setPressedChar(char);
+              if (pressTimerRef.current) window.clearTimeout(pressTimerRef.current);
+              pressTimerRef.current = window.setTimeout(() => setPressedChar(null), 160);
+            }}
           />
 
           <div className="mt-4">
-            <MemoKeyboard nextChar={activeShooterChar} errorFlash={false} pressedChar={null} />
+            <MemoKeyboard
+              nextChar={activeShooterChar}
+              errorFlash={false}
+              pressedChar={pressedChar}
+            />
           </div>
         </>
       )}

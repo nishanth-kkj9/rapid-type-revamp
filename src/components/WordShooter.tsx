@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { generatePassage, type Difficulty } from "@/lib/sentenceGenerator";
 import type { ShooterSettings } from "@/lib/shooterSettings";
 import {
   playLaserSound,
@@ -7,16 +6,14 @@ import {
   playBreachSound,
   playGameOverSound,
 } from "@/lib/arcadeAudio";
+import {
+  applyKeyToEnemies,
+  createInitialEnemies,
+  stepEnemies,
+  wordPoolFor,
+  type Enemy,
+} from "@/lib/shooterEngine";
 import { Sliders, Volume2, VolumeX, Pause, Play, RotateCcw, Crosshair, Award } from "lucide-react";
-
-interface Enemy {
-  id: number;
-  word: string;
-  typed: number;
-  x: number; // percent
-  y: number; // percent
-  speed: number; // percent per second
-}
 
 interface Shot {
   id: number;
@@ -34,65 +31,21 @@ interface Explosion {
 
 const HIGH_SCORE_KEY = "ttp:shooter:best:v1";
 
-function wordPool(difficulty: Difficulty): string[] {
-  const words = generatePassage(difficulty, 900)
-    .toLowerCase()
-    .replace(/[^a-z\s'-]/g, " ")
-    .split(/\s+/)
-    .filter((w) => w.length >= 2);
-  return words.length ? Array.from(new Set(words)) : ["type", "fast", "word", "laser", "ship"];
-}
-
-function createInitialEnemies(pool: string[], speedMult: number, lvl: number): Enemy[] {
-  const words: string[] = [];
-  const usedLetters = new Set<string>();
-  const candidates = pool.length ? pool : ["type", "swift", "laser", "react", "speed", "focus"];
-
-  for (const w of candidates) {
-    if (words.length >= 3) break;
-    const first = w[0]?.toLowerCase() ?? "";
-    if (!usedLetters.has(first)) {
-      usedLetters.add(first);
-      words.push(w);
-    }
-  }
-
-  while (words.length < 3) {
-    words.push(candidates[words.length % candidates.length] ?? "word");
-  }
-
-  const positions = [
-    { x: 25, y: 12 },
-    { x: 55, y: 26 },
-    { x: 78, y: 40 },
-  ];
-
-  return words.map((word, i) => {
-    const baseSpeed = (3.0 + lvl * 0.6 + Math.random() * 0.8) * speedMult;
-    return {
-      id: i + 1,
-      word,
-      typed: 0,
-      x: positions[i]?.x ?? 20 + i * 25,
-      y: positions[i]?.y ?? 12 + i * 14,
-      speed: baseSpeed,
-    };
-  });
-}
-
 interface WordShooterProps {
   settings: ShooterSettings;
   onOpenSettings: () => void;
   onActiveTargetCharChange?: (char: string | null) => void;
+  onCharPressed?: (char: string) => void;
 }
 
 export function WordShooter({
   settings,
   onOpenSettings,
   onActiveTargetCharChange,
+  onCharPressed,
 }: WordShooterProps) {
   const [mounted, setMounted] = useState(false);
-  const [phase, setPhase] = useState<"idle" | "playing" | "paused" | "over">("playing");
+  const [phase, setPhase] = useState<"idle" | "playing" | "paused" | "over">("idle");
   const [enemies, setEnemies] = useState<Enemy[]>([]);
   const [shots, setShots] = useState<Shot[]>([]);
   const [explosions, setExplosions] = useState<Explosion[]>([]);
@@ -103,14 +56,23 @@ export function WordShooter({
   const [isNewRecord, setIsNewRecord] = useState(false);
   const [hits, setHits] = useState(0);
   const [misses, setMisses] = useState(0);
+  const [wrongKeys, setWrongKeys] = useState(0);
   const [targetId, setTargetId] = useState<number | null>(null);
   const [shipX, setShipX] = useState(50);
   const [soundMuted, setSoundMuted] = useState(!settings.soundEnabled);
+  const [liveAnnouncement, setLiveAnnouncement] = useState("");
 
   const idRef = useRef(10);
   const poolRef = useRef<string[]>([]);
   const spawnRef = useRef(2.0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const streakRef = useRef(streak);
+  streakRef.current = streak;
+  const targetIdRef = useRef(targetId);
+  targetIdRef.current = targetId;
+  const scoreRef = useRef(score);
+  scoreRef.current = score;
+
   const stateRef = useRef({ phase, targetId, settings, soundMuted });
   stateRef.current = { phase, targetId, settings, soundMuted };
 
@@ -119,23 +81,32 @@ export function WordShooter({
     setSoundMuted(!settings.soundEnabled);
   }, [settings.soundEnabled]);
 
+  // Load high score and mount
   useEffect(() => {
     setMounted(true);
-    const pool = wordPool(settings.difficulty);
-    poolRef.current = pool;
-    const initial = createInitialEnemies(pool, settings.speedMultiplier, 1);
-    setEnemies(initial);
-    idRef.current = 10;
-    spawnRef.current = 2.0;
+    poolRef.current = wordPoolFor(settings.difficulty);
+    try {
+      const raw = localStorage.getItem(HIGH_SCORE_KEY);
+      if (raw) setBest(Number(raw) || 0);
+    } catch {
+      // safe storage fallback
+    }
+  }, [settings.difficulty]);
 
-    const raw = localStorage.getItem(HIGH_SCORE_KEY);
-    if (raw) setBest(Number(raw) || 0);
-
-    requestAnimationFrame(() => inputRef.current?.focus());
-  }, [settings.difficulty, settings.speedMultiplier]);
-
+  // Smoothly update speed on existing enemies without resetting the field
+  const prevSpeedRef = useRef(settings.speedMultiplier);
   useEffect(() => {
-    poolRef.current = wordPool(settings.difficulty);
+    const prevSpeed = prevSpeedRef.current;
+    if (prevSpeed !== settings.speedMultiplier && prevSpeed > 0) {
+      const ratio = settings.speedMultiplier / prevSpeed;
+      setEnemies((prev) => prev.map((e) => ({ ...e, speed: e.speed * ratio })));
+    }
+    prevSpeedRef.current = settings.speedMultiplier;
+  }, [settings.speedMultiplier]);
+
+  // Update spawn pool when difficulty changes without killing current active targets
+  useEffect(() => {
+    poolRef.current = wordPoolFor(settings.difficulty);
   }, [settings.difficulty]);
 
   const level = useMemo(() => 1 + Math.floor(score / 400), [score]);
@@ -156,7 +127,7 @@ export function WordShooter({
   }, [enemies, targetId, phase, onActiveTargetCharChange]);
 
   const start = useCallback(() => {
-    const pool = wordPool(settings.difficulty);
+    const pool = poolRef.current.length ? poolRef.current : wordPoolFor(settings.difficulty);
     poolRef.current = pool;
     idRef.current = 10;
     spawnRef.current = 2.0;
@@ -169,23 +140,98 @@ export function WordShooter({
     setStreak(0);
     setHits(0);
     setMisses(0);
+    setWrongKeys(0);
     setTargetId(null);
     setShipX(50);
     setIsNewRecord(false);
     setPhase("playing");
+    setLiveAnnouncement("Game started. Type the falling words.");
     requestAnimationFrame(() => inputRef.current?.focus());
   }, [settings.difficulty, settings.speedMultiplier, settings.startingLives]);
 
   const togglePause = useCallback(() => {
     if (phase === "playing") {
       setPhase("paused");
+      setLiveAnnouncement("Game paused.");
     } else if (phase === "paused") {
       setPhase("playing");
+      setLiveAnnouncement("Game resumed.");
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [phase]);
 
-  // Main game physics and animation loop
+  // F-1: Auto-pause when window loses focus or tab becomes hidden
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && phase === "playing") {
+        setPhase("paused");
+        setLiveAnnouncement("Game paused automatically.");
+      }
+    };
+    const handleBlur = () => {
+      if (phase === "playing") {
+        setPhase("paused");
+        setLiveAnnouncement("Game paused automatically.");
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("blur", handleBlur);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, [phase]);
+
+  const fire = useCallback(
+    (enemy: Enemy) => {
+      setShipX(enemy.x);
+      setShots((s) => [
+        ...s,
+        {
+          id: idRef.current++,
+          startX: enemy.x,
+          targetX: enemy.x,
+          y: 86,
+        },
+      ]);
+      playLaserSound(soundMuted);
+    },
+    [soundMuted],
+  );
+
+  const spawnExplosion = useCallback((x: number, y: number) => {
+    const colors = [
+      "var(--color-primary)",
+      "var(--color-accent)",
+      "var(--color-success)",
+      "#f59e0b",
+    ];
+    const particles = Array.from({ length: 8 }).map(() => {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 10 + Math.random() * 20;
+      return {
+        dx: Math.cos(angle) * dist,
+        dy: Math.sin(angle) * dist,
+        color: colors[Math.floor(Math.random() * colors.length)] ?? "#f59e0b",
+        size: 3 + Math.random() * 3,
+      };
+    });
+
+    const exp: Explosion = {
+      id: Date.now() + Math.random(),
+      x,
+      y,
+      particles,
+    };
+
+    setExplosions((prev) => [...prev, exp]);
+    setTimeout(() => {
+      setExplosions((prev) => prev.filter((e) => e.id !== exp.id));
+    }, 400);
+  }, []);
+
+  // Main game physics loop (pure step logic, decoupled side-effects)
   useEffect(() => {
     if (phase !== "playing") return;
     let raf = 0;
@@ -197,28 +243,26 @@ export function WordShooter({
 
       const currentSettings = stateRef.current.settings;
       const speedMult = currentSettings.speedMultiplier;
-      const lvl = 1 + Math.floor(score / 400);
+      const lvl = 1 + Math.floor(scoreRef.current / 400);
 
       spawnRef.current -= dt;
 
       setEnemies((prev) => {
-        let next = prev.map((e) => ({ ...e, y: e.y + e.speed * dt }));
-        const breached = next.filter((e) => e.y >= 88);
+        const { surviving, breached, clearedTargetId } = stepEnemies(prev, dt, targetIdRef.current);
 
-        if (breached.length) {
-          next = next.filter((e) => e.y < 88);
-          setLives((l) => Math.max(0, l - breached.length));
-          setMisses((m) => m + breached.length);
+        if (breached.length > 0) {
+          const count = breached.length;
+          setLives((l) => Math.max(0, l - count));
+          setMisses((m) => m + count);
           setStreak(0);
-
           playBreachSound(stateRef.current.soundMuted);
-
-          if (breached.some((e) => e.id === stateRef.current.targetId)) {
+          setLiveAnnouncement(`${count} word${count > 1 ? "s" : ""} breached defense!`);
+          if (clearedTargetId) {
             setTargetId(null);
           }
         }
 
-        // Spawn new enemy word if ready
+        let next = surviving;
         const maxSimultaneous = Math.min(8, 3 + Math.floor(lvl / 2));
         if (spawnRef.current <= 0 && next.length < maxSimultaneous) {
           const spawnInterval = Math.max(0.8, (2.2 - lvl * 0.15) / Math.sqrt(speedMult));
@@ -257,144 +301,103 @@ export function WordShooter({
       });
 
       // Advance shots
-      setShots((prev) => prev.map((s) => ({ ...s, y: s.y - 240 * dt })).filter((s) => s.y > -10));
+      setShots((prev) =>
+        prev.length > 0
+          ? prev.map((s) => ({ ...s, y: s.y - 240 * dt })).filter((s) => s.y > -10)
+          : prev,
+      );
 
-      // Clean up explosions after short delay
-      setExplosions((prev) => prev.slice(-8));
+      // Clean up explosions
+      setExplosions((prev) => (prev.length > 8 ? prev.slice(-8) : prev));
 
       raf = requestAnimationFrame(tick);
     };
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [phase, score]);
+  }, [phase]);
 
-  // Handle Game Over
+  // Handle Game Over safely with try/catch
   useEffect(() => {
     if (phase === "playing" && lives <= 0) {
       setPhase("over");
       playGameOverSound(soundMuted);
+      setLiveAnnouncement(`Game over! Final score: ${scoreRef.current}`);
 
-      setScore((currentScore) => {
-        setBest((b) => {
-          if (currentScore > b) {
-            setIsNewRecord(true);
-            localStorage.setItem(HIGH_SCORE_KEY, String(currentScore));
-            return currentScore;
-          }
-          return b;
-        });
-        return currentScore;
-      });
+      const currentScore = scoreRef.current;
+      if (currentScore > best) {
+        setIsNewRecord(true);
+        setBest(currentScore);
+        try {
+          localStorage.setItem(HIGH_SCORE_KEY, String(currentScore));
+        } catch {
+          // Quota safe
+        }
+      }
     }
-  }, [lives, phase, soundMuted]);
+  }, [lives, phase, soundMuted, best]);
 
-  const fire = useCallback(
-    (enemy: Enemy) => {
-      setShipX(enemy.x);
-      setShots((s) => [
-        ...s,
-        {
-          id: idRef.current++,
-          startX: shipX,
-          targetX: enemy.x,
-          y: 86,
-        },
-      ]);
-      playLaserSound(soundMuted);
-    },
-    [shipX, soundMuted],
-  );
-
-  const spawnExplosion = useCallback((x: number, y: number) => {
-    const colors = [
-      "var(--color-primary)",
-      "var(--color-accent)",
-      "var(--color-success)",
-      "#f59e0b",
-    ];
-    const particles = Array.from({ length: 8 }).map(() => {
-      const angle = Math.random() * Math.PI * 2;
-      const dist = 10 + Math.random() * 20;
-      return {
-        dx: Math.cos(angle) * dist,
-        dy: Math.sin(angle) * dist,
-        color: colors[Math.floor(Math.random() * colors.length)] ?? "#f59e0b",
-        size: 3 + Math.random() * 3,
-      };
-    });
-
-    const exp: Explosion = {
-      id: Date.now() + Math.random(),
-      x,
-      y,
-      particles,
-    };
-
-    setExplosions((prev) => [...prev, exp]);
-    setTimeout(() => {
-      setExplosions((prev) => prev.filter((e) => e.id !== exp.id));
-    }, 400);
-  }, []);
-
+  // Pure key handler using applyKeyToEnemies
   const handleKey = useCallback(
     (char: string) => {
       if (phase !== "playing") return;
+      onCharPressed?.(char);
+
+      let sideEffects: {
+        hit: Enemy | null;
+        destroyed: Enemy | null;
+        wrongKey: boolean;
+        points: number;
+        newStreak: number;
+      } = {
+        hit: null,
+        destroyed: null,
+        wrongKey: false,
+        points: 0,
+        newStreak: 0,
+      };
 
       setEnemies((prev) => {
-        const current = targetId != null ? prev.find((e) => e.id === targetId) : undefined;
-        let target = current;
-
-        if (!target) {
-          // Lock onto the lowest enemy that starts with this char
-          target = prev
-            .filter((e) => e.word[0] === char)
-            .sort((a, b) => b.y - a.y)
-            .at(0);
-
-          if (!target) {
-            setStreak(0);
-            return prev;
-          }
-          setTargetId(target.id);
-        }
-
-        if (target.word[target.typed] !== char) {
-          setStreak(0);
-          return prev;
-        }
-
-        const typed = target.typed + 1;
-        fire(target);
-
-        if (typed >= target.word.length) {
-          // Word destroyed!
-          setTargetId(null);
-          setHits((h) => h + 1);
-          playExplosionSound(soundMuted);
-          spawnExplosion(target.x, target.y);
-
-          setStreak((st) => {
-            const ns = st + 1;
-            const streakBonus = Math.min(5, 1 + Math.floor(ns / 5));
-            const points = target.word.length * 10 * streakBonus;
-            setScore((s) => s + points);
-            return ns;
-          });
-
-          return prev.filter((e) => e.id !== target.id);
-        }
-
-        return prev.map((e) => (e.id === target.id ? { ...e, typed } : e));
+        const res = applyKeyToEnemies(prev, char, targetIdRef.current, streakRef.current);
+        sideEffects = {
+          hit: res.targetHit,
+          destroyed: res.wordDestroyed,
+          wrongKey: res.wrongKey,
+          points: res.scoreGained,
+          newStreak: res.newStreak,
+        };
+        setTargetId(res.nextTargetId);
+        return res.nextEnemies;
       });
+
+      // Side effects run purely OUTSIDE updaters
+      if (sideEffects.wrongKey) {
+        setStreak(0);
+        setWrongKeys((w) => w + 1);
+        return;
+      }
+
+      if (sideEffects.hit) {
+        fire(sideEffects.hit);
+      }
+
+      if (sideEffects.destroyed) {
+        setHits((h) => h + 1);
+        setStreak(sideEffects.newStreak);
+        setScore((s) => s + sideEffects.points);
+        playExplosionSound(soundMuted);
+        spawnExplosion(sideEffects.destroyed.x, sideEffects.destroyed.y);
+      }
     },
-    [phase, targetId, fire, soundMuted, spawnExplosion],
+    [phase, fire, soundMuted, spawnExplosion, onCharPressed],
   );
 
-  const accuracy = hits + misses > 0 ? Math.round((hits / (hits + misses)) * 100) : 100;
+  const totalActions = hits + misses + wrongKeys;
+  const hitRate = hits + misses > 0 ? Math.round((hits / (hits + misses)) * 100) : 100;
+  const typingAccuracy = totalActions > 0 ? Math.round((hits / totalActions) * 100) : 100;
   const hasDangerEnemy = enemies.some((e) => e.y > 65);
 
-  // Global key listener so users can type immediately without having to focus the hidden input first
+  // Global key listener
   useEffect(() => {
     const onGlobalKey = (e: KeyboardEvent) => {
       if (document.querySelector('[role="dialog"]')) return;
@@ -406,15 +409,8 @@ export function WordShooter({
         return;
       }
 
-      if (e.key === "p" || e.key === "P") {
-        const active = document.activeElement;
-        if (
-          active instanceof HTMLElement &&
-          (active.tagName === "INPUT" || active.tagName === "BUTTON") &&
-          active.id !== "word_shooter_input"
-        ) {
-          return;
-        }
+      // Allow Pause hotkey on F2 or Pause button
+      if (e.key === "F2") {
         e.preventDefault();
         togglePause();
         return;
@@ -426,6 +422,7 @@ export function WordShooter({
         return;
       }
 
+      // Directly handle typed characters without intercepting 'p'
       if (phase === "playing" && e.key.length === 1 && /^[a-z0-9'-]$/i.test(e.key)) {
         handleKey(e.key.toLowerCase());
         inputRef.current?.focus();
@@ -438,48 +435,51 @@ export function WordShooter({
 
   return (
     <section className="panel mt-3 p-3 sm:p-5">
+      {/* Screen reader live announcements */}
+      <div aria-live="polite" className="sr-only">
+        {liveAnnouncement}
+      </div>
+
       {/* Top Status Bar */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-baseline gap-1">
             <span className="font-mono text-xl font-bold text-primary sm:text-2xl">{score}</span>
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase">pts</span>
+            <span className="text-[11px] text-muted-foreground">pts</span>
           </div>
-          <span className="rounded-md border border-border bg-secondary/80 px-2 py-0.5 text-xs font-medium">
-            Level {level}
-          </span>
-          <span className="text-muted-foreground">
-            Streak <span className="font-mono font-semibold text-foreground">{streak}</span>
-          </span>
-          <span className="hidden text-muted-foreground sm:inline">
-            Hit rate <span className="font-mono font-semibold text-foreground">{accuracy}%</span>
-          </span>
-        </div>
 
-        {/* Action buttons and lives */}
-        <div className="flex items-center gap-3">
-          {/* Hearts / Lives Counter */}
-          <div
-            className="flex items-center gap-0.5 font-mono text-sm"
-            aria-label={`${lives} of ${settings.startingLives} lives left`}
-            title={`${lives} / ${settings.startingLives} lives`}
-          >
-            <span className="text-destructive">{"❤".repeat(Math.min(6, Math.max(0, lives)))}</span>
-            {lives > 6 && (
-              <span className="ml-0.5 text-xs font-bold text-destructive">+{lives - 6}</span>
-            )}
-            <span className="text-muted-foreground/40">
-              {"·".repeat(Math.max(0, Math.min(6, settings.startingLives) - Math.min(6, lives)))}
+          <div className="flex items-center gap-1 font-mono text-xs text-muted-foreground">
+            <span className="rounded bg-secondary px-1.5 py-0.5 font-bold uppercase text-foreground">
+              Lvl {level}
             </span>
           </div>
 
-          {/* Audio toggle button */}
+          <div className="flex items-center gap-1 text-destructive">
+            <span className="font-mono font-bold">{lives}</span>
+            <span className="text-sm">{"❤".repeat(Math.max(0, Math.min(5, lives)))}</span>
+            {lives > 5 ? (
+              <span className="font-mono text-xs font-semibold">+{lives - 5}</span>
+            ) : null}
+          </div>
+
+          {streak >= 3 ? (
+            <div className="flex items-center gap-1 font-mono text-xs font-semibold text-accent animate-pulse">
+              <span>{streak}x Streak</span>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="hidden font-mono text-xs text-muted-foreground sm:block">
+            Hit Rate: <span className="font-semibold text-foreground">{hitRate}%</span> · Acc:{" "}
+            <span className="font-semibold text-foreground">{typingAccuracy}%</span>
+          </div>
+
           <button
             type="button"
-            onClick={() => setSoundMuted((m) => !m)}
-            aria-label={soundMuted ? "Unmute arcade sound effects" : "Mute arcade sound effects"}
-            title={soundMuted ? "Unmute arcade audio" : "Mute arcade audio"}
+            onClick={() => setSoundMuted(!soundMuted)}
             className="rounded-lg border border-border bg-secondary p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+            aria-label={soundMuted ? "Unmute audio" : "Mute audio"}
           >
             {soundMuted ? (
               <VolumeX className="size-4" />
@@ -488,117 +488,161 @@ export function WordShooter({
             )}
           </button>
 
-          {/* Pause / Resume Button (when playing) */}
           {phase === "playing" || phase === "paused" ? (
             <button
               type="button"
               onClick={togglePause}
-              aria-label={phase === "playing" ? "Pause game" : "Resume game"}
-              title={phase === "playing" ? "Pause game" : "Resume game"}
-              className="rounded-lg border border-border bg-secondary p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+              className="flex items-center gap-1 rounded-lg border border-border bg-secondary px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
             >
               {phase === "playing" ? (
-                <Pause className="size-4" />
+                <>
+                  <Pause className="size-3.5" />
+                  <span>Pause</span>
+                </>
               ) : (
-                <Play className="size-4 text-primary" />
+                <>
+                  <Play className="size-3.5" />
+                  <span>Resume</span>
+                </>
               )}
             </button>
           ) : null}
 
-          {/* Settings button */}
+          <button
+            type="button"
+            onClick={start}
+            className="flex items-center gap-1 rounded-lg border border-border bg-secondary px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+          >
+            <RotateCcw className="size-3.5" />
+            <span className="hidden sm:inline">Restart</span>
+          </button>
+
           <button
             type="button"
             onClick={onOpenSettings}
-            className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-            title="Open Word Shooter Settings"
+            className="rounded-lg border border-border bg-secondary p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+            aria-label="Arcade settings"
           >
-            <Sliders className="size-3.5 text-primary" />
-            <span>Settings</span>
+            <Sliders className="size-4 text-primary" />
           </button>
         </div>
       </div>
 
-      {/* Game Playfield Canvas Container */}
+      {/* Main Canvas Arena */}
       <div
-        className={`relative h-[400px] w-full cursor-text overflow-hidden rounded-xl border border-border bg-secondary/30 transition-all duration-300 sm:h-[460px] ${
-          hasDangerEnemy && phase === "playing"
-            ? "shadow-[0_0_24px_rgba(239,68,68,0.15)] ring-1 ring-destructive/40"
-            : ""
+        role="region"
+        aria-label="Word shooter game field"
+        onClick={() => {
+          if (phase === "playing") inputRef.current?.focus();
+        }}
+        className={`relative h-96 sm:h-[440px] w-full overflow-hidden rounded-2xl border transition-colors ${
+          hasDangerEnemy
+            ? "border-destructive/60 bg-gradient-to-b from-card via-card to-destructive/10 shadow-[0_0_20px_rgba(239,68,68,0.15)]"
+            : "border-border bg-card/75"
         }`}
-        onClick={() => inputRef.current?.focus()}
       >
-        {/* Starfield / Grid background lines */}
-        <div className="pointer-events-none absolute inset-0 opacity-15 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:24px_24px]" />
+        {/* Background Grid Lines for Space Arcade Feel */}
+        <div className="pointer-events-none absolute inset-0 opacity-15 bg-[radial-gradient(#888_1px,transparent_1px)] [background-size:20px_20px]" />
 
-        {/* Falling Word Enemies */}
-        {enemies.map((e) => {
-          const active = e.id === targetId;
-          const isDanger = e.y > 65;
+        {/* Falling Enemy Words */}
+        {enemies.map((enemy) => {
+          const isTarget = enemy.id === targetId;
+          const typedPart = enemy.word.slice(0, enemy.typed);
+          const nextChar = enemy.word[enemy.typed] ?? "";
+          const remainingPart = enemy.word.slice(enemy.typed + 1);
+          const isDanger = enemy.y > 65;
 
           return (
             <div
-              key={e.id}
-              className={`absolute -translate-x-1/2 select-none whitespace-nowrap rounded-lg px-2.5 py-1 font-mono text-sm font-semibold transition-transform duration-75 sm:text-base ${
-                active
-                  ? "bg-primary/20 text-foreground ring-2 ring-primary shadow-lg shadow-primary/20 scale-105 z-20"
-                  : isDanger
-                    ? "bg-destructive/15 text-destructive ring-1 ring-destructive/50"
-                    : "bg-card/90 border border-border text-foreground shadow-sm"
+              key={enemy.id}
+              className={`absolute -translate-x-1/2 select-none transition-transform duration-75 ${
+                isTarget ? "z-20 scale-105" : "z-10"
               }`}
-              style={{ left: `${e.x}%`, top: `${e.y}%` }}
+              style={{
+                left: `${enemy.x}%`,
+                top: `${enemy.y}%`,
+              }}
             >
-              {active ? (
-                <Crosshair className="absolute -left-5 top-1/2 size-4 -translate-y-1/2 text-primary animate-pulse" />
-              ) : null}
-              <span className="text-primary underline decoration-primary decoration-2 underline-offset-2">
-                {e.word.slice(0, e.typed)}
-              </span>
-              <span className={active ? "text-foreground font-bold" : "text-muted-foreground"}>
-                {e.word.slice(e.typed)}
-              </span>
+              <div
+                className={`relative flex items-center gap-1 rounded-xl border px-3 py-1.5 font-mono text-sm shadow-md transition-colors ${
+                  isTarget
+                    ? "border-primary bg-primary/20 text-primary-foreground ring-2 ring-primary"
+                    : isDanger
+                      ? "border-destructive/80 bg-destructive/15 text-foreground animate-pulse"
+                      : "border-border/80 bg-secondary/90 text-foreground"
+                }`}
+              >
+                {/* Crosshair indicator on active targeted enemy */}
+                {isTarget ? (
+                  <Crosshair className="size-3.5 animate-spin text-primary [animation-duration:4s]" />
+                ) : null}
+
+                <span>
+                  <span className="font-bold text-accent">{typedPart}</span>
+                  {nextChar ? (
+                    <span className="font-extrabold underline decoration-primary decoration-2 underline-offset-2 text-primary">
+                      {nextChar}
+                    </span>
+                  ) : null}
+                  <span className="opacity-75">{remainingPart}</span>
+                </span>
+              </div>
             </div>
           );
         })}
 
-        {/* Laser Projectile Shots */}
-        {shots.map((s) => (
+        {/* Laser Shots */}
+        {shots.map((shot) => (
           <div
-            key={s.id}
-            className="absolute h-5 w-[3px] -translate-x-1/2 rounded-full bg-accent shadow-[0_0_8px_var(--color-accent)]"
-            style={{ left: `${s.targetX}%`, top: `${s.y}%` }}
+            key={shot.id}
+            className="pointer-events-none absolute h-6 w-1 -translate-x-1/2 rounded-full bg-primary shadow-[0_0_8px_var(--color-primary)] transition-all"
+            style={{
+              left: `${shot.targetX}%`,
+              top: `${shot.y}%`,
+            }}
           />
         ))}
 
-        {/* Particle Explosions on Word Destruction */}
+        {/* Explosion Particles */}
         {explosions.map((exp) => (
           <div
             key={exp.id}
-            className="pointer-events-none absolute z-30 -translate-x-1/2 -translate-y-1/2"
-            style={{ left: `${exp.x}%`, top: `${exp.y}%` }}
+            className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
+            style={{
+              left: `${exp.x}%`,
+              top: `${exp.y}%`,
+            }}
           >
-            {exp.particles.map((p, i) => (
+            {exp.particles.map((p, idx) => (
               <div
-                key={i}
-                className="absolute rounded-full animate-ping"
+                key={idx}
+                className="absolute rounded-full transition-transform duration-300 ease-out"
                 style={{
                   width: `${p.size}px`,
                   height: `${p.size}px`,
                   backgroundColor: p.color,
                   transform: `translate(${p.dx}px, ${p.dy}px)`,
+                  opacity: 0,
+                  transition: "transform 400ms ease-out, opacity 400ms ease-out",
                 }}
               />
             ))}
           </div>
         ))}
 
-        {/* Player Ship */}
+        {/* Defender Ship Cannon */}
         <div
-          className="absolute bottom-3 size-0 -translate-x-1/2 border-x-[14px] border-b-[24px] border-x-transparent border-b-primary transition-[left] duration-100 ease-out z-10"
+          className="pointer-events-none absolute bottom-4 -translate-x-1/2 transition-all duration-100 ease-out"
           style={{ left: `${shipX}%` }}
-          aria-hidden
         >
-          {/* Thruster Jet Glow */}
-          <div className="absolute left-[-4px] top-[24px] h-3 w-2 animate-pulse rounded-b-full bg-accent shadow-[0_0_8px_var(--color-accent)]" />
+          <div className="relative flex flex-col items-center">
+            {/* Cannon Barrel */}
+            <div className="h-3 w-1.5 rounded-t bg-primary shadow-[0_0_6px_var(--color-primary)]" />
+            {/* Cannon Hull */}
+            <div className="h-4 w-7 rounded-md border border-primary/50 bg-secondary shadow-lg" />
+            {/* Thruster Jet Glow */}
+            <div className="absolute left-[-4px] top-[24px] h-3 w-2 animate-pulse rounded-b-full bg-accent shadow-[0_0_8px_var(--color-accent)]" />
+          </div>
         </div>
 
         {/* Bottom Defense Line / Shield */}
@@ -644,14 +688,14 @@ export function WordShooter({
               <button
                 type="button"
                 onClick={start}
-                className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
+                className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95 cursor-pointer"
               >
                 Start Game
               </button>
               <button
                 type="button"
                 onClick={onOpenSettings}
-                className="flex items-center gap-1.5 rounded-xl border border-border bg-secondary px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                className="flex items-center gap-1.5 rounded-xl border border-border bg-secondary px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted cursor-pointer"
               >
                 <Sliders className="size-4 text-primary" />
                 Settings
@@ -663,63 +707,56 @@ export function WordShooter({
         {phase === "paused" ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-card/90 px-6 text-center backdrop-blur-sm z-30">
             <h2 className="font-mono text-2xl font-bold tracking-tight">Game Paused</h2>
-            <p className="text-sm text-muted-foreground">
-              Current score: <span className="font-mono font-bold text-primary">{score}</span> pts
-            </p>
+            <p className="text-xs text-muted-foreground">Press Resume or F2 to continue</p>
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={togglePause}
-                className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                className="flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow transition-transform hover:scale-105"
               >
                 <Play className="size-4" />
-                Resume Game
+                Resume
               </button>
               <button
                 type="button"
                 onClick={start}
-                className="flex items-center gap-2 rounded-xl border border-border bg-secondary px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                className="rounded-xl border border-border bg-secondary px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
               >
-                <RotateCcw className="size-4" />
                 Restart
-              </button>
-              <button
-                type="button"
-                onClick={onOpenSettings}
-                className="rounded-xl border border-border bg-secondary p-2.5 text-muted-foreground hover:text-foreground"
-                title="Settings"
-              >
-                <Sliders className="size-4 text-primary" />
               </button>
             </div>
           </div>
         ) : null}
 
         {phase === "over" ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-card/95 px-6 text-center backdrop-blur-sm z-30">
-            {isNewRecord && (
-              <div className="flex items-center gap-1.5 rounded-full bg-accent/20 px-3 py-1 font-mono text-xs font-semibold uppercase tracking-wider text-accent ring-1 ring-accent">
-                <Award className="size-3.5" />
-                New High Score!
-              </div>
-            )}
-            <h2 className="font-mono text-3xl font-bold text-foreground sm:text-4xl">Game Over</h2>
-            <div className="font-mono text-4xl font-extrabold text-primary">
-              {score} <span className="text-base font-normal text-muted-foreground">pts</span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-card/95 px-6 text-center backdrop-blur-sm z-30">
+            <div className="flex size-14 items-center justify-center rounded-2xl bg-destructive/10 text-destructive shadow-inner">
+              <Award className="size-8" />
             </div>
-            <div className="max-w-xs text-xs text-muted-foreground sm:text-sm">
-              Destroyed <strong className="text-foreground">{hits}</strong> words with{" "}
-              <strong className="text-foreground">{accuracy}%</strong> hit rate. Reached level{" "}
-              <strong className="text-foreground">{level}</strong>.
-            </div>
-            <p className="text-xs font-mono text-muted-foreground">All-time best: {best} pts</p>
 
-            <div className="mt-2 flex items-center gap-3">
+            <div>
+              <h2 className="font-mono text-2xl font-bold tracking-tight text-destructive sm:text-3xl">
+                Shield Depleted!
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Final Score: <strong className="text-foreground">{score} pts</strong> · Words
+                Destroyed: <strong className="text-foreground">{hits}</strong>
+              </p>
+            </div>
+
+            {isNewRecord ? (
+              <div className="rounded-lg border border-accent/60 bg-accent/15 px-3 py-1 text-xs font-mono font-bold text-accent animate-bounce">
+                🎉 New High Score: {score} pts!
+              </div>
+            ) : null}
+
+            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={start}
-                className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
+                className="flex items-center gap-1.5 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
               >
+                <RotateCcw className="size-4" />
                 Play Again
               </button>
               <button
@@ -727,14 +764,14 @@ export function WordShooter({
                 onClick={onOpenSettings}
                 className="flex items-center gap-1.5 rounded-xl border border-border bg-secondary px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
               >
-                <Sliders className="size-4 text-primary" />
-                Tune Settings
+                <Sliders className="size-4" />
+                Settings
               </button>
             </div>
           </div>
         ) : null}
 
-        {/* Hidden Input for Capturing Keystrokes */}
+        {/* Hidden Input for Keystroke Capture */}
         {mounted ? (
           <input
             ref={inputRef}
@@ -757,17 +794,6 @@ export function WordShooter({
               if (v.length === 1) handleKey(v.toLowerCase());
               e.target.value = "";
             }}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                e.preventDefault();
-                start();
-              } else if (e.key === "p" || e.key === "P") {
-                if (phase === "playing" || phase === "paused") {
-                  e.preventDefault();
-                  togglePause();
-                }
-              }
-            }}
             className="absolute inset-0 h-full w-full cursor-text opacity-0"
           />
         ) : null}
@@ -777,7 +803,7 @@ export function WordShooter({
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <p>
           Type falling word letters to fire cannon ·{" "}
-          <kbd className="rounded border border-border bg-secondary px-1 font-mono">P</kbd> Pause ·{" "}
+          <kbd className="rounded border border-border bg-secondary px-1 font-mono">F2</kbd> Pause ·{" "}
           <kbd className="rounded border border-border bg-secondary px-1 font-mono">Esc</kbd>{" "}
           Restart
         </p>

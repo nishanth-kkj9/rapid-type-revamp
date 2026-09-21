@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -54,12 +55,25 @@ const LIVES_PRESETS = [
 ];
 
 export function ShooterSettingsDialog({ open, onOpenChange, settings, onSaveSettings }: Props) {
+  const [draft, setDraft] = useState<ShooterSettings>(settings);
+
+  useEffect(() => {
+    if (open) {
+      setDraft(settings);
+    }
+  }, [open, settings]);
+
   const update = <K extends keyof ShooterSettings>(key: K, value: ShooterSettings[K]) => {
-    onSaveSettings({ ...settings, [key]: value });
+    setDraft((prev) => ({ ...prev, [key]: value }));
   };
 
   const resetDefaults = () => {
-    onSaveSettings({ ...DEFAULT_SHOOTER_SETTINGS });
+    setDraft({ ...DEFAULT_SHOOTER_SETTINGS });
+  };
+
+  const handleApplyAndClose = () => {
+    onSaveSettings(draft);
+    onOpenChange(false);
   };
 
   return (
@@ -89,12 +103,12 @@ export function ShooterSettingsDialog({ open, onOpenChange, settings, onSaveSett
                 Difficulty
               </label>
               <span className="font-mono text-xs font-semibold capitalize text-primary">
-                {settings.difficulty}
+                {draft.difficulty}
               </span>
             </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {DIFFICULTIES.map((d) => {
-                const active = settings.difficulty === d.id;
+                const active = draft.difficulty === d.id;
                 return (
                   <button
                     key={d.id}
@@ -122,14 +136,14 @@ export function ShooterSettingsDialog({ open, onOpenChange, settings, onSaveSett
                 Falling Speed
               </label>
               <span className="font-mono text-xs font-bold text-primary">
-                {settings.speedMultiplier.toFixed(2)}x
+                {draft.speedMultiplier.toFixed(2)}x
               </span>
             </div>
 
             {/* Speed Presets */}
             <div className="mb-3 grid grid-cols-4 gap-1.5">
               {SPEED_PRESETS.map((p) => {
-                const active = Math.abs(settings.speedMultiplier - p.value) < 0.04;
+                const active = Math.abs(draft.speedMultiplier - p.value) < 0.04;
                 return (
                   <button
                     key={p.value}
@@ -156,7 +170,7 @@ export function ShooterSettingsDialog({ open, onOpenChange, settings, onSaveSett
                 min="0.5"
                 max="2.5"
                 step="0.05"
-                value={settings.speedMultiplier}
+                value={draft.speedMultiplier}
                 onChange={(e) => update("speedMultiplier", parseFloat(e.target.value))}
                 className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-secondary accent-primary"
                 aria-label="Speed multiplier slider"
@@ -173,10 +187,10 @@ export function ShooterSettingsDialog({ open, onOpenChange, settings, onSaveSett
                 Starting Lives
               </label>
               <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-destructive">
-                <span>{settings.startingLives}</span>
-                <span className="text-sm">{"❤".repeat(Math.min(5, settings.startingLives))}</span>
-                {settings.startingLives > 5 ? (
-                  <span className="text-[10px]">+{settings.startingLives - 5}</span>
+                <span>{draft.startingLives}</span>
+                <span className="text-sm">{"❤".repeat(Math.min(5, draft.startingLives))}</span>
+                {draft.startingLives > 5 ? (
+                  <span className="text-[10px]">+{draft.startingLives - 5}</span>
                 ) : null}
               </div>
             </div>
@@ -184,7 +198,7 @@ export function ShooterSettingsDialog({ open, onOpenChange, settings, onSaveSett
             {/* Lives Presets */}
             <div className="mb-3 grid grid-cols-4 gap-1.5">
               {LIVES_PRESETS.map((p) => {
-                const active = settings.startingLives === p.value;
+                const active = draft.startingLives === p.value;
                 return (
                   <button
                     key={p.value}
@@ -210,7 +224,7 @@ export function ShooterSettingsDialog({ open, onOpenChange, settings, onSaveSett
                 min="1"
                 max="10"
                 step="1"
-                value={settings.startingLives}
+                value={draft.startingLives}
                 onChange={(e) => update("startingLives", parseInt(e.target.value, 10))}
                 className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-secondary accent-destructive"
                 aria-label="Starting lives slider"
@@ -223,7 +237,7 @@ export function ShooterSettingsDialog({ open, onOpenChange, settings, onSaveSett
           <div className="flex items-center justify-between rounded-xl border border-border bg-secondary/40 p-3">
             <div className="flex items-center gap-2.5">
               <div className="flex size-8 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
-                {settings.soundEnabled ? (
+                {draft.soundEnabled ? (
                   <Volume2 className="size-4 text-accent" />
                 ) : (
                   <VolumeX className="size-4" />
@@ -238,14 +252,14 @@ export function ShooterSettingsDialog({ open, onOpenChange, settings, onSaveSett
             </div>
             <button
               type="button"
-              onClick={() => update("soundEnabled", !settings.soundEnabled)}
+              onClick={() => update("soundEnabled", !draft.soundEnabled)}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                settings.soundEnabled
+                draft.soundEnabled
                   ? "bg-accent text-accent-foreground"
                   : "border border-border bg-secondary text-muted-foreground hover:text-foreground"
               }`}
             >
-              {settings.soundEnabled ? "Enabled" : "Muted"}
+              {draft.soundEnabled ? "Enabled" : "Muted"}
             </button>
           </div>
         </div>
@@ -262,7 +276,7 @@ export function ShooterSettingsDialog({ open, onOpenChange, settings, onSaveSett
           </button>
           <button
             type="button"
-            onClick={() => onOpenChange(false)}
+            onClick={handleApplyAndClose}
             className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
           >
             Done

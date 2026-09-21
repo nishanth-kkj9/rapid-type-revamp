@@ -35,4 +35,12 @@ describe("generateSentence", () => {
       expect(sentence).toMatch(/[.?!]$/);
     }
   });
+
+  it("never produces malformed past-tense verbs (e.g. improveed, practiceed, identifyed)", () => {
+    for (let i = 0; i < 300; i++) {
+      const { sentence } = generateSentence("hard");
+      expect(sentence).not.toMatch(/\w+eed\b/i);
+      expect(sentence).not.toMatch(/\b\w+[^aeiou]yed\b/i);
+    }
+  });
 });

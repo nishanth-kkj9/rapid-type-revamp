@@ -386,16 +386,55 @@ const TEMPLATES: Record<Difficulty, string[]> = {
   ],
 };
 
+const IRREGULAR_PAST: Record<string, string> = {
+  run: "ran",
+  eat: "ate",
+  swim: "swam",
+  sit: "sat",
+  stand: "stood",
+  hold: "held",
+  see: "saw",
+  make: "made",
+  give: "gave",
+  take: "took",
+  find: "found",
+  sleep: "slept",
+  feel: "felt",
+  bring: "brought",
+  think: "thought",
+  teach: "taught",
+  build: "built",
+  drive: "drove",
+  write: "wrote",
+  read: "read",
+  speak: "spoke",
+  understand: "understood",
+};
+
+export function pastTense(verb: string): string {
+  const irr = IRREGULAR_PAST[verb];
+  if (irr) return irr;
+  if (verb.endsWith("e")) return `${verb}d`; // improve -> improved
+  if (/[^aeiou]y$/.test(verb)) return `${verb.slice(0, -1)}ied`; // identify -> identified
+  if (/^[a-z]*[aeiou][bcdfgklmnprstvz]$/.test(verb) && !/^[a-z]*(w|x|y)$/.test(verb)) {
+    // CVC doubling: stop -> stopped
+    return `${verb}${verb.at(-1)}ed`;
+  }
+  return `${verb}ed`;
+}
+
 const pick = <T>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)] as T;
 
 function fill(template: string, d: Difficulty): string {
   const p = POOLS[d];
-  return template.replace(/\{(noun|verb|adj|adv)\}/g, (_m, kind: string) => {
-    if (kind === "noun") return pick(p.nouns);
-    if (kind === "verb") return pick(p.verbs);
-    if (kind === "adj") return pick(p.adjs);
-    return pick(p.advs);
-  });
+  return template
+    .replace(/\{(verb)\}ed\b/g, () => pastTense(pick(p.verbs)))
+    .replace(/\{(noun|verb|adj|adv)\}/g, (_m, kind: string) => {
+      if (kind === "noun") return pick(p.nouns);
+      if (kind === "verb") return pick(p.verbs);
+      if (kind === "adj") return pick(p.adjs);
+      return pick(p.advs);
+    });
 }
 
 function tidy(s: string): string {
@@ -430,12 +469,12 @@ export function generateSentence(
 export function generatePassage(difficulty: Difficulty, minChars = 220): string {
   const parts: string[] = [];
   let recent: string[] = [];
-  let len = 0;
-  while (len < minChars) {
+  let currentText = "";
+  while (currentText.length < minChars) {
     const next = generateSentence(difficulty, recent);
     recent = next.recent;
     parts.push(next.sentence);
-    len += next.sentence.length + 1;
+    currentText = parts.join(" ");
   }
-  return parts.join(" ");
+  return currentText;
 }

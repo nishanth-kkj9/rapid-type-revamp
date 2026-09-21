@@ -7,21 +7,40 @@ const THEME_KEY = "ttp:theme:v1";
 export function readTheme(): Theme {
   if (typeof window === "undefined") return "dark";
   try {
-    return window.localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark";
+    const saved = window.localStorage.getItem(THEME_KEY);
+    if (saved === "light" || saved === "dark") return saved;
+    if (window.matchMedia?.("(prefers-color-scheme: light)").matches) {
+      return "light";
+    }
+    return "dark";
   } catch {
     return "dark";
   }
 }
 
 export function applyTheme(theme: Theme) {
-  document.documentElement.classList.toggle("light", theme === "light");
+  if (typeof document !== "undefined") {
+    document.documentElement.classList.toggle("light", theme === "light");
+  }
 }
 
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>("dark");
+  const [theme, setTheme] = useState<Theme>(() => readTheme());
 
   useEffect(() => {
-    setTheme(readTheme());
+    const current = readTheme();
+    setTheme(current);
+    applyTheme(current);
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === THEME_KEY && (e.newValue === "light" || e.newValue === "dark")) {
+        setTheme(e.newValue);
+        applyTheme(e.newValue);
+      }
+    };
+
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   const toggleTheme = useCallback(() => {
