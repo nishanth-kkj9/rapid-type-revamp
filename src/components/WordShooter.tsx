@@ -9,6 +9,7 @@ import {
 import {
   applyKeyToEnemies,
   createInitialEnemies,
+  getLevel,
   isBossLevel,
   stepEnemies,
   wordPoolFor,
@@ -132,7 +133,7 @@ export function WordShooter({
     poolRef.current = wordPoolFor(settings.difficulty);
   }, [settings.difficulty]);
 
-  const level = useMemo(() => 1 + Math.floor(score / 400), [score]);
+  const level = useMemo(() => getLevel(score), [score]);
 
   // Pass active expected character up to keyboard
   useEffect(() => {
@@ -443,6 +444,7 @@ export function WordShooter({
         difficulty: settings.difficulty,
         misses,
         wrongKeys,
+        level: getLevel(currentScore),
       });
     }
   }, [

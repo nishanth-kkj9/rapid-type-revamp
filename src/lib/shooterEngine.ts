@@ -28,6 +28,10 @@ export function isBossLevel(lvl: number): boolean {
   return lvl > 0 && lvl % 5 === 0;
 }
 
+export function getLevel(score: number): number {
+  return 1 + Math.max(0, Math.floor(score / 400));
+}
+
 export function wordPoolFor(difficulty: Difficulty): string[] {
   const passage = generatePassage(difficulty, 900);
   const words = passage

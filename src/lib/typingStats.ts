@@ -60,6 +60,9 @@ export interface HistoryEntry extends RunStats {
   date: number;
   difficulty: string;
   mode: string;
+  score?: number;
+  wordsDestroyed?: number;
+  level?: number;
 }
 
 export interface ShooterRunSummary {
@@ -70,6 +73,7 @@ export interface ShooterRunSummary {
   difficulty: string;
   misses?: number;
   wrongKeys?: number;
+  level?: number;
 }
 
 const KEY = "ttp:history:v1";
@@ -107,6 +111,9 @@ export const HistoryEntrySchema = z.object({
   typed: z.number().default(0),
   elapsed: z.number().default(0),
   consistency: z.number().default(100),
+  score: z.number().optional(),
+  wordsDestroyed: z.number().optional(),
+  level: z.number().optional(),
 });
 
 export function loadHistory(): HistoryEntry[] {
@@ -134,15 +141,27 @@ export function saveRun(entry: HistoryEntry): { list: HistoryEntry[]; ok: boolea
   }
 }
 
-export function clearHistory(): HistoryEntry[] {
-  if (isBrowser()) {
+export function clearHistory(mode?: "all" | "drill" | "shooter"): HistoryEntry[] {
+  if (!isBrowser()) return [];
+  if (!mode || mode === "all") {
     try {
       window.localStorage.removeItem(KEY);
     } catch {
       /* noop */
     }
+    return [];
   }
-  return [];
+  const current = loadHistory();
+  const retained =
+    mode === "drill"
+      ? current.filter((h) => h.mode === "shooter")
+      : current.filter((h) => h.mode !== "shooter");
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(retained));
+  } catch {
+    /* noop */
+  }
+  return retained;
 }
 
 export function exportHistory(): string {

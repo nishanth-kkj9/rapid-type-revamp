@@ -119,6 +119,9 @@ describe("history storage", () => {
       accuracy: 95,
       correct: 25,
       incorrect: 2,
+      score: 1450,
+      wordsDestroyed: 24,
+      level: 4,
     });
     const { list } = saveRun(shooterRun);
     expect(list.some((e) => e.id === "shooter-1" && e.mode === "shooter")).toBe(true);
@@ -127,6 +130,9 @@ describe("history storage", () => {
     const found = loaded.find((e) => e.id === "shooter-1");
     expect(found).toBeDefined();
     expect(found?.mode).toBe("shooter");
+    expect(found?.score).toBe(1450);
+    expect(found?.wordsDestroyed).toBe(24);
+    expect(found?.level).toBe(4);
 
     // Standard drill filters exclude shooter runs
     const drillOnly = loaded.filter(
@@ -137,5 +143,29 @@ describe("history storage", () => {
     // Shooter filter finds shooter runs
     const shooterOnly = loaded.filter((e) => e.mode === "shooter");
     expect(shooterOnly.some((e) => e.id === "shooter-1")).toBe(true);
+  });
+
+  it("supports clearing history selectively by mode", () => {
+    const drill = entry({ id: "drill-1", mode: "30" });
+    const shooter = entry({ id: "shooter-1", mode: "shooter", score: 800, level: 2 });
+    saveRun(drill);
+    saveRun(shooter);
+
+    // Clear drill only
+    const afterDrillClear = clearHistory("drill");
+    expect(afterDrillClear.length).toBe(1);
+    expect(afterDrillClear[0]?.id).toBe("shooter-1");
+
+    // Add another drill
+    saveRun(entry({ id: "drill-2", mode: "60" }));
+    // Clear shooter only
+    const afterShooterClear = clearHistory("shooter");
+    expect(afterShooterClear.length).toBe(1);
+    expect(afterShooterClear[0]?.id).toBe("drill-2");
+
+    // Clear all
+    const afterAllClear = clearHistory("all");
+    expect(afterAllClear).toEqual([]);
+    expect(loadHistory()).toEqual([]);
   });
 });

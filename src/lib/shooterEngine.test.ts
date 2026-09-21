@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyKeyToEnemies,
   createInitialEnemies,
+  getLevel,
   isBossLevel,
   stepEnemies,
   wordPoolFor,
@@ -94,13 +95,13 @@ describe("shooterEngine", () => {
   });
 
   it("calculates level boundaries at every 400 points", () => {
-    const getLevel = (score: number) => 1 + Math.floor(score / 400);
     expect(getLevel(0)).toBe(1);
     expect(getLevel(399)).toBe(1);
     expect(getLevel(400)).toBe(2);
     expect(getLevel(799)).toBe(2);
     expect(getLevel(800)).toBe(3);
     expect(getLevel(1200)).toBe(4);
+    expect(getLevel(-50)).toBe(1);
   });
 
   it("identifies boss levels at every 5 levels", () => {

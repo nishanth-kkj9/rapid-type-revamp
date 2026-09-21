@@ -21,6 +21,13 @@ import {
   DEFAULT_SHOOTER_SETTINGS,
   type ShooterSettings,
 } from "@/lib/shooterSettings";
+import {
+  loadDrillSettings,
+  saveDrillSettings,
+  DEFAULT_DRILL_SETTINGS,
+  type DrillSettings,
+} from "@/lib/drillSettings";
+import { playDrillKeySound } from "@/lib/arcadeAudio";
 
 import { Keyboard } from "@/components/Keyboard";
 import { TypingText } from "@/components/TypingText";
@@ -31,6 +38,7 @@ import { WpmChart } from "@/components/WpmChart";
 import { CommandPalette } from "@/components/CommandPalette";
 import { WordShooter } from "@/components/WordShooter";
 import { ShooterSettingsDialog } from "@/components/ShooterSettingsDialog";
+import { DrillSettingsDialog } from "@/components/DrillSettingsDialog";
 import { DailyGoal } from "@/components/DailyGoal";
 import {
   loadDaily,
@@ -92,7 +100,9 @@ function Index() {
   const { theme, toggleTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [mode, setMode] = useState<"drill" | "shooter">("drill");
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [drillSettingsOpen, setDrillSettingsOpen] = useState(false);
+  const [shooterSettingsOpen, setShooterSettingsOpen] = useState(false);
+  const [drillSettings, setDrillSettings] = useState<DrillSettings>(DEFAULT_DRILL_SETTINGS);
   const [shooterSettings, setShooterSettings] = useState<ShooterSettings>(DEFAULT_SHOOTER_SETTINGS);
   const [activeShooterChar, setActiveShooterChar] = useState<string | null>(null);
 
@@ -144,16 +154,17 @@ function Index() {
     const loadedSettings = loadShooterSettings();
     setShooterSettings(loadedSettings);
 
-    try {
-      const savedDrill = localStorage.getItem("ttp:drill:diff:v1") as Difficulty | null;
-      if (savedDrill && ["easy", "medium", "hard"].includes(savedDrill)) {
-        setDifficulty(savedDrill);
-      } else {
-        setDifficulty(loadedSettings.difficulty);
-      }
-    } catch {
-      setDifficulty(loadedSettings.difficulty);
-    }
+    const loadedDrill = loadDrillSettings();
+    setDrillSettings(loadedDrill);
+    setDifficulty(loadedDrill.difficulty);
+    setDuration(loadedDrill.duration);
+  }, []);
+
+  const handleSaveDrillSettings = useCallback((newSettings: DrillSettings) => {
+    setDrillSettings(newSettings);
+    saveDrillSettings(newSettings);
+    setDifficulty(newSettings.difficulty);
+    setDuration(newSettings.duration);
   }, []);
 
   const handleSaveShooterSettings = useCallback((newSettings: ShooterSettings) => {
@@ -161,7 +172,9 @@ function Index() {
     saveShooterSettings(newSettings);
   }, []);
 
-  const handleClearHistory = useCallback(() => setHistory(clearHistory()), []);
+  const handleClearHistory = useCallback((modeToClear?: "all" | "drill" | "shooter") => {
+    setHistory(clearHistory(modeToClear));
+  }, []);
   const handleImportHistory = useCallback((entries: HistoryEntry[]) => setHistory(entries), []);
 
   const handleShooterRunComplete = useCallback((s: ShooterRunSummary) => {
@@ -173,6 +186,9 @@ function Index() {
       date: Date.now(),
       difficulty: s.difficulty,
       mode: "shooter",
+      score: s.score,
+      wordsDestroyed: s.wordsDestroyed,
+      level: s.level,
     });
     historyRef.current = list;
     setHistory(list);
@@ -203,11 +219,20 @@ function Index() {
 
   const handleDifficultyChange = useCallback((d: Difficulty) => {
     setDifficulty(d);
-    try {
-      localStorage.setItem("ttp:drill:diff:v1", d);
-    } catch {
-      // safe storage fallback
-    }
+    setDrillSettings((prev) => {
+      const next = { ...prev, difficulty: d };
+      saveDrillSettings(next);
+      return next;
+    });
+  }, []);
+
+  const handleDurationChange = useCallback((dur: number) => {
+    setDuration(dur);
+    setDrillSettings((prev) => {
+      const next = { ...prev, duration: dur };
+      saveDrillSettings(next);
+      return next;
+    });
   }, []);
 
   useEffect(() => {
@@ -421,10 +446,12 @@ function Index() {
 
     if (grew) {
       const last = value[value.length - 1] ?? null;
+      const isError = last !== text[value.length - 1];
+      playDrillKeySound(drillSettings.sound, isError);
       setPressedChar(last);
       if (pressTimerRef.current) window.clearTimeout(pressTimerRef.current);
       pressTimerRef.current = window.setTimeout(() => setPressedChar(null), 160);
-      if (last !== text[value.length - 1]) {
+      if (isError) {
         setErrorFlash(true);
         if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
         flashTimerRef.current = window.setTimeout(() => setErrorFlash(false), 140);
@@ -465,10 +492,13 @@ function Index() {
         <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
-            onClick={() => setSettingsOpen(true)}
-            aria-label="Open settings for difficulty, speed, and lives"
-            title="Settings (Difficulty, Speed, Lives)"
-            className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+            onClick={() => {
+              if (mode === "drill") setDrillSettingsOpen(true);
+              else setShooterSettingsOpen(true);
+            }}
+            aria-label={`${mode === "drill" ? "Timed Drill" : "Word Shooter"} Settings`}
+            title={`${mode === "drill" ? "Timed Drill" : "Word Shooter"} Settings`}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-medium transition-colors hover:bg-muted cursor-pointer"
           >
             <Sliders className="size-4 text-primary" />
             <span className="hidden sm:inline">Settings</span>
@@ -528,7 +558,33 @@ function Index() {
           </button>
         </div>
 
-        {mode === "shooter" ? (
+        {mode === "drill" ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-mono text-muted-foreground">
+              <span>
+                Diff:{" "}
+                <strong className="capitalize text-foreground">{drillSettings.difficulty}</strong>
+              </span>
+              <span>·</span>
+              <span>
+                Length: <strong className="text-primary">{drillSettings.duration}s</strong>
+              </span>
+              <span>·</span>
+              <span>
+                Target:{" "}
+                <strong className="text-accent-foreground">{drillSettings.targetWpm} WPM</strong>
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDrillSettingsOpen(true)}
+              className="flex items-center gap-1 rounded-lg border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+            >
+              <Sliders className="size-3 text-primary" />
+              Configure
+            </button>
+          </div>
+        ) : (
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-mono text-muted-foreground">
               <span>
@@ -550,53 +606,64 @@ function Index() {
             </div>
             <button
               type="button"
-              onClick={() => setSettingsOpen(true)}
-              className="flex items-center gap-1 rounded-lg border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              onClick={() => setShooterSettingsOpen(true)}
+              className="flex items-center gap-1 rounded-lg border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
             >
               <Sliders className="size-3 text-primary" />
               Configure
             </button>
           </div>
-        ) : null}
+        )}
       </div>
 
       {mode === "drill" ? (
         <>
-          <div className="mt-6 flex flex-wrap items-center gap-2">
-            <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
-              {DIFFICULTIES.map((d) => (
-                <button
-                  type="button"
-                  key={d}
-                  onClick={() => handleDifficultyChange(d)}
-                  aria-pressed={difficulty === d}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium uppercase tracking-wider transition-colors ${
-                    difficulty === d
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {d}
-                </button>
-              ))}
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
+                {DIFFICULTIES.map((d) => (
+                  <button
+                    type="button"
+                    key={d}
+                    onClick={() => handleDifficultyChange(d)}
+                    aria-pressed={difficulty === d}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
+                      difficulty === d
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
+                {DURATIONS.map((s) => (
+                  <button
+                    type="button"
+                    key={s}
+                    onClick={() => handleDurationChange(s)}
+                    aria-pressed={duration === s}
+                    className={`rounded-lg px-3 py-1.5 font-mono text-xs transition-colors cursor-pointer ${
+                      duration === s
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {s}s
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
-              {DURATIONS.map((s) => (
-                <button
-                  type="button"
-                  key={s}
-                  onClick={() => setDuration(s)}
-                  aria-pressed={duration === s}
-                  className={`rounded-lg px-3 py-1.5 font-mono text-xs transition-colors ${
-                    duration === s
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {s}s
-                </button>
-              ))}
-            </div>
+
+            <button
+              type="button"
+              onClick={() => setDrillSettingsOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+            >
+              <Sliders className="size-3.5 text-primary" />
+              <span>Drill Settings</span>
+            </button>
           </div>
 
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -642,7 +709,7 @@ function Index() {
                 !focused && !finished ? "blur-[3px] transition-[filter]" : "transition-[filter]"
               }
             >
-              <TypingText text={text} typed={typed} />
+              <TypingText text={text} typed={typed} caretStyle={drillSettings.caretStyle} />
             </div>
             {mounted ? (
               <input
@@ -736,7 +803,7 @@ function Index() {
         <>
           <WordShooter
             settings={shooterSettings}
-            onOpenSettings={() => setSettingsOpen(true)}
+            onOpenSettings={() => setShooterSettingsOpen(true)}
             onActiveTargetCharChange={setActiveShooterChar}
             onCharPressed={(char) => {
               setPressedChar(char);
@@ -769,6 +836,7 @@ function Index() {
       <div className="mt-4">
         <MemoHistory
           history={history}
+          mode={mode}
           onClear={handleClearHistory}
           onImport={handleImportHistory}
         />
@@ -780,9 +848,16 @@ function Index() {
         the command palette.
       </footer>
 
+      <DrillSettingsDialog
+        open={drillSettingsOpen}
+        onOpenChange={setDrillSettingsOpen}
+        settings={drillSettings}
+        onSaveSettings={handleSaveDrillSettings}
+      />
+
       <ShooterSettingsDialog
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
+        open={shooterSettingsOpen}
+        onOpenChange={setShooterSettingsOpen}
         settings={shooterSettings}
         onSaveSettings={handleSaveShooterSettings}
       />
@@ -794,10 +869,15 @@ function Index() {
         durations={DURATIONS}
         mode={mode}
         onDifficulty={handleDifficultyChange}
-        onDuration={setDuration}
+        onDuration={handleDurationChange}
         onRestart={restart}
         onModeChange={setMode}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSettings={() => {
+          if (mode === "drill") setDrillSettingsOpen(true);
+          else setShooterSettingsOpen(true);
+        }}
+        onOpenDrillSettings={() => setDrillSettingsOpen(true)}
+        onOpenShooterSettings={() => setShooterSettingsOpen(true)}
       />
     </main>
   );

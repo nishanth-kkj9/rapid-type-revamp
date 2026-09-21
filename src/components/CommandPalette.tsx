@@ -20,6 +20,8 @@ interface Props {
   onRestart: () => void;
   onModeChange?: (m: "drill" | "shooter") => void;
   onOpenSettings?: () => void;
+  onOpenDrillSettings?: () => void;
+  onOpenShooterSettings?: () => void;
 }
 
 export function CommandPalette({
@@ -33,6 +35,8 @@ export function CommandPalette({
   onRestart,
   onModeChange,
   onOpenSettings,
+  onOpenDrillSettings,
+  onOpenShooterSettings,
 }: Props) {
   const [open, setOpen] = useState(false);
 
@@ -107,15 +111,25 @@ export function CommandPalette({
             </CommandItem>
           ))}
         </CommandGroup>
+        <CommandGroup heading="Settings">
+          <CommandItem
+            value="timed drill settings duration cursor sound target wpm"
+            onSelect={() =>
+              run(() => (onOpenDrillSettings ? onOpenDrillSettings() : onOpenSettings?.()))
+            }
+          >
+            <span>Timed Drill Settings</span>
+          </CommandItem>
+          <CommandItem
+            value="word shooter settings difficulty falling speed lives audio"
+            onSelect={() =>
+              run(() => (onOpenShooterSettings ? onOpenShooterSettings() : onOpenSettings?.()))
+            }
+          >
+            <span>Word Shooter Settings</span>
+          </CommandItem>
+        </CommandGroup>
         <CommandGroup heading="Actions">
-          {onOpenSettings ? (
-            <CommandItem
-              value="open settings difficulty speed lives"
-              onSelect={() => run(onOpenSettings)}
-            >
-              Word Shooter Settings
-            </CommandItem>
-          ) : null}
           <CommandItem value="restart test" onSelect={() => run(onRestart)}>
             Restart test
           </CommandItem>

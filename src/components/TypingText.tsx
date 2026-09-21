@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef } from "react";
+import type { CaretStyle } from "@/lib/drillSettings";
 
 interface Props {
   text: string;
   typed: string;
+  caretStyle?: CaretStyle;
 }
 
 interface Word {
@@ -31,7 +33,7 @@ function splitWords(text: string): Word[] {
 const WINDOW_BEFORE = 12;
 const WINDOW_AFTER = 40;
 
-export function TypingText({ text, typed }: Props) {
+export function TypingText({ text, typed, caretStyle = "smooth" }: Props) {
   const cursorRef = useRef<HTMLSpanElement>(null);
   const words = useMemo(() => splitWords(text), [text]);
 
@@ -50,6 +52,20 @@ export function TypingText({ text, typed }: Props) {
   useEffect(() => {
     cursorRef.current?.scrollIntoView({ block: "nearest", behavior: "auto" });
   }, [typed.length]);
+
+  const getCaretClass = () => {
+    switch (caretStyle) {
+      case "block":
+        return "rounded-[2px] bg-primary text-primary-foreground animate-pulse";
+      case "bar":
+        return "shadow-[inset_3px_0_0_0_var(--color-primary)] bg-transparent";
+      case "underline":
+        return "shadow-[inset_0_-3px_0_0_var(--color-primary)] bg-transparent";
+      case "smooth":
+      default:
+        return "caret rounded-[2px] bg-primary/25 shadow-[inset_2px_0_0_0_var(--color-primary)]";
+    }
+  };
 
   return (
     <div className="max-h-[9.5rem] overflow-hidden sm:max-h-[11rem]">
@@ -71,11 +87,7 @@ export function TypingText({ text, typed }: Props) {
                 <span
                   key={i}
                   ref={isCursor ? cursorRef : undefined}
-                  className={`${cls} ${
-                    isCursor
-                      ? "caret rounded-[2px] bg-primary/25 shadow-[inset_2px_0_0_0_var(--color-primary)]"
-                      : ""
-                  }`}
+                  className={`${cls} ${isCursor ? getCaretClass() : ""}`}
                 >
                   {t !== undefined && t !== ch && ch === " " ? "_" : ch}
                 </span>
