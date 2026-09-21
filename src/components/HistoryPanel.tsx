@@ -74,6 +74,7 @@ export function HistoryPanel({ history, onClear, onImport }: Props) {
         </h2>
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={handleExport}
             disabled={history.length === 0}
             className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
@@ -81,6 +82,7 @@ export function HistoryPanel({ history, onClear, onImport }: Props) {
             Export JSON
           </button>
           <button
+            type="button"
             onClick={() => fileRef.current?.click()}
             className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
@@ -90,6 +92,9 @@ export function HistoryPanel({ history, onClear, onImport }: Props) {
             ref={fileRef}
             type="file"
             accept="application/json"
+            data-lpignore="true"
+            data-protonpass-ignore="true"
+            data-1p-ignore="true"
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -99,6 +104,7 @@ export function HistoryPanel({ history, onClear, onImport }: Props) {
           />
           {history.length > 0 ? (
             <button
+              type="button"
               onClick={onClear}
               className="rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             >

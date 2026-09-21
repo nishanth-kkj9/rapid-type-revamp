@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, Crosshair, Timer, Sliders } from "lucide-react";
 import { toast } from "sonner";
 import { generatePassage, type Difficulty } from "@/lib/sentenceGenerator";
 import { useTheme } from "@/lib/useTheme";
@@ -14,6 +14,12 @@ import {
   type HistoryEntry,
   type RunStats,
 } from "@/lib/typingStats";
+import {
+  loadShooterSettings,
+  saveShooterSettings,
+  DEFAULT_SHOOTER_SETTINGS,
+  type ShooterSettings,
+} from "@/lib/shooterSettings";
 
 import { Keyboard } from "@/components/Keyboard";
 import { TypingText } from "@/components/TypingText";
@@ -22,6 +28,8 @@ import { HistoryPanel } from "@/components/HistoryPanel";
 import { ProblemKeys } from "@/components/ProblemKeys";
 import { WpmChart } from "@/components/WpmChart";
 import { CommandPalette } from "@/components/CommandPalette";
+import { WordShooter } from "@/components/WordShooter";
+import { ShooterSettingsDialog } from "@/components/ShooterSettingsDialog";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -73,6 +81,12 @@ function reconcile(text: string, value: string) {
 
 function Index() {
   const { theme, toggleTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const [mode, setMode] = useState<"drill" | "shooter">("drill");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [shooterSettings, setShooterSettings] = useState<ShooterSettings>(DEFAULT_SHOOTER_SETTINGS);
+  const [activeShooterChar, setActiveShooterChar] = useState<string | null>(null);
+
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [duration, setDuration] = useState<number>(30);
   // Generated after mount: random text during SSR would hydration-mismatch.
@@ -105,9 +119,29 @@ function Index() {
   const historyRef = useRef<HistoryEntry[]>([]);
 
   useEffect(() => {
+    setMounted(true);
     const loaded = loadHistory();
     historyRef.current = loaded;
     setHistory(loaded);
+
+    const loadedSettings = loadShooterSettings();
+    setShooterSettings(loadedSettings);
+    setDifficulty(loadedSettings.difficulty);
+  }, []);
+
+  const handleSaveShooterSettings = useCallback((newSettings: ShooterSettings) => {
+    setShooterSettings(newSettings);
+    saveShooterSettings(newSettings);
+    setDifficulty(newSettings.difficulty);
+  }, []);
+
+  const handleDifficultyChange = useCallback((d: Difficulty) => {
+    setDifficulty(d);
+    setShooterSettings((prev) => {
+      const updated = { ...prev, difficulty: d };
+      saveShooterSettings(updated);
+      return updated;
+    });
   }, []);
 
   useEffect(() => {
@@ -238,6 +272,7 @@ function Index() {
 
   // Esc restarts. Tab is deliberately left alone so keyboard navigation works.
   useEffect(() => {
+    if (mode !== "drill") return;
     const onKey = (e: KeyboardEvent) => {
       if (document.querySelector('[role="dialog"]')) return;
       if (e.key === "Escape") {
@@ -263,7 +298,7 @@ function Index() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [restart, finished]);
+  }, [restart, finished, mode]);
 
   const handleChange = (raw: string) => {
     if (finished || !text) return;
@@ -307,18 +342,37 @@ function Index() {
   const shown = finished && finalStats ? finalStats : stats;
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-5xl px-3 py-6 sm:px-6 sm:py-14">
+    <main
+      className="mx-auto min-h-dvh w-full max-w-5xl px-3 py-6 sm:px-6 sm:py-14"
+      suppressHydrationWarning
+      data-protonpass-ignore="true"
+      data-lpignore="true"
+      data-1p-ignore="true"
+    >
       <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-wrap sm:items-end sm:justify-between sm:gap-4">
         <div className="min-w-0">
           <h1 className="truncate font-mono text-xl font-bold tracking-tight sm:text-3xl">
             Typing<span className="text-primary">Trainer</span>Pro
           </h1>
           <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-            Timed drills with live WPM, accuracy and a keyboard that shows your next key.
+            {mode === "drill"
+              ? "Timed drills with live WPM, accuracy and a keyboard that shows your next key."
+              : "Word Shooter arcade mode: defend your ship by typing falling words."}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Open settings for difficulty, speed, and lives"
+            title="Settings (Difficulty, Speed, Lives)"
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            <Sliders className="size-4 text-primary" />
+            <span className="hidden sm:inline">Settings</span>
+          </button>
+          <button
+            type="button"
             onClick={toggleTheme}
             aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
             title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
@@ -326,182 +380,277 @@ function Index() {
           >
             {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
           </button>
-          <button
-            onClick={restart}
-            className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-medium transition-colors hover:bg-muted sm:px-4"
-          >
-            Restart{" "}
-            <span className="ml-1 hidden font-mono text-xs text-muted-foreground sm:inline">
-              Esc
-            </span>
-          </button>
+          {mode === "drill" ? (
+            <button
+              type="button"
+              onClick={restart}
+              className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-medium transition-colors hover:bg-muted sm:px-4"
+            >
+              Restart{" "}
+              <span className="ml-1 hidden font-mono text-xs text-muted-foreground sm:inline">
+                Esc
+              </span>
+            </button>
+          ) : null}
         </div>
       </header>
 
-      <div className="mt-6 flex flex-wrap items-center gap-2">
+      {/* Mode Switcher Tabs */}
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
         <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
-          {DIFFICULTIES.map((d) => (
-            <button
-              key={d}
-              onClick={() => setDifficulty(d)}
-              aria-pressed={difficulty === d}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium uppercase tracking-wider transition-colors ${
-                difficulty === d
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {d}
-            </button>
-          ))}
+          <button
+            type="button"
+            onClick={() => setMode("drill")}
+            aria-pressed={mode === "drill"}
+            className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
+              mode === "drill"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Timer className="size-3.5" />
+            Timed Drill
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("shooter")}
+            aria-pressed={mode === "shooter"}
+            className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
+              mode === "shooter"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Crosshair className="size-3.5" />
+            Word Shooter
+          </button>
         </div>
-        <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
-          {DURATIONS.map((s) => (
-            <button
-              key={s}
-              onClick={() => setDuration(s)}
-              aria-pressed={duration === s}
-              className={`rounded-lg px-3 py-1.5 font-mono text-xs transition-colors ${
-                duration === s
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {s}s
-            </button>
-          ))}
-        </div>
-      </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard
-          label="WPM"
-          value={settled ? stats.wpm.toFixed(0) : "—"}
-          emphasis
-          hint={settled ? `raw ${stats.rawWpm.toFixed(0)}` : "start typing"}
-        />
-        <StatCard
-          label="Accuracy"
-          value={`${stats.accuracy.toFixed(0)}%`}
-          hint={`${stats.incorrect} errors`}
-        />
-        <StatCard
-          label="Time left"
-          value={`${Math.ceil(remaining)}s`}
-          hint={`${duration}s run`}
-          warn={running && !finished && remaining <= 5}
-        />
-        <StatCard
-          label="Consistency"
-          value={samples.length >= 3 ? `${stats.consistency.toFixed(0)}%` : "—"}
-          hint={previousBest ? `best ${previousBest.toFixed(0)} wpm` : "no record yet"}
-        />
-      </div>
-
-      <div className="mt-4 h-1 overflow-hidden rounded-full bg-secondary">
-        <div
-          className="h-full rounded-full bg-primary transition-[width] duration-100 ease-linear"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-
-      <section
-        className={`panel relative mt-3 cursor-text p-4 transition-shadow sm:p-8 ${
-          errorFlash ? "shake" : ""
-        } ${isRecord ? "record-glow" : ""}`}
-        onClick={() => inputRef.current?.focus()}
-      >
-        <div
-          className={
-            !focused && !finished ? "blur-[3px] transition-[filter]" : "transition-[filter]"
-          }
-        >
-          <TypingText text={text} typed={typed} />
-        </div>
-        <input
-          ref={inputRef}
-          value={typed}
-          autoFocus
-          autoCapitalize="off"
-          autoCorrect="off"
-          autoComplete="off"
-          data-lpignore="true"
-          spellCheck={false}
-          aria-label="Typing input"
-          onChange={(e) => {
-            // Anti-cheat: reject multi-character input (paste / autofill),
-            // but allow IME composition commits through.
-            const composing = (e.nativeEvent as unknown as { isComposing?: boolean }).isComposing;
-            if (!composing && e.target.value.length - typed.length > 1) {
-              e.target.value = typed;
-              return;
-            }
-            handleChange(e.target.value);
-          }}
-          onPaste={(e) => e.preventDefault()}
-          onDrop={(e) => e.preventDefault()}
-          onKeyDown={(e) => {
-            if ((e.ctrlKey || e.metaKey) && ["v", "x"].includes(e.key.toLowerCase())) {
-              e.preventDefault();
-            }
-          }}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          className="absolute inset-0 h-full w-full cursor-text opacity-0"
-        />
-        <p aria-live="polite" className="sr-only">
-          {finished
-            ? `Run complete. ${shown.wpm.toFixed(0)} words per minute, ${shown.accuracy.toFixed(0)} percent accuracy.`
-            : ""}
-        </p>
-        {!focused && !finished ? (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <span className="rounded-lg bg-secondary/90 px-4 py-2 text-sm text-muted-foreground">
-              Click here or press any key to focus
-            </span>
-          </div>
-        ) : null}
-        {finished ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 overflow-y-auto rounded-xl bg-card/95 px-4 text-center backdrop-blur-sm sm:gap-3 sm:px-6">
-            {isRecord ? (
-              <span className="rounded-full bg-accent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent-foreground">
-                New personal best
+        {mode === "shooter" ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-mono text-muted-foreground">
+              <span>
+                Diff:{" "}
+                <strong className="capitalize text-foreground">{shooterSettings.difficulty}</strong>
               </span>
-            ) : null}
-            <div className="font-mono text-4xl font-bold text-primary sm:text-5xl">
-              {shown.wpm.toFixed(0)}
-              <span className="ml-2 text-base font-normal text-muted-foreground">wpm</span>
+              <span>·</span>
+              <span>
+                Speed:{" "}
+                <strong className="text-primary">
+                  {shooterSettings.speedMultiplier.toFixed(2)}x
+                </strong>
+              </span>
+              <span>·</span>
+              <span>
+                Lives:{" "}
+                <strong className="text-destructive">{shooterSettings.startingLives} ❤</strong>
+              </span>
             </div>
-            <div className="text-xs text-muted-foreground sm:text-sm">
-              {shown.accuracy.toFixed(1)}% accuracy · {shown.correct} correct · {shown.incorrect}{" "}
-              errors · raw {shown.rawWpm.toFixed(0)} · net {shown.adjustedWpm.toFixed(0)} ·
-              consistency {shown.consistency.toFixed(0)}%
-            </div>
-
-            <WpmChart samples={samples} />
-            <ProblemKeys mistakes={mistakes} />
             <button
-              ref={againRef}
-              onClick={restart}
-              className="mt-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className="flex items-center gap-1 rounded-lg border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
-              Go again
+              <Sliders className="size-3 text-primary" />
+              Configure
             </button>
           </div>
         ) : null}
-      </section>
-
-      <div className="mt-4">
-        <MemoKeyboard nextChar={nextChar} errorFlash={errorFlash} pressedChar={pressedChar} />
       </div>
 
-      <div className="mt-4">
-        <MemoHistory
-          history={history}
-          onClear={() => setHistory(clearHistory())}
-          onImport={(entries) => setHistory(entries)}
-        />
-      </div>
+      {mode === "drill" ? (
+        <>
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
+              {DIFFICULTIES.map((d) => (
+                <button
+                  type="button"
+                  key={d}
+                  onClick={() => handleDifficultyChange(d)}
+                  aria-pressed={difficulty === d}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium uppercase tracking-wider transition-colors ${
+                    difficulty === d
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
+              {DURATIONS.map((s) => (
+                <button
+                  type="button"
+                  key={s}
+                  onClick={() => setDuration(s)}
+                  aria-pressed={duration === s}
+                  className={`rounded-lg px-3 py-1.5 font-mono text-xs transition-colors ${
+                    duration === s
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {s}s
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatCard
+              label="WPM"
+              value={settled ? stats.wpm.toFixed(0) : "—"}
+              emphasis
+              hint={settled ? `raw ${stats.rawWpm.toFixed(0)}` : "start typing"}
+            />
+            <StatCard
+              label="Accuracy"
+              value={`${stats.accuracy.toFixed(0)}%`}
+              hint={`${stats.incorrect} errors`}
+            />
+            <StatCard
+              label="Time left"
+              value={`${Math.ceil(remaining)}s`}
+              hint={`${duration}s run`}
+              warn={running && !finished && remaining <= 5}
+            />
+            <StatCard
+              label="Consistency"
+              value={samples.length >= 3 ? `${stats.consistency.toFixed(0)}%` : "—"}
+              hint={previousBest ? `best ${previousBest.toFixed(0)} wpm` : "no record yet"}
+            />
+          </div>
+
+          <div className="mt-4 h-1 overflow-hidden rounded-full bg-secondary">
+            <div
+              className="h-full rounded-full bg-primary transition-[width] duration-100 ease-linear"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+
+          <section
+            className={`panel relative mt-3 cursor-text p-4 transition-shadow sm:p-8 ${
+              errorFlash ? "shake" : ""
+            } ${isRecord ? "record-glow" : ""}`}
+            onClick={() => inputRef.current?.focus()}
+          >
+            <div
+              className={
+                !focused && !finished ? "blur-[3px] transition-[filter]" : "transition-[filter]"
+              }
+            >
+              <TypingText text={text} typed={typed} />
+            </div>
+            {mounted ? (
+              <input
+                ref={inputRef}
+                type="text"
+                name="typing_practice_input"
+                id="typing_practice_input"
+                data-form-type="other"
+                data-lpignore="true"
+                data-protonpass-ignore="true"
+                data-1p-ignore="true"
+                data-bwignore="true"
+                value={typed}
+                autoFocus
+                autoCapitalize="off"
+                autoCorrect="off"
+                autoComplete="off"
+                spellCheck={false}
+                aria-label="Typing input"
+                onChange={(e) => {
+                  // Anti-cheat: reject multi-character input (paste / autofill),
+                  // but allow IME composition commits through.
+                  const composing = (e.nativeEvent as unknown as { isComposing?: boolean })
+                    .isComposing;
+                  if (!composing && e.target.value.length - typed.length > 1) {
+                    e.target.value = typed;
+                    return;
+                  }
+                  handleChange(e.target.value);
+                }}
+                onPaste={(e) => e.preventDefault()}
+                onDrop={(e) => e.preventDefault()}
+                onKeyDown={(e) => {
+                  if ((e.ctrlKey || e.metaKey) && ["v", "x"].includes(e.key.toLowerCase())) {
+                    e.preventDefault();
+                  }
+                }}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                className="absolute inset-0 h-full w-full cursor-text opacity-0"
+              />
+            ) : null}
+            <p aria-live="polite" className="sr-only">
+              {finished
+                ? `Run complete. ${shown.wpm.toFixed(0)} words per minute, ${shown.accuracy.toFixed(0)} percent accuracy.`
+                : ""}
+            </p>
+            {!focused && !finished ? (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <span className="rounded-lg bg-secondary/90 px-4 py-2 text-sm text-muted-foreground">
+                  Click here or press any key to focus
+                </span>
+              </div>
+            ) : null}
+            {finished ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 overflow-y-auto rounded-xl bg-card/95 px-4 text-center backdrop-blur-sm sm:gap-3 sm:px-6">
+                {isRecord ? (
+                  <span className="rounded-full bg-accent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent-foreground">
+                    New personal best
+                  </span>
+                ) : null}
+                <div className="font-mono text-4xl font-bold text-primary sm:text-5xl">
+                  {shown.wpm.toFixed(0)}
+                  <span className="ml-2 text-base font-normal text-muted-foreground">wpm</span>
+                </div>
+                <div className="text-xs text-muted-foreground sm:text-sm">
+                  {shown.accuracy.toFixed(1)}% accuracy · {shown.correct} correct ·{" "}
+                  {shown.incorrect} errors · raw {shown.rawWpm.toFixed(0)} · net{" "}
+                  {shown.adjustedWpm.toFixed(0)} · consistency {shown.consistency.toFixed(0)}%
+                </div>
+
+                <WpmChart samples={samples} />
+                <ProblemKeys mistakes={mistakes} />
+                <button
+                  type="button"
+                  ref={againRef}
+                  onClick={restart}
+                  className="mt-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                >
+                  Go again
+                </button>
+              </div>
+            ) : null}
+          </section>
+
+          <div className="mt-4">
+            <MemoKeyboard nextChar={nextChar} errorFlash={errorFlash} pressedChar={pressedChar} />
+          </div>
+
+          <div className="mt-4">
+            <MemoHistory
+              history={history}
+              onClear={() => setHistory(clearHistory())}
+              onImport={(entries) => setHistory(entries)}
+            />
+          </div>
+        </>
+      ) : (
+        <>
+          <WordShooter
+            settings={shooterSettings}
+            onOpenSettings={() => setSettingsOpen(true)}
+            onActiveTargetCharChange={setActiveShooterChar}
+          />
+
+          <div className="mt-4">
+            <MemoKeyboard nextChar={activeShooterChar} errorFlash={false} pressedChar={null} />
+          </div>
+        </>
+      )}
 
       <footer className="mt-10 text-center text-xs text-muted-foreground">
         Web edition of Typing Trainer Pro. Runs stay in your browser. Press{" "}
@@ -509,14 +658,24 @@ function Index() {
         the command palette.
       </footer>
 
+      <ShooterSettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        settings={shooterSettings}
+        onSaveSettings={handleSaveShooterSettings}
+      />
+
       <CommandPalette
         difficulty={difficulty}
         duration={duration}
         difficulties={DIFFICULTIES}
         durations={DURATIONS}
-        onDifficulty={setDifficulty}
+        mode={mode}
+        onDifficulty={handleDifficultyChange}
         onDuration={setDuration}
         onRestart={restart}
+        onModeChange={setMode}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
     </main>
   );

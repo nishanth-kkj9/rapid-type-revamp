@@ -14,9 +14,12 @@ interface Props {
   duration: number;
   difficulties: Difficulty[];
   durations: readonly number[];
+  mode?: "drill" | "shooter";
   onDifficulty: (d: Difficulty) => void;
   onDuration: (s: number) => void;
   onRestart: () => void;
+  onModeChange?: (m: "drill" | "shooter") => void;
+  onOpenSettings?: () => void;
 }
 
 export function CommandPalette({
@@ -24,9 +27,12 @@ export function CommandPalette({
   duration,
   difficulties,
   durations,
+  mode = "drill",
   onDifficulty,
   onDuration,
   onRestart,
+  onModeChange,
+  onOpenSettings,
 }: Props) {
   const [open, setOpen] = useState(false);
 
@@ -48,9 +54,31 @@ export function CommandPalette({
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Set difficulty, length, or restart…" />
+      <CommandInput placeholder="Set mode, difficulty, length, or open settings…" />
       <CommandList>
         <CommandEmpty>No matching command.</CommandEmpty>
+        {onModeChange ? (
+          <CommandGroup heading="Game Mode">
+            <CommandItem
+              value="mode timed drill typing test"
+              onSelect={() => run(() => onModeChange("drill"))}
+            >
+              <span>Timed Drill Mode</span>
+              {mode === "drill" ? (
+                <span className="ml-auto text-xs text-muted-foreground">current</span>
+              ) : null}
+            </CommandItem>
+            <CommandItem
+              value="mode word shooter arcade game"
+              onSelect={() => run(() => onModeChange("shooter"))}
+            >
+              <span>Word Shooter Arcade</span>
+              {mode === "shooter" ? (
+                <span className="ml-auto text-xs text-muted-foreground">current</span>
+              ) : null}
+            </CommandItem>
+          </CommandGroup>
+        ) : null}
         <CommandGroup heading="Difficulty">
           {difficulties.map((d) => (
             <CommandItem
@@ -80,6 +108,14 @@ export function CommandPalette({
           ))}
         </CommandGroup>
         <CommandGroup heading="Actions">
+          {onOpenSettings ? (
+            <CommandItem
+              value="open settings difficulty speed lives"
+              onSelect={() => run(onOpenSettings)}
+            >
+              Word Shooter Settings
+            </CommandItem>
+          ) : null}
           <CommandItem value="restart test" onSelect={() => run(onRestart)}>
             Restart test
           </CommandItem>
