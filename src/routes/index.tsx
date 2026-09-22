@@ -45,6 +45,7 @@ import {
   saveDaily,
   recordRunToday,
   getLocalDateString,
+  DAILY_GOAL,
   type DailyState,
 } from "@/lib/daily";
 
@@ -201,7 +202,7 @@ function Index() {
     dailyRef.current = nextDaily;
     setDaily(nextDaily);
     saveDaily(nextDaily);
-    if ((prevDaily?.runsToday ?? 0) < 3 && nextDaily.runsToday >= 3) {
+    if ((prevDaily?.runsToday ?? 0) < DAILY_GOAL && nextDaily.runsToday >= DAILY_GOAL) {
       toast.success("Daily goal complete!");
     }
   }, []);
@@ -338,8 +339,11 @@ function Index() {
   );
 
   const previousBest = useMemo(
-    () => history.filter((h) => h.mode !== "shooter").reduce((m, h) => Math.max(m, h.wpm), 0),
-    [history],
+    () =>
+      history
+        .filter((h) => h.mode === `${duration}s` || h.mode === String(duration))
+        .reduce((m, h) => Math.max(m, h.wpm), 0),
+    [history, duration],
   );
 
   const finish = useCallback(() => {
@@ -385,7 +389,7 @@ function Index() {
       dailyRef.current = nextDaily;
       setDaily(nextDaily);
       saveDaily(nextDaily);
-      if ((prevDaily?.runsToday ?? 0) < 3 && nextDaily.runsToday >= 3) {
+      if ((prevDaily?.runsToday ?? 0) < DAILY_GOAL && nextDaily.runsToday >= DAILY_GOAL) {
         toast.success("Daily goal complete!");
       }
     }
@@ -774,6 +778,11 @@ function Index() {
                     New personal best
                   </span>
                 ) : null}
+                {shown.wpm >= drillSettings.targetWpm ? (
+                  <span className="rounded-full bg-primary/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+                    Target met
+                  </span>
+                ) : null}
                 <div className="font-mono text-4xl font-bold text-primary sm:text-5xl">
                   {shown.wpm.toFixed(0)}
                   <span className="ml-2 text-base font-normal text-muted-foreground">wpm</span>
@@ -784,7 +793,11 @@ function Index() {
                   {shown.adjustedWpm.toFixed(0)} · consistency {shown.consistency.toFixed(0)}%
                 </div>
 
-                <WpmChart samples={samples} ghost={ghostSamples} />
+                <WpmChart
+                  samples={samples}
+                  ghost={ghostSamples}
+                  targetWpm={drillSettings.targetWpm}
+                />
                 <ProblemKeys mistakes={mistakes} />
                 <button
                   type="button"

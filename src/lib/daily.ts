@@ -5,6 +5,7 @@ export interface DailyState {
 }
 
 export const DAILY_STORAGE_KEY = "ttp:daily:v1";
+export const DAILY_GOAL = 3; // runs per day, across both modes, to keep the streak
 
 export function daysBetween(dateA: string, dateB: string): number {
   const [y1, m1, d1] = dateA.split("-").map(Number);
@@ -84,11 +85,15 @@ export function loadDaily(): DailyState | null {
     const raw = localStorage.getItem(DAILY_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
+    const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
     if (
       parsed &&
       typeof parsed.lastDate === "string" &&
-      Number.isFinite(parsed.streak) &&
-      Number.isFinite(parsed.runsToday)
+      ISO_DATE.test(parsed.lastDate) &&
+      Number.isInteger(parsed.streak) &&
+      Number.isInteger(parsed.runsToday) &&
+      (parsed.streak as number) >= 0 &&
+      (parsed.runsToday as number) >= 0
     ) {
       return parsed as DailyState;
     }

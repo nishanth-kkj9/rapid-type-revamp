@@ -1,6 +1,6 @@
 import { memo } from "react";
 import type { DailyState } from "../lib/daily";
-import { getEffectiveDaily, getLocalDateString } from "../lib/daily";
+import { getEffectiveDaily, getLocalDateString, DAILY_GOAL } from "../lib/daily";
 
 interface Props {
   daily: DailyState | null;
@@ -9,7 +9,7 @@ interface Props {
 export const DailyGoal = memo(function DailyGoal({ daily }: Props) {
   const today = getLocalDateString();
   const { streak, runsToday } = getEffectiveDaily(daily, today);
-  const goal = 3;
+  const goal = DAILY_GOAL;
   const progress = Math.min(100, Math.round((runsToday / goal) * 100));
 
   return (

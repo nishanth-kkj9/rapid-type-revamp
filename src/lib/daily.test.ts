@@ -101,4 +101,15 @@ describe("daily goal and streak tracking", () => {
     );
     expect(loadDaily()).toBeNull();
   });
+
+  it("rejects fractional, negative, and malformed-date payloads", () => {
+    localStorage.setItem(DAILY_STORAGE_KEY, '{"lastDate":"2026-09-21","streak":2.5,"runsToday":1}');
+    expect(loadDaily()).toBeNull();
+
+    localStorage.setItem(DAILY_STORAGE_KEY, '{"lastDate":"2026-09-21","streak":-3,"runsToday":1}');
+    expect(loadDaily()).toBeNull();
+
+    localStorage.setItem(DAILY_STORAGE_KEY, '{"lastDate":"not-a-date","streak":2,"runsToday":1}');
+    expect(loadDaily()).toBeNull();
+  });
 });

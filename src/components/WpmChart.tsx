@@ -1,12 +1,21 @@
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 interface Props {
   /** Cumulative correct-character counts sampled once per second. */
   samples: number[];
   ghost?: number[] | undefined;
+  targetWpm?: number;
 }
 
-export function WpmChart({ samples, ghost }: Props) {
+export function WpmChart({ samples, ghost, targetWpm }: Props) {
   if (samples.length < 2) return null;
 
   const hasGhost = Boolean(ghost && ghost.length >= 2);
@@ -84,6 +93,20 @@ export function WpmChart({ samples, ghost }: Props) {
                 isAnimationActive={false}
               />
             )}
+            {typeof targetWpm === "number" && targetWpm > 0 ? (
+              <ReferenceLine
+                y={targetWpm}
+                stroke="var(--color-primary)"
+                strokeDasharray="4 4"
+                ifOverflow="extendDomain"
+                label={{
+                  value: `Target ${targetWpm}`,
+                  position: "insideTopRight",
+                  fontSize: 10,
+                  fill: "var(--color-muted-foreground)",
+                }}
+              />
+            ) : null}
           </LineChart>
         </ResponsiveContainer>
       </div>

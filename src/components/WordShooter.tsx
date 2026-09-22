@@ -96,7 +96,7 @@ export function WordShooter({
 
   const stateRef = useRef({ phase, targetId, settings, soundMuted });
   stateRef.current = { phase, targetId, settings, soundMuted };
-  const startedAtRef = useRef<number>(0);
+  const activeElapsedRef = useRef(0); // seconds of *playing* time, excludes pauses
   const lastBossLevelSpawnedRef = useRef(0);
 
   // Reset local override when settings change
@@ -176,7 +176,7 @@ export function WordShooter({
     setTargetId(null);
     setShipX(50);
     setIsNewRecord(false);
-    startedAtRef.current = performance.now();
+    activeElapsedRef.current = 0;
     setPhase("playing");
     setLiveAnnouncement("Game started. Type the falling words.");
     requestAnimationFrame(() => inputRef.current?.focus());
@@ -279,7 +279,7 @@ export function WordShooter({
 
   useEffect(() => {
     if (phase !== "playing") return undefined;
-    const currentLevel = 1 + Math.floor(score / 400);
+    const currentLevel = getLevel(score);
     if (currentLevel > prevLevelRef.current) {
       prevLevelRef.current = currentLevel;
       setLevelBanner(currentLevel);
@@ -305,10 +305,11 @@ export function WordShooter({
     const tick = (now: number) => {
       const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
+      activeElapsedRef.current += dt;
 
       const currentSettings = stateRef.current.settings;
       const speedMult = currentSettings.speedMultiplier;
-      const lvl = 1 + Math.floor(scoreRef.current / 400);
+      const lvl = getLevel(scoreRef.current);
 
       spawnRef.current -= dt;
 
@@ -339,7 +340,7 @@ export function WordShooter({
       if (isBossLevel(lvl) && lastBossLevelSpawnedRef.current < lvl && !next.some((e) => e.boss)) {
         lastBossLevelSpawnedRef.current = lvl;
         const candidates = poolRef.current
-          .filter((w) => w.length >= 8 && !next.some((e) => e.word === w))
+          .filter((w) => w.length >= 8 && !next.some((e) => e.word === w || e.word[0] === w[0]))
           .sort((a, b) => b.length - a.length);
         const bossWord = candidates[0] ?? "corrupted";
         const baseSpeed = (3.2 + lvl * 0.8 + Math.random() * 1.5) * speedMult;
@@ -432,10 +433,7 @@ export function WordShooter({
         }
       }
 
-      const durationSec = Math.max(
-        1,
-        Math.round((performance.now() - startedAtRef.current) / 1000),
-      );
+      const durationSec = Math.max(1, Math.round(activeElapsedRef.current));
       onRunComplete?.({
         score: currentScore,
         wordsDestroyed: hits,
