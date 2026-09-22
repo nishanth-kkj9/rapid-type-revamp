@@ -1,5 +1,12 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { daysBetween, getEffectiveDaily, recordRunToday } from "./daily";
+import {
+  daysBetween,
+  getEffectiveDaily,
+  recordRunToday,
+  loadDaily,
+  DAILY_STORAGE_KEY,
+} from "./daily";
 
 describe("daily goal and streak tracking", () => {
   it("initializes state on the first run ever", () => {
@@ -79,5 +86,19 @@ describe("daily goal and streak tracking", () => {
       streak: 0,
       runsToday: 0,
     });
+  });
+
+  it("handles corrupted or NaN storage payloads safely in loadDaily", () => {
+    localStorage.setItem(
+      DAILY_STORAGE_KEY,
+      JSON.stringify({ lastDate: "2026-09-21", streak: null, runsToday: 1 }),
+    );
+    expect(loadDaily()).toBeNull();
+
+    localStorage.setItem(
+      DAILY_STORAGE_KEY,
+      '{"lastDate":"2026-09-21","streak":null,"runsToday":null}',
+    );
+    expect(loadDaily()).toBeNull();
   });
 });

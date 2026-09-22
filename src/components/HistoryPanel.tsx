@@ -363,6 +363,7 @@ export function HistoryPanel({ history, mode, onClear, onImport }: Props) {
                   <button
                     key={d}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => setDrillDuration(d)}
                     className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors cursor-pointer ${
                       active
@@ -386,6 +387,7 @@ export function HistoryPanel({ history, mode, onClear, onImport }: Props) {
                   <button
                     key={diff}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => setDrillDifficulty(diff)}
                     className={`rounded-md px-2 py-0.5 text-xs font-medium capitalize transition-colors cursor-pointer ${
                       active
@@ -580,6 +582,7 @@ export function HistoryPanel({ history, mode, onClear, onImport }: Props) {
                   <button
                     key={diff}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => setShooterDifficulty(diff)}
                     className={`rounded-md px-2 py-0.5 text-xs font-medium capitalize transition-colors cursor-pointer ${
                       active

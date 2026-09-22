@@ -188,7 +188,7 @@ function Index() {
       mode: "shooter",
       score: s.score,
       wordsDestroyed: s.wordsDestroyed,
-      level: s.level,
+      level: s.level ?? 1,
     });
     historyRef.current = list;
     setHistory(list);
@@ -337,7 +337,10 @@ function Index() {
     [correct, incorrect, elapsed, samples],
   );
 
-  const previousBest = useMemo(() => history.reduce((m, h) => Math.max(m, h.wpm), 0), [history]);
+  const previousBest = useMemo(
+    () => history.filter((h) => h.mode !== "shooter").reduce((m, h) => Math.max(m, h.wpm), 0),
+    [history],
+  );
 
   const finish = useCallback(() => {
     setRunning(false);

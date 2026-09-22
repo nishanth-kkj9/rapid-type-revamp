@@ -87,8 +87,8 @@ export function loadDaily(): DailyState | null {
     if (
       parsed &&
       typeof parsed.lastDate === "string" &&
-      typeof parsed.streak === "number" &&
-      typeof parsed.runsToday === "number"
+      Number.isFinite(parsed.streak) &&
+      Number.isFinite(parsed.runsToday)
     ) {
       return parsed as DailyState;
     }
