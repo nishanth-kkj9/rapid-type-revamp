@@ -582,14 +582,6 @@ function Index() {
                 <strong className="text-accent-foreground">{drillSettings.targetWpm} WPM</strong>
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => setDrillSettingsOpen(true)}
-              className="flex items-center gap-1 rounded-lg border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
-            >
-              <Sliders className="size-3 text-primary" />
-              Configure
-            </button>
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-2">
@@ -611,14 +603,6 @@ function Index() {
                 <strong className="text-destructive">{shooterSettings.startingLives} ❤</strong>
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => setShooterSettingsOpen(true)}
-              className="flex items-center gap-1 rounded-lg border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
-            >
-              <Sliders className="size-3 text-primary" />
-              Configure
-            </button>
           </div>
         )}
       </div>
@@ -662,15 +646,6 @@ function Index() {
                 ))}
               </div>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setDrillSettingsOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
-            >
-              <Sliders className="size-3.5 text-primary" />
-              <span>Drill Settings</span>
-            </button>
           </div>
 
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">

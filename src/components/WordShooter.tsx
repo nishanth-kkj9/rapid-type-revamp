@@ -626,15 +626,6 @@ export function WordShooter({
             <RotateCcw className="size-3.5" />
             <span className="hidden sm:inline">Restart</span>
           </button>
-
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            className="rounded-lg border border-border bg-secondary p-1.5 text-muted-foreground transition-colors hover:text-foreground"
-            aria-label="Arcade settings"
-          >
-            <Sliders className="size-4 text-primary" />
-          </button>
         </div>
       </div>
 
