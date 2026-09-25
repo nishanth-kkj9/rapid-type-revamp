@@ -47,7 +47,7 @@ describe("drillSettings", () => {
     expect(loaded.duration).toBe(30);
     expect(loaded.sound).toBe("click");
     expect(loaded.caretStyle).toBe("smooth");
-    expect(loaded.targetWpm).toBe(200); // clamped to 200
+    expect(loaded.targetWpm).toBe(160); // clamped to slider ceiling
     expect(loaded.showLiveWpm).toBe(true);
   });
 

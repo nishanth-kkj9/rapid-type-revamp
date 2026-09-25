@@ -866,7 +866,10 @@ export function WordShooter({
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 Final Score: <strong className="text-foreground">{score} pts</strong> · Words
-                Destroyed: <strong className="text-foreground">{hits}</strong>
+                Destroyed: <strong className="text-foreground">{hits}</strong> · Time:{" "}
+                <strong className="text-foreground">
+                  {Math.max(1, Math.round(activeElapsedRef.current))}s
+                </strong>
               </p>
             </div>
 

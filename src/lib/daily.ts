@@ -43,7 +43,7 @@ export function recordRunToday(state: DailyState | null, todayDate: string): Dai
   if (diff === 1) {
     return {
       lastDate: todayDate,
-      streak: state.runsToday >= 3 ? state.streak + 1 : 0,
+      streak: state.runsToday >= DAILY_GOAL ? state.streak + 1 : 0,
       runsToday: 1,
     };
   }
@@ -71,7 +71,7 @@ export function getEffectiveDaily(
 
   if (diff === 1) {
     return {
-      streak: state.runsToday >= 3 ? state.streak + 1 : 0,
+      streak: state.runsToday >= DAILY_GOAL ? state.streak + 1 : 0,
       runsToday: 0,
     };
   }

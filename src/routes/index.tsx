@@ -504,7 +504,8 @@ function Index() {
               else setShooterSettingsOpen(true);
             }}
             aria-label={`${mode === "drill" ? "Timed Drill" : "Word Shooter"} Settings`}
-            title={`${mode === "drill" ? "Timed Drill" : "Word Shooter"} Settings`}
+            aria-keyshortcuts="Control+K Meta+K"
+            title={`${mode === "drill" ? "Timed Drill" : "Word Shooter"} Settings (Ctrl/⌘ K)`}
             className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-medium transition-colors hover:bg-muted cursor-pointer"
           >
             <Sliders className="size-4 text-primary" />
@@ -863,10 +864,6 @@ function Index() {
         onDuration={handleDurationChange}
         onRestart={restart}
         onModeChange={setMode}
-        onOpenSettings={() => {
-          if (mode === "drill") setDrillSettingsOpen(true);
-          else setShooterSettingsOpen(true);
-        }}
         onOpenDrillSettings={() => setDrillSettingsOpen(true)}
         onOpenShooterSettings={() => setShooterSettingsOpen(true)}
       />

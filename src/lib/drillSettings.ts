@@ -63,7 +63,7 @@ export function loadDrillSettings(): DrillSettings {
           : DEFAULT_DRILL_SETTINGS.caretStyle,
       targetWpm:
         typeof parsed.targetWpm === "number" && !Number.isNaN(parsed.targetWpm)
-          ? Math.min(200, Math.max(20, Math.round(parsed.targetWpm)))
+          ? Math.min(160, Math.max(20, Math.round(parsed.targetWpm)))
           : DEFAULT_DRILL_SETTINGS.targetWpm,
       showLiveWpm:
         typeof parsed.showLiveWpm === "boolean"
