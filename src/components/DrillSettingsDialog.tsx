@@ -294,6 +294,7 @@ export function DrillSettingsDialog({ open, onOpenChange, settings, onSaveSettin
             <button
               type="button"
               onClick={() => update("showLiveWpm", !draft.showLiveWpm)}
+              aria-pressed={draft.showLiveWpm}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
                 draft.showLiveWpm
                   ? "bg-primary text-primary-foreground"
@@ -301,6 +302,30 @@ export function DrillSettingsDialog({ open, onOpenChange, settings, onSaveSettin
               }`}
             >
               {draft.showLiveWpm ? "Visible" : "Hidden"}
+            </button>
+          </div>
+
+          {/* Practice Strategy Toggle */}
+          <div className="flex items-center justify-between rounded-xl border border-border bg-secondary/40 p-3">
+            <div>
+              <div className="text-xs font-semibold">Practice Strategy</div>
+              <div className="text-[11px] text-muted-foreground">
+                Balanced generates standard passages; Focused biases passages toward your all-time
+                problem keys
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => update("focusWeakKeys", !draft.focusWeakKeys)}
+              aria-pressed={draft.focusWeakKeys}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+                draft.focusWeakKeys
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border bg-secondary text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Target className="size-3.5" />
+              {draft.focusWeakKeys ? "Focused" : "Balanced"}
             </button>
           </div>
         </div>

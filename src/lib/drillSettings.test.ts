@@ -25,6 +25,7 @@ describe("drillSettings", () => {
       caretStyle: "block",
       targetWpm: 95,
       showLiveWpm: false,
+      focusWeakKeys: false,
     };
     saveDrillSettings(custom);
     expect(loadDrillSettings()).toEqual(custom);
@@ -49,6 +50,18 @@ describe("drillSettings", () => {
     expect(loaded.caretStyle).toBe("smooth");
     expect(loaded.targetWpm).toBe(160); // clamped to slider ceiling
     expect(loaded.showLiveWpm).toBe(true);
+    expect(loaded.focusWeakKeys).toBe(false);
+  });
+
+  it("persists the focusWeakKeys toggle and sanitizes non-boolean values", () => {
+    saveDrillSettings({ ...DEFAULT_DRILL_SETTINGS, focusWeakKeys: true });
+    expect(loadDrillSettings().focusWeakKeys).toBe(true);
+
+    localStorage.setItem(
+      DRILL_SETTINGS_KEY,
+      JSON.stringify({ ...DEFAULT_DRILL_SETTINGS, focusWeakKeys: "yes" }),
+    );
+    expect(loadDrillSettings().focusWeakKeys).toBe(false);
   });
 
   it("falls back to legacy difficulty key if new key not present", () => {

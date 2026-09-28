@@ -34,6 +34,7 @@ import { TypingText } from "@/components/TypingText";
 import { StatCard } from "@/components/StatCard";
 import { HistoryPanel } from "@/components/HistoryPanel";
 import { ProblemKeys } from "@/components/ProblemKeys";
+import { loadKeyStats, pickWeakKeyPassage, recordKeyMistakes, topWeakKeys } from "@/lib/keyStats";
 import { WpmChart } from "@/components/WpmChart";
 import { CommandPalette } from "@/components/CommandPalette";
 import { WordShooter } from "@/components/WordShooter";
@@ -124,6 +125,7 @@ function Index() {
   const [incorrect, setIncorrect] = useState(0);
   const [mistakes, setMistakes] = useState<Record<string, number>>({});
   const [shooterMistakes, setShooterMistakes] = useState<Record<string, number>>({});
+  const [allTimeKeys, setAllTimeKeys] = useState<Record<string, number>>({});
   const [samples, setSamples] = useState<number[]>([]);
   const [ghostSamples, setGhostSamples] = useState<number[] | undefined>(undefined);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -138,6 +140,9 @@ function Index() {
   const pressTimerRef = useRef<number | null>(null);
   const correctRef = useRef(0);
   const incorrectRef = useRef(0);
+  const mistakesRef = useRef<Record<string, number>>({});
+  const shooterMistakesRef = useRef<Record<string, number>>({});
+  const allTimeKeysRef = useRef<Record<string, number>>({});
   const samplesRef = useRef<number[]>([]);
   const historyRef = useRef<HistoryEntry[]>([]);
   const dailyRef = useRef<DailyState | null>(null);
@@ -159,6 +164,10 @@ function Index() {
     setDrillSettings(loadedDrill);
     setDifficulty(loadedDrill.difficulty);
     setDuration(loadedDrill.duration);
+
+    const ks = loadKeyStats();
+    allTimeKeysRef.current = ks;
+    setAllTimeKeys(ks);
   }, []);
 
   const handleSaveDrillSettings = useCallback((newSettings: DrillSettings) => {
@@ -196,6 +205,10 @@ function Index() {
     if (!ok) {
       toast.error("Couldn't save this run — storage is full. Export and clear old runs.");
     }
+    const updatedKeys = recordKeyMistakes(shooterMistakesRef.current);
+    allTimeKeysRef.current = updatedKeys;
+    setAllTimeKeys(updatedKeys);
+
     const today = getLocalDateString();
     const prevDaily = dailyRef.current;
     const nextDaily = recordRunToday(prevDaily, today);
@@ -208,13 +221,18 @@ function Index() {
   }, []);
 
   const handleShooterWrongKey = useCallback((expectedChar: string) => {
-    setShooterMistakes((prev) => ({
-      ...prev,
-      [expectedChar]: (prev[expectedChar] ?? 0) + 1,
-    }));
+    setShooterMistakes((prev) => {
+      const next = {
+        ...prev,
+        [expectedChar]: (prev[expectedChar] ?? 0) + 1,
+      };
+      shooterMistakesRef.current = next;
+      return next;
+    });
   }, []);
 
   const handleShooterStart = useCallback(() => {
+    shooterMistakesRef.current = {};
     setShooterMistakes({});
   }, []);
 
@@ -248,29 +266,44 @@ function Index() {
     [],
   );
 
-  const reset = useCallback((d: Difficulty) => {
-    if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
-    if (pressTimerRef.current) window.clearTimeout(pressTimerRef.current);
-    setErrorFlash(false);
-    setText(generatePassage(d, 320));
-    setTyped("");
-    setRunning(false);
-    setElapsedMs(0);
-    startTimeRef.current = null;
-    setFinished(false);
-    setFinalStats(null);
-    setIsRecord(false);
-    setCorrect(0);
-    setIncorrect(0);
-    correctRef.current = 0;
-    incorrectRef.current = 0;
-    setMistakes({});
-    setSamples([]);
-    samplesRef.current = [];
-    setPressedChar(null);
-    savedRef.current = false;
-    inputRef.current?.focus();
-  }, []);
+  const buildDrillText = useCallback(
+    (d: Difficulty, chars = 320): string => {
+      if (!drillSettings.focusWeakKeys) return generatePassage(d, chars);
+      const weak = topWeakKeys(allTimeKeysRef.current, 12);
+      if (weak.length === 0) return generatePassage(d, chars);
+      const candidates = Array.from({ length: 5 }, () => generatePassage(d, chars));
+      return pickWeakKeyPassage(candidates, weak);
+    },
+    [drillSettings.focusWeakKeys],
+  );
+
+  const reset = useCallback(
+    (d: Difficulty) => {
+      if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
+      if (pressTimerRef.current) window.clearTimeout(pressTimerRef.current);
+      setErrorFlash(false);
+      setText(buildDrillText(d, 320));
+      setTyped("");
+      setRunning(false);
+      setElapsedMs(0);
+      startTimeRef.current = null;
+      setFinished(false);
+      setFinalStats(null);
+      setIsRecord(false);
+      setCorrect(0);
+      setIncorrect(0);
+      correctRef.current = 0;
+      incorrectRef.current = 0;
+      mistakesRef.current = {};
+      setMistakes({});
+      setSamples([]);
+      samplesRef.current = [];
+      setPressedChar(null);
+      savedRef.current = false;
+      inputRef.current?.focus();
+    },
+    [buildDrillText],
+  );
 
   const restart = useCallback(() => reset(difficulty), [reset, difficulty]);
 
@@ -383,6 +416,10 @@ function Index() {
       if (!ok) {
         toast.error("Couldn't save this run — storage is full. Export and clear old runs.");
       }
+      const updatedKeys = recordKeyMistakes(mistakesRef.current);
+      allTimeKeysRef.current = updatedKeys;
+      setAllTimeKeys(updatedKeys);
+
       const today = getLocalDateString();
       const prevDaily = dailyRef.current;
       const nextDaily = recordRunToday(prevDaily, today);
@@ -449,6 +486,7 @@ function Index() {
     setIncorrect(next.incorrect);
     correctRef.current = next.correct;
     incorrectRef.current = next.incorrect;
+    mistakesRef.current = next.mistakes;
     setMistakes(next.mistakes);
 
     if (grew) {
@@ -467,7 +505,7 @@ function Index() {
 
     setTyped(value);
     if (value.length >= text.length - 60 && text.length < 6000) {
-      setText((t) => `${t} ${generatePassage(difficulty, 200)}`);
+      setText((t) => `${t} ${buildDrillText(difficulty, 200)}`);
     }
   };
 
@@ -775,6 +813,9 @@ function Index() {
                   targetWpm={drillSettings.targetWpm}
                 />
                 <ProblemKeys mistakes={mistakes} />
+                {Object.keys(allTimeKeys).length > 0 ? (
+                  <ProblemKeys mistakes={allTimeKeys} limit={8} label="All-time problem keys" />
+                ) : null}
                 <button
                   type="button"
                   ref={againRef}
@@ -807,8 +848,11 @@ function Index() {
             onStart={handleShooterStart}
           />
 
-          <div className="mt-4">
+          <div className="mt-4 flex flex-col gap-2">
             <ProblemKeys mistakes={shooterMistakes} />
+            {Object.keys(allTimeKeys).length > 0 ? (
+              <ProblemKeys mistakes={allTimeKeys} limit={8} label="All-time problem keys" />
+            ) : null}
           </div>
 
           <div className="mt-4">

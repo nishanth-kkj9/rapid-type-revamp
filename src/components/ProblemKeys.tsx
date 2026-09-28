@@ -1,9 +1,10 @@
 interface Props {
   mistakes: Record<string, number>;
   limit?: number;
+  label?: string;
 }
 
-export function ProblemKeys({ mistakes, limit = 6 }: Props) {
+export function ProblemKeys({ mistakes, limit = 6, label = "Problem keys" }: Props) {
   const top = Object.entries(mistakes)
     .sort((a, b) => b[1] - a[1])
     .slice(0, limit);
@@ -12,9 +13,7 @@ export function ProblemKeys({ mistakes, limit = 6 }: Props) {
 
   return (
     <div className="flex flex-wrap items-center justify-center gap-2">
-      <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-        Problem keys
-      </span>
+      <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{label}</span>
       {top.map(([key, count]) => (
         <span
           key={key}

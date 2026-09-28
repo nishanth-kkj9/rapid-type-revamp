@@ -10,6 +10,7 @@ export interface DrillSettings {
   caretStyle: CaretStyle;
   targetWpm: number; // e.g. 60
   showLiveWpm: boolean;
+  focusWeakKeys: boolean;
 }
 
 export const DEFAULT_DRILL_SETTINGS: DrillSettings = {
@@ -19,6 +20,7 @@ export const DEFAULT_DRILL_SETTINGS: DrillSettings = {
   caretStyle: "smooth",
   targetWpm: 60,
   showLiveWpm: true,
+  focusWeakKeys: false,
 };
 
 export const DRILL_SETTINGS_KEY = "ttp:drill:settings:v1";
@@ -69,6 +71,10 @@ export function loadDrillSettings(): DrillSettings {
         typeof parsed.showLiveWpm === "boolean"
           ? parsed.showLiveWpm
           : DEFAULT_DRILL_SETTINGS.showLiveWpm,
+      focusWeakKeys:
+        typeof parsed.focusWeakKeys === "boolean"
+          ? parsed.focusWeakKeys
+          : DEFAULT_DRILL_SETTINGS.focusWeakKeys,
     };
   } catch {
     return DEFAULT_DRILL_SETTINGS;

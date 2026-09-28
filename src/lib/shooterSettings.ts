@@ -14,7 +14,7 @@ export const DEFAULT_SHOOTER_SETTINGS: ShooterSettings = {
   soundEnabled: true,
 };
 
-const SETTINGS_KEY = "ttp:shooter:settings:v1";
+export const SETTINGS_KEY = "ttp:shooter:settings:v1";
 
 export function loadShooterSettings(): ShooterSettings {
   if (typeof window === "undefined") return DEFAULT_SHOOTER_SETTINGS;

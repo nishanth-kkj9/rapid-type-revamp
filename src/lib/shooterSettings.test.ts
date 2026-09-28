@@ -4,11 +4,9 @@ import {
   DEFAULT_SHOOTER_SETTINGS,
   loadShooterSettings,
   saveShooterSettings,
+  SETTINGS_KEY as KEY,
   type ShooterSettings,
 } from "./shooterSettings";
-
-// The module keeps SETTINGS_KEY private; mirror it here on purpose.
-const KEY = "ttp:shooter:settings:v1";
 
 describe("shooterSettings", () => {
   beforeEach(() => {
