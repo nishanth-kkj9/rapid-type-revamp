@@ -43,6 +43,7 @@ import {
 import { KeyHeatmap } from "@/components/KeyHeatmap";
 import { AchievementsStrip } from "@/components/AchievementsStrip";
 import { loadKeyStats, pickWeakKeyPassage, recordKeyMistakes, topWeakKeys } from "@/lib/keyStats";
+import { loadKeySpeed, recordKeySpeed, PAUSE_CAP_MS, type KeySpeedMap } from "@/lib/keySpeed";
 import { WpmChart } from "@/components/WpmChart";
 import { CommandPalette } from "@/components/CommandPalette";
 import { WordShooter } from "@/components/WordShooter";
@@ -151,6 +152,10 @@ function Index() {
   const mistakesRef = useRef<Record<string, number>>({});
   const shooterMistakesRef = useRef<Record<string, number>>({});
   const allTimeKeysRef = useRef<Record<string, number>>({});
+  const [allTimeSpeed, setAllTimeSpeed] = useState<KeySpeedMap>({});
+  const allTimeSpeedRef = useRef<KeySpeedMap>({});
+  const keySpeedRef = useRef<KeySpeedMap>({});
+  const lastCorrectAtRef = useRef<number | null>(null);
   const [achState, setAchState] = useState<AchievementState>({ unlocked: {}, counters: {} });
   const achStateRef = useRef<AchievementState>({ unlocked: {}, counters: {} });
   const samplesRef = useRef<number[]>([]);
@@ -182,6 +187,10 @@ function Index() {
     const ach = loadAchievements();
     achStateRef.current = ach;
     setAchState(ach);
+
+    const speed = loadKeySpeed();
+    allTimeSpeedRef.current = speed;
+    setAllTimeSpeed(speed);
   }, []);
 
   const handleSaveDrillSettings = useCallback((newSettings: DrillSettings) => {
@@ -335,6 +344,8 @@ function Index() {
       setMistakes({});
       setSamples([]);
       samplesRef.current = [];
+      keySpeedRef.current = {};
+      lastCorrectAtRef.current = null;
       setPressedChar(null);
       savedRef.current = false;
       inputRef.current?.focus();
@@ -457,6 +468,10 @@ function Index() {
       allTimeKeysRef.current = updatedKeys;
       setAllTimeKeys(updatedKeys);
 
+      const updatedSpeed = recordKeySpeed(keySpeedRef.current);
+      allTimeSpeedRef.current = updatedSpeed;
+      setAllTimeSpeed(updatedSpeed);
+
       const today = getLocalDateString();
       const prevDaily = dailyRef.current;
       const nextDaily = recordRunToday(prevDaily, today);
@@ -547,6 +562,37 @@ function Index() {
         if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
         flashTimerRef.current = window.setTimeout(() => setErrorFlash(false), 140);
       }
+
+      // Per-key speed telemetry: attribute the interval between two
+      // consecutive correct keystrokes to the expected key. The chain
+      // (a) starts on the first correct key after a reset/error/backspace
+      // and (b) requires the previous position to be correct — recovery
+      // typing is never sampled. Pauses > 2000ms (window blur, thinking)
+      // are excluded per the inter-key research conventions.
+      const nowMs = performance.now();
+      if (isError) {
+        lastCorrectAtRef.current = null;
+      } else {
+        const prevExpected = text[value.length - 2];
+        const prevTyped = value[value.length - 2];
+        const chainClean =
+          value.length >= 2 &&
+          prevExpected != null &&
+          prevTyped != null &&
+          prevExpected === prevTyped;
+        if (last != null && lastCorrectAtRef.current != null && chainClean) {
+          const interval = nowMs - lastCorrectAtRef.current;
+          if (interval > 0 && interval <= PAUSE_CAP_MS) {
+            const entry = keySpeedRef.current[last] ?? [0, 0];
+            keySpeedRef.current[last] = [entry[0] + interval, entry[1] + 1];
+          }
+        }
+        lastCorrectAtRef.current = nowMs;
+      }
+    }
+
+    if (!grew) {
+      lastCorrectAtRef.current = null;
     }
 
     setTyped(value);
@@ -863,7 +909,7 @@ function Index() {
                   <ProblemKeys mistakes={allTimeKeys} limit={8} label="All-time problem keys" />
                 ) : null}
                 {Object.keys(allTimeKeys).length > 0 ? (
-                  <KeyHeatmap mistakes={allTimeKeys} className="mt-3" />
+                  <KeyHeatmap mistakes={allTimeKeys} speed={allTimeSpeed} className="mt-3" />
                 ) : null}
                 <AchievementsStrip unlocked={achState.unlocked} className="mt-3" />
                 <button
