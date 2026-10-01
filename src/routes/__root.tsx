@@ -81,12 +81,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Typing Trainer Pro" },
       {
         name: "description",
-        content: "Practice typing speed and accuracy with timed drills and live stats.",
+        content:
+          "Practice typing speed and accuracy with timed drills, Word Shooter arcade mode, problem keys analysis, and live stats.",
       },
       { property: "og:title", content: "Typing Trainer Pro" },
       {
         property: "og:description",
-        content: "Practice typing speed and accuracy with timed drills and live stats.",
+        content:
+          "Practice typing speed and accuracy with timed drills, Word Shooter arcade mode, problem keys analysis, and live stats.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
