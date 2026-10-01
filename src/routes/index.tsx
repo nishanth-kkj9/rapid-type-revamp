@@ -34,6 +34,14 @@ import { TypingText } from "@/components/TypingText";
 import { StatCard } from "@/components/StatCard";
 import { HistoryPanel } from "@/components/HistoryPanel";
 import { ProblemKeys } from "@/components/ProblemKeys";
+import {
+  evaluateAchievements,
+  loadAchievements,
+  saveAchievements,
+  type AchievementState,
+} from "@/lib/achievements";
+import { KeyHeatmap } from "@/components/KeyHeatmap";
+import { AchievementsStrip } from "@/components/AchievementsStrip";
 import { loadKeyStats, pickWeakKeyPassage, recordKeyMistakes, topWeakKeys } from "@/lib/keyStats";
 import { WpmChart } from "@/components/WpmChart";
 import { CommandPalette } from "@/components/CommandPalette";
@@ -143,6 +151,8 @@ function Index() {
   const mistakesRef = useRef<Record<string, number>>({});
   const shooterMistakesRef = useRef<Record<string, number>>({});
   const allTimeKeysRef = useRef<Record<string, number>>({});
+  const [achState, setAchState] = useState<AchievementState>({ unlocked: {}, counters: {} });
+  const achStateRef = useRef<AchievementState>({ unlocked: {}, counters: {} });
   const samplesRef = useRef<number[]>([]);
   const historyRef = useRef<HistoryEntry[]>([]);
   const dailyRef = useRef<DailyState | null>(null);
@@ -168,6 +178,10 @@ function Index() {
     const ks = loadKeyStats();
     allTimeKeysRef.current = ks;
     setAllTimeKeys(ks);
+
+    const ach = loadAchievements();
+    achStateRef.current = ach;
+    setAchState(ach);
   }, []);
 
   const handleSaveDrillSettings = useCallback((newSettings: DrillSettings) => {
@@ -187,38 +201,61 @@ function Index() {
   }, []);
   const handleImportHistory = useCallback((entries: HistoryEntry[]) => setHistory(entries), []);
 
-  const handleShooterRunComplete = useCallback((s: ShooterRunSummary) => {
-    const incorrect = (s.wrongKeys ?? 0) + (s.misses ?? 0);
-    const fs = computeStats(s.wordsDestroyed, incorrect, s.durationSec * 1000, []);
-    const { list, ok } = saveRun({
-      ...fs,
-      id: newRunId(),
-      date: Date.now(),
-      difficulty: s.difficulty,
-      mode: "shooter",
-      score: s.score,
-      wordsDestroyed: s.wordsDestroyed,
-      level: s.level ?? 1,
-    });
-    historyRef.current = list;
-    setHistory(list);
-    if (!ok) {
-      toast.error("Couldn't save this run — storage is full. Export and clear old runs.");
-    }
-    const updatedKeys = recordKeyMistakes(shooterMistakesRef.current);
-    allTimeKeysRef.current = updatedKeys;
-    setAllTimeKeys(updatedKeys);
-
-    const today = getLocalDateString();
-    const prevDaily = dailyRef.current;
-    const nextDaily = recordRunToday(prevDaily, today);
-    dailyRef.current = nextDaily;
-    setDaily(nextDaily);
-    saveDaily(nextDaily);
-    if ((prevDaily?.runsToday ?? 0) < DAILY_GOAL && nextDaily.runsToday >= DAILY_GOAL) {
-      toast.success("Daily goal complete!");
+  const commitAchievements = useCallback((ctx: Parameters<typeof evaluateAchievements>[0]) => {
+    const { state, newlyUnlocked } = evaluateAchievements(ctx, achStateRef.current);
+    if (newlyUnlocked.length === 0) return;
+    saveAchievements(state);
+    achStateRef.current = state;
+    setAchState(state);
+    for (const a of newlyUnlocked) {
+      toast.success(`Achievement unlocked — ${a.title}`, { description: a.description });
     }
   }, []);
+
+  const handleShooterRunComplete = useCallback(
+    (s: ShooterRunSummary) => {
+      const incorrect = (s.wrongKeys ?? 0) + (s.misses ?? 0);
+      const fs = computeStats(s.wordsDestroyed, incorrect, s.durationSec * 1000, []);
+      const { list, ok } = saveRun({
+        ...fs,
+        id: newRunId(),
+        date: Date.now(),
+        difficulty: s.difficulty,
+        mode: "shooter",
+        score: s.score,
+        wordsDestroyed: s.wordsDestroyed,
+        level: s.level ?? 1,
+      });
+      historyRef.current = list;
+      setHistory(list);
+      if (!ok) {
+        toast.error("Couldn't save this run — storage is full. Export and clear old runs.");
+      }
+      const updatedKeys = recordKeyMistakes(shooterMistakesRef.current);
+      allTimeKeysRef.current = updatedKeys;
+      setAllTimeKeys(updatedKeys);
+
+      const today = getLocalDateString();
+      const prevDaily = dailyRef.current;
+      const nextDaily = recordRunToday(prevDaily, today);
+      dailyRef.current = nextDaily;
+      setDaily(nextDaily);
+      saveDaily(nextDaily);
+      if ((prevDaily?.runsToday ?? 0) < DAILY_GOAL && nextDaily.runsToday >= DAILY_GOAL) {
+        toast.success("Daily goal complete!");
+      }
+
+      commitAchievements({
+        mode: "shooter",
+        wpm: fs.wpm,
+        accuracy: s.accuracy,
+        wordsDestroyed: s.wordsDestroyed,
+        level: s.level,
+        streak: nextDaily.streak,
+      });
+    },
+    [commitAchievements],
+  );
 
   const handleShooterWrongKey = useCallback((expectedChar: string) => {
     setShooterMistakes((prev) => {
@@ -429,8 +466,17 @@ function Index() {
       if ((prevDaily?.runsToday ?? 0) < DAILY_GOAL && nextDaily.runsToday >= DAILY_GOAL) {
         toast.success("Daily goal complete!");
       }
+
+      commitAchievements({
+        mode: "drill",
+        wpm: fs.wpm,
+        accuracy: fs.accuracy,
+        typed: fs.typed,
+        streak: nextDaily.streak,
+        focused: drillSettings.focusWeakKeys,
+      });
     }
-  }, [difficulty, duration]);
+  }, [difficulty, duration, drillSettings.focusWeakKeys, commitAchievements]);
 
   // Move focus to the results action so keyboard users land on something useful.
   useEffect(() => {
@@ -816,6 +862,10 @@ function Index() {
                 {Object.keys(allTimeKeys).length > 0 ? (
                   <ProblemKeys mistakes={allTimeKeys} limit={8} label="All-time problem keys" />
                 ) : null}
+                {Object.keys(allTimeKeys).length > 0 ? (
+                  <KeyHeatmap mistakes={allTimeKeys} className="mt-3" />
+                ) : null}
+                <AchievementsStrip unlocked={achState.unlocked} className="mt-3" />
                 <button
                   type="button"
                   ref={againRef}
@@ -853,6 +903,8 @@ function Index() {
             {Object.keys(allTimeKeys).length > 0 ? (
               <ProblemKeys mistakes={allTimeKeys} limit={8} label="All-time problem keys" />
             ) : null}
+            {Object.keys(allTimeKeys).length > 0 ? <KeyHeatmap mistakes={allTimeKeys} /> : null}
+            <AchievementsStrip unlocked={achState.unlocked} />
           </div>
 
           <div className="mt-4">
