@@ -95,6 +95,7 @@ export function WordShooter({
   scoreRef.current = score;
   const hitsRef = useRef(hits);
   hitsRef.current = hits;
+  const charsDestroyedRef = useRef(0);
   const samplesRef = useRef<number[]>([]);
 
   const stateRef = useRef({ phase, targetId, settings, soundMuted });
@@ -173,6 +174,7 @@ export function WordShooter({
     setHits(0);
     setMisses(0);
     setWrongKeys(0);
+    charsDestroyedRef.current = 0;
     onStart?.();
     // reset ref eagerly — independent of render timing
     targetIdRef.current = null;
@@ -450,6 +452,7 @@ export function WordShooter({
       onRunComplete?.({
         score: currentScore,
         wordsDestroyed: hits,
+        charsDestroyed: charsDestroyedRef.current > 0 ? charsDestroyedRef.current : hits * 5,
         accuracy: typingAccuracy,
         durationSec,
         difficulty: settings.difficulty,
@@ -506,6 +509,7 @@ export function WordShooter({
 
       if (res.wordDestroyed) {
         setHits((h) => h + 1);
+        charsDestroyedRef.current += res.wordDestroyed.word.length;
         setStreak(res.newStreak);
         streakRef.current = res.newStreak; // mirror immediately so same-frame keystrokes read the fresh streak for the bonus tier
         setScore((s) => s + res.scoreGained);
@@ -548,6 +552,10 @@ export function WordShooter({
 
       // Directly handle typed characters without intercepting 'p'
       if (phase === "playing" && e.key.length === 1 && /^[a-z0-9'-]$/i.test(e.key)) {
+        if (document.activeElement === inputRef.current) {
+          // Hidden input's onChange handles the physical keystroke to avoid double key dispatch
+          return;
+        }
         handleKey(e.key.toLowerCase());
         inputRef.current?.focus();
       }

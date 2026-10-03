@@ -3,6 +3,8 @@ import {
   generateSentence,
   generatePassage,
   pastTense,
+  thirdPerson,
+  plural,
   generateWordQuota,
   generateMissedWordsDrill,
 } from "./sentenceGenerator";
@@ -64,6 +66,32 @@ describe("generateSentence", () => {
     for (let i = 0; i < 300; i++) {
       const { sentence } = generateSentence(i % 2 ? "medium" : "hard");
       expect(sentence).not.toMatch(/([bcdfgklmnprstvz])\1ed\b/i);
+    }
+  });
+
+  it("correctly inflects third-person verbs and plurals", () => {
+    expect(thirdPerson("wash")).toBe("washes");
+    expect(thirdPerson("push")).toBe("pushes");
+    expect(thirdPerson("carry")).toBe("carries");
+    expect(thirdPerson("identify")).toBe("identifies");
+    expect(thirdPerson("establish")).toBe("establishes");
+    expect(thirdPerson("see")).toBe("sees");
+
+    expect(plural("fish")).toBe("fish");
+    expect(plural("city")).toBe("cities");
+    expect(plural("foot")).toBe("feet");
+    expect(plural("hypothesis")).toBe("hypotheses");
+    expect(plural("bus")).toBe("buses");
+  });
+
+  it("never produces malformed non-words (washs, pushs, carrys, identifys, fishs, etc.) across generated sentences", () => {
+    const forbidden = /\b(washs|pushs|carrys|identifys|establishs|fishs|watchs|fixs)\b/i;
+    for (let i = 0; i < 400; i++) {
+      const diff = i % 3 === 0 ? "easy" : i % 3 === 1 ? "medium" : "hard";
+      const { sentence } = generateSentence(diff);
+      expect(sentence).not.toMatch(forbidden);
+      // Also ensure no "A apple" / "a apple"
+      expect(sentence).not.toMatch(/\b[Aa]\s+[aeiou][a-z]+/);
     }
   });
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { CaretStyle } from "@/lib/drillSettings";
 
 interface Props {
@@ -33,7 +33,7 @@ function splitWords(text: string): Word[] {
 const WINDOW_BEFORE = 12;
 const WINDOW_AFTER = 40;
 
-export function TypingText({ text, typed, caretStyle = "smooth" }: Props) {
+export const TypingText = memo(function TypingText({ text, typed, caretStyle = "smooth" }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef<HTMLSpanElement>(null);
   const [caretPos, setCaretPos] = useState<{
@@ -157,4 +157,4 @@ export function TypingText({ text, typed, caretStyle = "smooth" }: Props) {
       </p>
     </div>
   );
-}
+});

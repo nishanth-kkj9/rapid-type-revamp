@@ -25,9 +25,11 @@ export function applyTheme(theme: Theme) {
 }
 
 export function useTheme() {
+  const [mounted, setMounted] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => readTheme());
 
   useEffect(() => {
+    setMounted(true);
     const current = readTheme();
     setTheme(current);
     applyTheme(current);
@@ -56,5 +58,5 @@ export function useTheme() {
     });
   }, []);
 
-  return { theme, toggleTheme };
+  return { theme, toggleTheme, mounted };
 }

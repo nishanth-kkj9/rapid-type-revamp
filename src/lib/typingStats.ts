@@ -69,6 +69,7 @@ export interface HistoryEntry extends RunStats {
 export interface ShooterRunSummary {
   score: number;
   wordsDestroyed: number;
+  charsDestroyed?: number | undefined;
   accuracy: number;
   durationSec: number;
   difficulty: string;
@@ -76,6 +77,19 @@ export interface ShooterRunSummary {
   wrongKeys?: number | undefined;
   level?: number | undefined;
   samples?: number[] | undefined;
+}
+
+/** Normalize time modes e.g. "30" -> "30s" */
+export function normalizeModeKey(modeKey: string): string {
+  if (/^\d+$/.test(modeKey)) {
+    return `${modeKey}s`;
+  }
+  return modeKey;
+}
+
+/** Uniform storage key for personal best velocity samples */
+export function bestSamplesKey(modeKey: string): string {
+  return `ttp:best:samples:v1:${normalizeModeKey(modeKey)}`;
 }
 
 const KEY = "ttp:history:v1";

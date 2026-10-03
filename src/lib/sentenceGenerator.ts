@@ -419,12 +419,70 @@ export function pastTense(verb: string): string {
   return `${verb}ed`;
 }
 
+const IRREGULAR_THIRD_PERSON: Record<string, string> = {
+  have: "has",
+  do: "does",
+  go: "goes",
+  be: "is",
+};
+
+export function thirdPerson(verb: string): string {
+  const irr = IRREGULAR_THIRD_PERSON[verb];
+  if (irr) return irr;
+  if (/[^aeiou]y$/.test(verb)) {
+    return `${verb.slice(0, -1)}ies`; // carry -> carries, identify -> identifies
+  }
+  if (/(?:[sxz]|[sc]h)$/.test(verb)) {
+    return `${verb}es`; // wash -> washes, push -> pushes, establish -> establishes
+  }
+  return `${verb}s`;
+}
+
+const IRREGULAR_PLURALS: Record<string, string> = {
+  fish: "fish",
+  deer: "deer",
+  sheep: "sheep",
+  foot: "feet",
+  tooth: "teeth",
+  hypothesis: "hypotheses",
+  phenomenon: "phenomena",
+  criterion: "criteria",
+  man: "men",
+  woman: "women",
+  child: "children",
+  person: "people",
+  mouse: "mice",
+};
+
+export function plural(noun: string): string {
+  const irr = IRREGULAR_PLURALS[noun];
+  if (irr) return irr;
+  if (noun.endsWith("sis")) {
+    return `${noun.slice(0, -3)}ses`;
+  }
+  if (/[^aeiou]y$/.test(noun)) {
+    return `${noun.slice(0, -1)}ies`; // city -> cities, methodology -> methodologies
+  }
+  if (/(?:[sxz]|[sc]h)$/.test(noun)) {
+    return `${noun}es`; // bus -> buses, box -> boxes
+  }
+  if (noun.endsWith("fe")) {
+    return `${noun.slice(0, -2)}ves`;
+  }
+  if (noun.endsWith("f") && !noun.endsWith("ff")) {
+    return `${noun.slice(0, -1)}ves`;
+  }
+  return `${noun}s`;
+}
+
 const pick = <T>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)] as T;
 
 function fill(template: string, d: Difficulty): string {
   const p = POOLS[d];
   return template
     .replace(/\{(verb)\}ed\b/g, () => pastTense(pick(p.verbs)))
+    .replace(/\{(verb)\}s\b/g, () => thirdPerson(pick(p.verbs)))
+    .replace(/\{(noun)\}s\b/g, () => plural(pick(p.nouns)))
     .replace(/\{(noun|verb|adj|adv)\}/g, (_m, kind: string) => {
       if (kind === "noun") return pick(p.nouns);
       if (kind === "verb") return pick(p.verbs);
@@ -435,6 +493,9 @@ function fill(template: string, d: Difficulty): string {
 
 function tidy(s: string): string {
   return s
+    .replace(/\b([Aa])\s+([aeiouAEIOU][a-zA-Z]*)/g, (_m, article: string, word: string) => {
+      return `${article}n ${word}`;
+    })
     .replace(/\s+([,.;:?!])/g, "$1") // no space before punctuation
     .replace(/\s{2,}/g, " ") // collapse repeated spaces
     .trim();

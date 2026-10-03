@@ -17,6 +17,7 @@ import {
   newRunId,
   saveRun,
   toDeltas,
+  bestSamplesKey,
   type HistoryEntry,
   type RunStats,
   type ShooterRunSummary,
@@ -54,6 +55,7 @@ import {
 } from "@/lib/achievements";
 import { KeyHeatmap } from "@/components/KeyHeatmap";
 import { AchievementsStrip } from "@/components/AchievementsStrip";
+import { DailyGoal } from "@/components/DailyGoal";
 import { loadKeyStats, pickWeakKeyPassage, recordKeyMistakes, topWeakKeys } from "@/lib/keyStats";
 import { loadKeySpeed, recordKeySpeed, PAUSE_CAP_MS, type KeySpeedMap } from "@/lib/keySpeed";
 import { WpmChart } from "@/components/WpmChart";
@@ -185,6 +187,7 @@ function Index() {
   const samplesRef = useRef<number[]>([]);
   const historyRef = useRef<HistoryEntry[]>([]);
   const dailyRef = useRef<DailyState | null>(null);
+  const [daily, setDaily] = useState<DailyState | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -194,6 +197,7 @@ function Index() {
 
     const loadedDaily = loadDaily();
     dailyRef.current = loadedDaily;
+    setDaily(loadedDaily);
 
     const loadedSettings = loadShooterSettings();
     setShooterSettings(loadedSettings);
@@ -256,7 +260,9 @@ function Index() {
     (s: ShooterRunSummary) => {
       setLastShooterSummary(s);
       const incorrect = (s.wrongKeys ?? 0) + (s.misses ?? 0);
-      const fs = computeStats(s.wordsDestroyed, incorrect, s.durationSec * 1000, []);
+      const realChars = s.charsDestroyed ?? s.wordsDestroyed * 5;
+      const samplesDeltas = s.samples && s.samples.length > 0 ? toDeltas(s.samples) : [];
+      const fs = computeStats(realChars, incorrect, s.durationSec * 1000, samplesDeltas);
       const { list, ok } = saveRun({
         ...fs,
         id: newRunId(),
@@ -281,6 +287,7 @@ function Index() {
       const prevDaily = dailyRef.current;
       const nextDaily = recordRunToday(prevDaily, today);
       dailyRef.current = nextDaily;
+      setDaily(nextDaily);
       saveDaily(nextDaily);
       if ((prevDaily?.runsToday ?? 0) < DAILY_GOAL && nextDaily.runsToday >= DAILY_GOAL) {
         toast.success("Daily goal complete!");
@@ -489,9 +496,25 @@ function Index() {
     reset(difficulty, drillMode, wordCount, quoteLength);
   }, [difficulty, duration, drillMode, wordCount, quoteLength, reset]);
 
+  const modeKey =
+    drillMode === "words" ? `${wordCount}w` : drillMode === "quote" ? "quote" : `${duration}s`;
+
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(`ttp:best:samples:v1:${duration}`);
+      const canonicalKey = bestSamplesKey(modeKey);
+      let raw = localStorage.getItem(canonicalKey);
+      if (!raw && drillMode === "time") {
+        const legacyKey = `ttp:best:samples:v1:${duration}`;
+        const legacyVal = localStorage.getItem(legacyKey);
+        if (legacyVal) {
+          raw = legacyVal;
+          try {
+            localStorage.setItem(canonicalKey, legacyVal);
+          } catch {
+            // safe storage fallback
+          }
+        }
+      }
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.every((x) => typeof x === "number")) {
@@ -503,7 +526,7 @@ function Index() {
       // safe storage fallback
     }
     setGhostSamples(undefined);
-  }, [duration]);
+  }, [modeKey, duration, drillMode]);
 
   const elapsed = running ? Math.max(0, elapsedMs) : 0;
   const remaining = drillMode === "time" ? Math.max(0, duration - elapsed / 1000) : 0;
@@ -594,7 +617,7 @@ function Index() {
       if (fs.wpm >= prevBest && samplesRef.current.length > 0) {
         try {
           const toSave = samplesRef.current.slice(0, 240);
-          localStorage.setItem(`ttp:best:samples:v1:${modeKey}`, JSON.stringify(toSave));
+          localStorage.setItem(bestSamplesKey(modeKey), JSON.stringify(toSave));
         } catch {
           // safe storage fallback
         }
@@ -623,6 +646,7 @@ function Index() {
       const prevDaily = dailyRef.current;
       const nextDaily = recordRunToday(prevDaily, today);
       dailyRef.current = nextDaily;
+      setDaily(nextDaily);
       saveDaily(nextDaily);
       if ((prevDaily?.runsToday ?? 0) < DAILY_GOAL && nextDaily.runsToday >= DAILY_GOAL) {
         toast.success("Daily goal complete!");
@@ -661,7 +685,17 @@ function Index() {
     if (mode !== "drill") return;
     const onKey = (e: KeyboardEvent) => {
       if (document.querySelector('[role="dialog"]')) return;
-      if (e.key === "Escape" || (e.key === "Tab" && !e.shiftKey)) {
+      if (e.key === "Tab" && !e.shiftKey) {
+        const active = document.activeElement;
+        if (active === inputRef.current || active === againRef.current) {
+          e.preventDefault();
+          restart();
+          inputRef.current?.focus();
+          return;
+        }
+        return;
+      }
+      if (e.key === "Escape") {
         e.preventDefault();
         restart();
         inputRef.current?.focus();
@@ -809,8 +843,7 @@ function Index() {
               else setShooterSettingsOpen(true);
             }}
             aria-label={`${mode === "drill" ? "Timed Drill" : "Word Shooter"} Settings`}
-            aria-keyshortcuts="Control+K Meta+K"
-            title={`${mode === "drill" ? "Timed Drill" : "Word Shooter"} Settings (Ctrl/⌘ K)`}
+            title={`${mode === "drill" ? "Timed Drill" : "Word Shooter"} Settings`}
             className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-medium transition-colors hover:bg-muted cursor-pointer"
           >
             <Sliders className="size-4 text-primary" />
@@ -819,11 +852,17 @@ function Index() {
           <button
             type="button"
             onClick={toggleTheme}
-            aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-            title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-            className="rounded-lg border border-border bg-secondary p-2 transition-colors hover:bg-muted"
+            aria-label={
+              !mounted || theme === "dark" ? "Switch to light theme" : "Switch to dark theme"
+            }
+            title={!mounted || theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+            className="rounded-lg border border-border bg-secondary p-2 transition-colors hover:bg-muted cursor-pointer"
           >
-            {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+            {!mounted || theme === "dark" ? (
+              <Sun className="size-4" />
+            ) : (
+              <Moon className="size-4" />
+            )}
           </button>
           {mode === "drill" ? (
             <button
@@ -928,6 +967,10 @@ function Index() {
             </div>
           </div>
         )}
+      </div>
+
+      <div className="mt-4">
+        <DailyGoal daily={daily} />
       </div>
 
       {mode === "drill" ? (
@@ -1078,9 +1121,21 @@ function Index() {
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <StatCard
               label="WPM"
-              value={settled ? stats.wpm.toFixed(0) : "—"}
+              value={
+                !drillSettings.showLiveWpm && running && !finished
+                  ? "•••"
+                  : settled
+                    ? stats.wpm.toFixed(0)
+                    : "—"
+              }
               emphasis
-              hint={settled ? `raw ${stats.rawWpm.toFixed(0)}` : "start typing"}
+              hint={
+                !drillSettings.showLiveWpm && running && !finished
+                  ? "hidden during test"
+                  : settled
+                    ? `raw ${stats.rawWpm.toFixed(0)}`
+                    : "start typing"
+              }
             />
             <StatCard
               label="Accuracy"
