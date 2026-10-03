@@ -474,3 +474,45 @@ export function generatePassage(difficulty: Difficulty, minChars = 220): string 
   }
   return currentText;
 }
+
+/**
+ * Generate a passage containing an exact number of words for Word Quota mode.
+ */
+export function generateWordQuota(count: number, difficulty: Difficulty = "medium"): string {
+  const words: string[] = [];
+  let recent: string[] = [];
+  while (words.length < count) {
+    const next = generateSentence(difficulty, recent);
+    recent = next.recent;
+    const split = next.sentence.split(/\s+/).filter(Boolean);
+    for (const w of split) {
+      if (words.length < count) {
+        words.push(w);
+      }
+    }
+  }
+  return words.join(" ");
+}
+
+/**
+ * Generate a targeted remediation drill focusing on words the user struggled with.
+ */
+export function generateMissedWordsDrill(missedWords: string[], targetCount = 20): string {
+  if (missedWords.length === 0) return generateWordQuota(targetCount, "medium");
+  const cleanWords = missedWords.map((w) => w.trim()).filter((w) => w.length > 0);
+  if (cleanWords.length === 0) return generateWordQuota(targetCount, "medium");
+
+  const fillers = ["the", "and", "with", "from", "that", "this", "have", "will", "your", "more"];
+  const result: string[] = [];
+  let i = 0;
+  while (result.length < targetCount) {
+    const target = cleanWords[i % cleanWords.length] as string;
+    result.push(target);
+    if (result.length < targetCount) {
+      const filler = fillers[Math.floor(Math.random() * fillers.length)] as string;
+      result.push(filler);
+    }
+    i++;
+  }
+  return result.join(" ");
+}

@@ -23,6 +23,7 @@ describe("shooterSettings", () => {
       speedMultiplier: 1.8,
       startingLives: 5,
       soundEnabled: false,
+      showKeyboard: false,
     };
     saveShooterSettings(custom);
     expect(loadShooterSettings()).toEqual(custom);
@@ -36,6 +37,7 @@ describe("shooterSettings", () => {
         speedMultiplier: "fast",
         startingLives: null,
         soundEnabled: "yes",
+        showKeyboard: "disabled",
       }),
     );
     const loaded = loadShooterSettings();
@@ -43,6 +45,12 @@ describe("shooterSettings", () => {
     expect(loaded.speedMultiplier).toBe(1.0);
     expect(loaded.startingLives).toBe(3);
     expect(loaded.soundEnabled).toBe(true);
+    expect(loaded.showKeyboard).toBe(true);
+  });
+
+  it("persists the showKeyboard toggle", () => {
+    saveShooterSettings({ ...DEFAULT_SHOOTER_SETTINGS, showKeyboard: false });
+    expect(loadShooterSettings().showKeyboard).toBe(false);
   });
 
   it("clamps out-of-range numeric values to the UI bounds", () => {

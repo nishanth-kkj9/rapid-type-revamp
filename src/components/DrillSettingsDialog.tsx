@@ -6,10 +6,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { DrillSettings, CaretStyle, DrillSound } from "@/lib/drillSettings";
+import type {
+  DrillSettings,
+  CaretStyle,
+  DrillSound,
+  DrillMode,
+  WordCountOption,
+  QuoteLengthOption,
+} from "@/lib/drillSettings";
 import { DEFAULT_DRILL_SETTINGS } from "@/lib/drillSettings";
 import type { Difficulty } from "@/lib/sentenceGenerator";
-import { Volume2, VolumeX, RotateCcw, Timer, Target, Sparkles } from "lucide-react";
+import {
+  Volume2,
+  VolumeX,
+  RotateCcw,
+  Timer,
+  Target,
+  Sparkles,
+  BookOpen,
+  Quote,
+  Keyboard,
+} from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -45,6 +62,25 @@ const DURATIONS = [
   { label: "30s Standard", value: 30 },
   { label: "60s Endurance", value: 60 },
   { label: "120s Marathon", value: 120 },
+];
+
+const DRILL_MODES: { id: DrillMode; label: string; icon: typeof Timer }[] = [
+  { id: "time", label: "Time", icon: Timer },
+  { id: "words", label: "Words", icon: BookOpen },
+  { id: "quote", label: "Quote", icon: Quote },
+];
+
+const WORD_COUNT_PRESETS: { value: WordCountOption; label: string }[] = [
+  { value: 10, label: "10 Words" },
+  { value: 25, label: "25 Words" },
+  { value: 50, label: "50 Words" },
+  { value: 100, label: "100 Words" },
+];
+
+const QUOTE_LENGTH_PRESETS: { value: QuoteLengthOption; label: string }[] = [
+  { value: "short", label: "Short" },
+  { value: "medium", label: "Medium" },
+  { value: "long", label: "Long" },
 ];
 
 const CARET_STYLES: { id: CaretStyle; label: string; preview: string }[] = [
@@ -135,6 +171,107 @@ export function DrillSettingsDialog({ open, onOpenChange, settings, onSaveSettin
               })}
             </div>
           </div>
+
+          {/* Practice Mode */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <BookOpen className="size-3.5" />
+                Default Test Type
+              </label>
+              <span className="font-mono text-xs font-bold capitalize text-primary">
+                {draft.drillMode ?? "time"}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {DRILL_MODES.map((m) => {
+                const active = (draft.drillMode ?? "time") === m.id;
+                const Icon = m.icon;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => update("drillMode", m.id)}
+                    className={`flex items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-xs font-medium transition-colors cursor-pointer ${
+                      active
+                        ? "border-primary bg-primary/15 font-semibold text-foreground ring-1 ring-primary"
+                        : "border-border bg-secondary text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="size-3.5 text-primary" />
+                    <span>{m.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Word Count / Quote Length when applicable */}
+          {(draft.drillMode ?? "time") === "words" ? (
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <BookOpen className="size-3.5" />
+                  Default Word Quota
+                </label>
+                <span className="font-mono text-xs font-bold text-accent-foreground bg-accent/20 px-2 py-0.5 rounded">
+                  {draft.wordCount ?? 25} words
+                </span>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {WORD_COUNT_PRESETS.map((wc) => {
+                  const active = (draft.wordCount ?? 25) === wc.value;
+                  return (
+                    <button
+                      key={wc.value}
+                      type="button"
+                      onClick={() => update("wordCount", wc.value)}
+                      className={`rounded-lg border px-2 py-2 text-center text-xs font-medium transition-colors cursor-pointer ${
+                        active
+                          ? "border-accent bg-accent text-accent-foreground font-semibold"
+                          : "border-border bg-secondary text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {wc.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {(draft.drillMode ?? "time") === "quote" ? (
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <Quote className="size-3.5" />
+                  Quote Length
+                </label>
+                <span className="font-mono text-xs font-bold text-accent-foreground bg-accent/20 px-2 py-0.5 rounded capitalize">
+                  {draft.quoteLength ?? "medium"}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {QUOTE_LENGTH_PRESETS.map((ql) => {
+                  const active = (draft.quoteLength ?? "medium") === ql.value;
+                  return (
+                    <button
+                      key={ql.value}
+                      type="button"
+                      onClick={() => update("quoteLength", ql.value)}
+                      className={`rounded-lg border px-2 py-2 text-center text-xs font-medium transition-colors cursor-pointer ${
+                        active
+                          ? "border-accent bg-accent text-accent-foreground font-semibold"
+                          : "border-border bg-secondary text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {ql.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
 
           {/* Duration Setting */}
           <div>
@@ -302,6 +439,31 @@ export function DrillSettingsDialog({ open, onOpenChange, settings, onSaveSettin
               }`}
             >
               {draft.showLiveWpm ? "Visible" : "Hidden"}
+            </button>
+          </div>
+
+          {/* Virtual Keyboard Toggle */}
+          <div className="flex items-center justify-between rounded-xl border border-border bg-secondary/40 p-3">
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold">
+                <Keyboard className="size-3.5 text-primary" />
+                Virtual Keyboard
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                Display on-screen keyboard with real-time key highlights and finger placement guides
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => update("showKeyboard", !draft.showKeyboard)}
+              aria-pressed={draft.showKeyboard}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+                draft.showKeyboard
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border bg-secondary text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {draft.showKeyboard ? "Visible" : "Hidden"}
             </button>
           </div>
 

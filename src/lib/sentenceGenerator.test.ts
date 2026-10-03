@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { generateSentence, generatePassage, pastTense } from "./sentenceGenerator";
+import {
+  generateSentence,
+  generatePassage,
+  pastTense,
+  generateWordQuota,
+  generateMissedWordsDrill,
+} from "./sentenceGenerator";
 
 describe("generatePassage", () => {
   it("produces at least the requested length", () => {
@@ -59,5 +65,21 @@ describe("generateSentence", () => {
       const { sentence } = generateSentence(i % 2 ? "medium" : "hard");
       expect(sentence).not.toMatch(/([bcdfgklmnprstvz])\1ed\b/i);
     }
+  });
+
+  it("generateWordQuota produces exactly the requested word count", () => {
+    for (const count of [10, 25, 50]) {
+      const passage = generateWordQuota(count, "medium");
+      const words = passage.split(/\s+/).filter(Boolean);
+      expect(words).toHaveLength(count);
+    }
+  });
+
+  it("generateMissedWordsDrill creates targeted practice containing missed words", () => {
+    const drill = generateMissedWordsDrill(["algorithm", "performance"], 15);
+    const words = drill.split(/\s+/).filter(Boolean);
+    expect(words).toHaveLength(15);
+    expect(drill).toContain("algorithm");
+    expect(drill).toContain("performance");
   });
 });

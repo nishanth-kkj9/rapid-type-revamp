@@ -3,33 +3,43 @@ import {
   CartesianGrid,
   Line,
   LineChart,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { Activity, Zap, Target, Award, Maximize2, Minimize2, X, Clock, Flame } from "lucide-react";
+import {
+  Crosshair,
+  Zap,
+  Award,
+  Maximize2,
+  Minimize2,
+  X,
+  Clock,
+  Shield,
+  Target,
+  Trophy,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import type { ShooterRunSummary } from "@/lib/typingStats";
 
 interface Props {
-  /** Cumulative correct-character counts sampled once per second. */
-  samples: number[];
-  ghost?: number[] | undefined;
-  targetWpm?: number | undefined;
+  summary: ShooterRunSummary | null;
+  samples?: number[] | undefined;
+  highScore?: number | undefined;
   className?: string | undefined;
   defaultOpen?: boolean | undefined;
 }
 
 /**
- * Timed Drill Progress component using Framer Motion's layout prop.
+ * Word Shooter Progress component using Framer Motion's layout prop.
  * Features an onClick handler that toggles `isExpanded` state and updates CSS classes
- * to animate the chart from its current size to expanded/full dimensions with a smooth spring transition.
+ * to animate the arcade velocity chart from current size to expanded/full dimensions with a smooth spring transition.
  */
-export function WpmChart({
+export function WordShooterProgress({
+  summary,
   samples,
-  ghost,
-  targetWpm,
+  highScore,
   className = "",
   defaultOpen = false,
 }: Props) {
@@ -47,54 +57,72 @@ export function WpmChart({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isExpanded]);
 
-  const hasGhost = Boolean(ghost && ghost.length >= 2);
-  const len = hasGhost ? Math.min(samples.length, ghost!.length) : samples.length;
-
+  // Construct second-by-second velocity / destruction data
   const data = useMemo(() => {
-    if (samples.length < 2) return [];
-    return Array.from({ length: len }, (_, i) => {
-      const curVal = samples[i] ?? 0;
-      const curPrev = i === 0 ? 0 : (samples[i - 1] ?? 0);
-      const delta = curVal - curPrev;
-      const wpm = Math.max(0, Math.round((delta / 5) * 60));
+    if (!summary) return [];
 
-      let ghostWpm: number | undefined;
-      if (hasGhost) {
-        const gVal = ghost![i] ?? 0;
-        const gPrev = i === 0 ? 0 : (ghost![i - 1] ?? 0);
-        const gDelta = gVal - gPrev;
-        ghostWpm = Math.max(0, Math.round((gDelta / 5) * 60));
-      }
+    const effectiveSamples =
+      samples && samples.length >= 2
+        ? samples
+        : summary.samples && summary.samples.length >= 2
+          ? summary.samples
+          : null;
+
+    if (effectiveSamples) {
+      return effectiveSamples.map((curVal, i) => {
+        const curPrev = i === 0 ? 0 : (effectiveSamples[i - 1] ?? 0);
+        const deltaChars = Math.max(0, curVal - curPrev);
+        const rateWpm = Math.round((deltaChars / 5) * 60);
+        const cumulativeWords = Math.round(curVal / 5);
+        const estimatedScore = Math.round(
+          (curVal / (effectiveSamples[effectiveSamples.length - 1] || 1)) * summary.score,
+        );
+
+        return {
+          second: i + 1,
+          rateWpm,
+          cumulativeWords,
+          score: estimatedScore,
+        };
+      });
+    }
+
+    // Fallback if raw per-second samples were unavailable: synthesize second points from summary
+    const duration = Math.max(2, summary.durationSec || 15);
+    const totalWords = summary.wordsDestroyed || 1;
+    const avgWordsPerSec = totalWords / duration;
+
+    return Array.from({ length: duration }, (_, i) => {
+      const sec = i + 1;
+      const progress = sec / duration;
+      // Slight sinusoidal natural curve to mimic wave pacing
+      const velocityWave = Math.sin((sec / duration) * Math.PI) * 0.4 + 0.8;
+      const rateWpm = Math.max(10, Math.round(avgWordsPerSec * velocityWave * 60));
+      const cumulativeWords = Math.min(totalWords, Math.round(avgWordsPerSec * sec));
+      const score = Math.round(progress * summary.score);
 
       return {
-        second: i + 1,
-        wpm,
-        ...(ghostWpm !== undefined ? { ghostWpm } : {}),
+        second: sec,
+        rateWpm,
+        cumulativeWords,
+        score,
       };
     });
-  }, [samples, ghost, len, hasGhost]);
+  }, [summary, samples]);
 
   const stats = useMemo(() => {
-    if (data.length === 0) {
-      return { peakWpm: 0, peakSec: 1, minWpm: 0, minSec: 1, avgWpm: 0, ghostAvg: undefined };
+    if (!summary || data.length === 0) {
+      return { peakWpm: 0, peakSec: 1, avgWpm: 0 };
     }
-    const wpms = data.map((d) => d.wpm);
+    const wpms = data.map((d) => d.rateWpm);
     const peakWpm = Math.max(...wpms);
-    const peakSec = data.find((d) => d.wpm === peakWpm)?.second ?? 1;
-    const minWpm = Math.min(...wpms);
-    const minSec = data.find((d) => d.wpm === minWpm)?.second ?? 1;
+    const peakSec = data.find((d) => d.rateWpm === peakWpm)?.second ?? 1;
     const avgWpm = Math.round(wpms.reduce((a, b) => a + b, 0) / (wpms.length || 1));
 
-    let ghostAvg: number | undefined;
-    if (hasGhost) {
-      const gWpms = data.map((d) => d.ghostWpm ?? 0);
-      ghostAvg = Math.round(gWpms.reduce((a, b) => a + b, 0) / (gWpms.length || 1));
-    }
+    return { peakWpm, peakSec, avgWpm };
+  }, [summary, data]);
 
-    return { peakWpm, peakSec, minWpm, minSec, avgWpm, ghostAvg };
-  }, [data, hasGhost]);
-
-  if (samples.length < 2) return null;
+  if (!summary && data.length === 0) return null;
 
   return (
     <>
@@ -102,7 +130,7 @@ export function WpmChart({
       <AnimatePresence>
         {isExpanded && (
           <motion.div
-            key="wpm-backdrop"
+            key="shooter-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -134,21 +162,21 @@ export function WpmChart({
             onClick={() => setIsExpanded((prev) => !prev)}
             className="flex flex-1 cursor-pointer items-center gap-2.5 truncate"
           >
-            <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Activity className="size-4" />
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent">
+              <Crosshair className="size-4" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-foreground">
-                  Speed Progression
+                  Word Shooter Progress
                 </span>
-                <span className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-primary">
-                  {stats.avgWpm} WPM Avg
+                <span className="rounded bg-accent/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-accent">
+                  {summary?.score ?? 0} pts
                 </span>
               </div>
               <p className="text-[11px] text-muted-foreground truncate">
                 {isExpanded
-                  ? "Full Analytics & Real-Time Velocity Graph"
+                  ? "Full Combat Analytics & Wave Destruction Velocity"
                   : "Click anywhere on chart to expand full dimensions"}
               </p>
             </div>
@@ -156,14 +184,14 @@ export function WpmChart({
 
           <div className="flex shrink-0 items-center gap-2">
             <div className="hidden sm:flex items-center gap-1.5 font-mono text-xs">
-              <span className="text-muted-foreground">Peak:</span>
-              <span className="font-bold text-accent">{stats.peakWpm} WPM</span>
+              <span className="text-muted-foreground">Destroyed:</span>
+              <span className="font-bold text-primary">{summary?.wordsDestroyed ?? 0} words</span>
             </div>
 
             <button
               type="button"
               onClick={() => setIsExpanded((prev) => !prev)}
-              aria-label={isExpanded ? "Collapse progress chart" : "Expand progress chart"}
+              aria-label={isExpanded ? "Collapse shooter chart" : "Expand shooter chart"}
               className="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border bg-secondary/60 text-muted-foreground transition-all hover:bg-secondary hover:text-foreground active:scale-95"
             >
               {isExpanded ? (
@@ -194,57 +222,42 @@ export function WpmChart({
         >
           <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
             <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              <Activity className="size-3 text-primary" /> Average Pace
-            </span>
-            <span className="mt-1 font-mono text-base font-bold text-foreground">
-              {stats.avgWpm}{" "}
-              <span className="text-[11px] font-normal text-muted-foreground">WPM</span>
-            </span>
-          </div>
-
-          <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-            <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              <Zap className="size-3 text-accent" /> Peak Burst
+              <Trophy className="size-3 text-accent" /> Score
             </span>
             <span className="mt-1 font-mono text-base font-bold text-accent">
-              {stats.peakWpm}{" "}
-              <span className="text-[11px] font-normal text-muted-foreground">
-                at {stats.peakSec}s
-              </span>
+              {summary?.score ?? 0}{" "}
+              <span className="text-[11px] font-normal text-muted-foreground">pts</span>
             </span>
           </div>
 
           <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
             <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              <Target className="size-3 text-primary" /> Target
+              <Target className="size-3 text-primary" /> Destroyed
+            </span>
+            <span className="mt-1 font-mono text-base font-bold text-primary">
+              {summary?.wordsDestroyed ?? 0}{" "}
+              <span className="text-[11px] font-normal text-muted-foreground">words</span>
+            </span>
+          </div>
+
+          <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
+            <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <Zap className="size-3 text-primary" /> Peak Fire Rate
             </span>
             <span className="mt-1 font-mono text-base font-bold text-foreground">
-              {targetWpm ? (
-                <>
-                  {stats.avgWpm >= targetWpm ? (
-                    <span className="text-emerald-500">+{stats.avgWpm - targetWpm}</span>
-                  ) : (
-                    <span className="text-amber-500">-{targetWpm - stats.avgWpm}</span>
-                  )}{" "}
-                  <span className="text-[11px] font-normal text-muted-foreground">
-                    vs {targetWpm}
-                  </span>
-                </>
-              ) : (
-                <span className="text-xs font-normal text-muted-foreground">None</span>
-              )}
+              {stats.peakWpm}{" "}
+              <span className="text-[11px] font-normal text-muted-foreground">
+                WPM at {stats.peakSec}s
+              </span>
             </span>
           </div>
 
           <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
             <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              <Award className="size-3 text-muted-foreground" /> Lowest Dip
+              <Award className="size-3 text-primary" /> Accuracy
             </span>
-            <span className="mt-1 font-mono text-base font-bold text-muted-foreground">
-              {stats.minWpm}{" "}
-              <span className="text-[11px] font-normal text-muted-foreground">
-                at {stats.minSec}s
-              </span>
+            <span className="mt-1 font-mono text-base font-bold text-foreground">
+              {summary?.accuracy ? summary.accuracy.toFixed(0) : "100"}%
             </span>
           </div>
 
@@ -252,19 +265,19 @@ export function WpmChart({
             <>
               <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
                 <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  <Clock className="size-3 text-primary" /> Total Time
+                  <Shield className="size-3 text-primary" /> Wave Level
                 </span>
                 <span className="mt-1 font-mono text-base font-bold text-foreground">
-                  {data.length}s
+                  Level {summary?.level ?? 1}
                 </span>
               </div>
 
               <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
                 <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  <Flame className="size-3 text-primary" /> Personal Best
+                  <Clock className="size-3 text-primary" /> Survival Time
                 </span>
                 <span className="mt-1 font-mono text-base font-bold text-foreground">
-                  {stats.ghostAvg !== undefined ? `${stats.ghostAvg} WPM` : "None"}
+                  {summary?.durationSec ?? data.length}s
                 </span>
               </div>
             </>
@@ -292,7 +305,7 @@ export function WpmChart({
                 tickLine={false}
                 axisLine={{ stroke: "var(--color-border)" }}
                 label={{
-                  value: "Time (seconds)",
+                  value: "Combat Time (seconds)",
                   position: "insideBottomRight",
                   offset: -4,
                   fontSize: isExpanded ? 12 : 10,
@@ -316,17 +329,17 @@ export function WpmChart({
                   boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
                 }}
                 formatter={(v: number, name: string) => [
-                  `${v} WPM`,
-                  name === "ghostWpm" ? "Personal Best" : "Current Run",
+                  name === "rateWpm" ? `${v} WPM` : `${v} words`,
+                  name === "rateWpm" ? "Fire Velocity" : "Words Destroyed",
                 ]}
-                labelFormatter={(l) => `Time: ${l}s`}
+                labelFormatter={(l) => `Combat Time: ${l}s`}
               />
               <Line
                 type="monotone"
-                dataKey="wpm"
-                stroke="var(--color-primary)"
+                dataKey="rateWpm"
+                stroke="var(--color-accent)"
                 strokeWidth={isExpanded ? 3 : 2}
-                dot={{ r: isExpanded ? 3.5 : 2, fill: "var(--color-primary)" }}
+                dot={{ r: isExpanded ? 3.5 : 2, fill: "var(--color-accent)" }}
                 activeDot={{
                   r: isExpanded ? 7 : 5,
                   stroke: "var(--color-background)",
@@ -334,31 +347,6 @@ export function WpmChart({
                 }}
                 isAnimationActive={false}
               />
-              {hasGhost && (
-                <Line
-                  type="monotone"
-                  dataKey="ghostWpm"
-                  stroke="var(--color-muted-foreground)"
-                  strokeWidth={2}
-                  strokeDasharray="6 4"
-                  dot={false}
-                  isAnimationActive={false}
-                />
-              )}
-              {typeof targetWpm === "number" && targetWpm > 0 ? (
-                <ReferenceLine
-                  y={targetWpm}
-                  stroke="var(--color-primary)"
-                  strokeDasharray="4 4"
-                  ifOverflow="extendDomain"
-                  label={{
-                    value: `Target ${targetWpm} WPM`,
-                    position: "insideTopRight",
-                    fontSize: isExpanded ? 11 : 10,
-                    fill: "var(--color-muted-foreground)",
-                  }}
-                />
-              ) : null}
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -367,26 +355,23 @@ export function WpmChart({
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5">
-              <span className="inline-block h-1 w-3.5 rounded-full bg-primary" /> Current Run
+              <span className="inline-block h-1 w-3.5 rounded-full bg-accent" /> Word Elimination
+              Velocity (WPM)
             </span>
-            {hasGhost && (
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-1 w-3.5 border-b-2 border-dashed border-muted-foreground" />{" "}
-                Personal Best
+            {highScore && highScore > 0 ? (
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <Trophy className="size-3 text-accent" /> High Score: {highScore} pts
               </span>
-            )}
-            {typeof targetWpm === "number" && targetWpm > 0 && (
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-1 w-3.5 border-b-2 border-dotted border-primary/70" />{" "}
-                Target ({targetWpm} WPM)
-              </span>
-            )}
+            ) : null}
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-muted-foreground">{data.length}s duration</span>
+            <span className="font-mono text-xs text-muted-foreground">
+              {summary?.difficulty ? `${summary.difficulty.toUpperCase()} MODE` : "ARCADE"} ·{" "}
+              {data.length}s
+            </span>
             {!isExpanded ? (
-              <span className="hidden sm:inline-block text-[10px] text-primary">
+              <span className="hidden sm:inline-block text-[10px] text-accent">
                 (Click to expand)
               </span>
             ) : null}

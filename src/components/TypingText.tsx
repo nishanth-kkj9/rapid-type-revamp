@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CaretStyle } from "@/lib/drillSettings";
 
 interface Props {
@@ -34,7 +34,15 @@ const WINDOW_BEFORE = 12;
 const WINDOW_AFTER = 40;
 
 export function TypingText({ text, typed, caretStyle = "smooth" }: Props) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef<HTMLSpanElement>(null);
+  const [caretPos, setCaretPos] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  } | null>(null);
+
   const words = useMemo(() => splitWords(text), [text]);
 
   const caretIndex = useMemo(() => {
@@ -51,7 +59,40 @@ export function TypingText({ text, typed, caretStyle = "smooth" }: Props) {
 
   useEffect(() => {
     cursorRef.current?.scrollIntoView({ block: "nearest", behavior: "auto" });
-  }, [typed.length]);
+    const cursor = cursorRef.current;
+    const container = containerRef.current;
+    if (cursor && container) {
+      const containerRect = container.getBoundingClientRect();
+      const cursorRect = cursor.getBoundingClientRect();
+      setCaretPos({
+        left: cursorRect.left - containerRect.left + container.scrollLeft,
+        top: cursorRect.top - containerRect.top + container.scrollTop,
+        width: Math.max(2, cursorRect.width),
+        height: Math.max(16, cursorRect.height),
+      });
+    } else {
+      setCaretPos(null);
+    }
+  }, [typed.length, visible]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const cursor = cursorRef.current;
+      const container = containerRef.current;
+      if (cursor && container) {
+        const containerRect = container.getBoundingClientRect();
+        const cursorRect = cursor.getBoundingClientRect();
+        setCaretPos({
+          left: cursorRect.left - containerRect.left + container.scrollLeft,
+          top: cursorRect.top - containerRect.top + container.scrollTop,
+          width: Math.max(2, cursorRect.width),
+          height: Math.max(16, cursorRect.height),
+        });
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const getCaretClass = () => {
     switch (caretStyle) {
@@ -63,12 +104,25 @@ export function TypingText({ text, typed, caretStyle = "smooth" }: Props) {
         return "shadow-[inset_0_-3px_0_0_var(--color-primary)] bg-transparent";
       case "smooth":
       default:
-        return "caret rounded-[2px] bg-primary/25 shadow-[inset_2px_0_0_0_var(--color-primary)]";
+        // When smooth floating caret is active, character cell retains a subtle indicator
+        return caretPos != null
+          ? "rounded-[2px] bg-primary/10"
+          : "caret rounded-[2px] bg-primary/25 shadow-[inset_2px_0_0_0_var(--color-primary)]";
     }
   };
 
   return (
-    <div className="max-h-[9.5rem] overflow-hidden sm:max-h-[11rem]">
+    <div ref={containerRef} className="relative max-h-[9.5rem] overflow-hidden sm:max-h-[11rem]">
+      {caretPos != null && caretStyle === "smooth" ? (
+        <span
+          aria-hidden="true"
+          className="caret-smooth pointer-events-none absolute left-0 top-0 z-10 w-[2.5px] rounded-full bg-primary will-change-transform"
+          style={{
+            height: `${caretPos.height}px`,
+            transform: `translate3d(${caretPos.left}px, ${caretPos.top}px, 0)`,
+          }}
+        />
+      ) : null}
       <p className="flex flex-wrap font-mono text-xl leading-[2.1rem] tracking-tight sm:text-2xl sm:leading-[2.6rem]">
         {visible.map((word) => (
           <span key={word.start} className="whitespace-pre">
@@ -95,7 +149,11 @@ export function TypingText({ text, typed, caretStyle = "smooth" }: Props) {
             })}
           </span>
         ))}
-        {typed.length >= text.length ? <span className="caret text-primary">|</span> : null}
+        {typed.length >= text.length ? (
+          <span ref={cursorRef} className="caret text-primary">
+            |
+          </span>
+        ) : null}
       </p>
     </div>
   );

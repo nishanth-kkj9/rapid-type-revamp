@@ -25,6 +25,7 @@ describe("drillSettings", () => {
       caretStyle: "block",
       targetWpm: 95,
       showLiveWpm: false,
+      showKeyboard: false,
       focusWeakKeys: false,
     };
     saveDrillSettings(custom);
@@ -41,6 +42,7 @@ describe("drillSettings", () => {
         caretStyle: "invisible",
         targetWpm: 9999,
         showLiveWpm: "yes",
+        showKeyboard: "hidden",
       }),
     );
     const loaded = loadDrillSettings();
@@ -50,7 +52,19 @@ describe("drillSettings", () => {
     expect(loaded.caretStyle).toBe("smooth");
     expect(loaded.targetWpm).toBe(160); // clamped to slider ceiling
     expect(loaded.showLiveWpm).toBe(true);
+    expect(loaded.showKeyboard).toBe(true);
     expect(loaded.focusWeakKeys).toBe(false);
+  });
+
+  it("persists the showKeyboard toggle", () => {
+    saveDrillSettings({ ...DEFAULT_DRILL_SETTINGS, showKeyboard: false });
+    expect(loadDrillSettings().showKeyboard).toBe(false);
+
+    localStorage.setItem(
+      DRILL_SETTINGS_KEY,
+      JSON.stringify({ ...DEFAULT_DRILL_SETTINGS, showKeyboard: "invalid" }),
+    );
+    expect(loadDrillSettings().showKeyboard).toBe(true);
   });
 
   it("persists the focusWeakKeys toggle and sanitizes non-boolean values", () => {

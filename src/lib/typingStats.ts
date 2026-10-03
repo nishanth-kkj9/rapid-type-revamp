@@ -60,9 +60,10 @@ export interface HistoryEntry extends RunStats {
   date: number;
   difficulty: string;
   mode: string;
-  score?: number;
-  wordsDestroyed?: number;
-  level?: number;
+  score?: number | undefined;
+  wordsDestroyed?: number | undefined;
+  level?: number | undefined;
+  samples?: number[] | undefined;
 }
 
 export interface ShooterRunSummary {
@@ -71,9 +72,10 @@ export interface ShooterRunSummary {
   accuracy: number;
   durationSec: number;
   difficulty: string;
-  misses?: number;
-  wrongKeys?: number;
-  level?: number;
+  misses?: number | undefined;
+  wrongKeys?: number | undefined;
+  level?: number | undefined;
+  samples?: number[] | undefined;
 }
 
 const KEY = "ttp:history:v1";
@@ -114,6 +116,7 @@ export const HistoryEntrySchema = z.object({
   score: z.number().optional(),
   wordsDestroyed: z.number().optional(),
   level: z.number().optional(),
+  samples: z.array(z.number()).optional(),
 });
 
 export function loadHistory(): HistoryEntry[] {

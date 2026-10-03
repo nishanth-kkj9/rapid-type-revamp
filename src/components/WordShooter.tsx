@@ -93,6 +93,9 @@ export function WordShooter({
   targetIdRef.current = targetId;
   const scoreRef = useRef(score);
   scoreRef.current = score;
+  const hitsRef = useRef(hits);
+  hitsRef.current = hits;
+  const samplesRef = useRef<number[]>([]);
 
   const stateRef = useRef({ phase, targetId, settings, soundMuted });
   stateRef.current = { phase, targetId, settings, soundMuted };
@@ -177,6 +180,7 @@ export function WordShooter({
     setShipX(50);
     setIsNewRecord(false);
     activeElapsedRef.current = 0;
+    samplesRef.current = [0];
     setPhase("playing");
     setLiveAnnouncement("Game started. Type the falling words.");
     requestAnimationFrame(() => inputRef.current?.focus());
@@ -214,6 +218,15 @@ export function WordShooter({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("blur", handleBlur);
     };
+  }, [phase]);
+
+  // Sample cumulative hits every second while playing for progression charts
+  useEffect(() => {
+    if (phase !== "playing") return undefined;
+    const interval = setInterval(() => {
+      samplesRef.current.push(hitsRef.current * 5);
+    }, 1000);
+    return () => clearInterval(interval);
   }, [phase]);
 
   const fire = useCallback(
@@ -443,6 +456,7 @@ export function WordShooter({
         misses,
         wrongKeys,
         level: getLevel(currentScore),
+        samples: samplesRef.current.length > 1 ? [...samplesRef.current] : undefined,
       });
     }
   }, [

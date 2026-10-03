@@ -5,6 +5,7 @@ export interface ShooterSettings {
   speedMultiplier: number; // 0.5 to 2.5, default 1.0
   startingLives: number; // 1 to 10, default 3
   soundEnabled: boolean;
+  showKeyboard: boolean;
 }
 
 export const DEFAULT_SHOOTER_SETTINGS: ShooterSettings = {
@@ -12,6 +13,7 @@ export const DEFAULT_SHOOTER_SETTINGS: ShooterSettings = {
   speedMultiplier: 1.0,
   startingLives: 3,
   soundEnabled: true,
+  showKeyboard: true,
 };
 
 export const SETTINGS_KEY = "ttp:shooter:settings:v1";
@@ -41,6 +43,10 @@ export function loadShooterSettings(): ShooterSettings {
         typeof parsed.soundEnabled === "boolean"
           ? parsed.soundEnabled
           : DEFAULT_SHOOTER_SETTINGS.soundEnabled,
+      showKeyboard:
+        typeof parsed.showKeyboard === "boolean"
+          ? parsed.showKeyboard
+          : DEFAULT_SHOOTER_SETTINGS.showKeyboard,
     };
   } catch {
     return DEFAULT_SHOOTER_SETTINGS;

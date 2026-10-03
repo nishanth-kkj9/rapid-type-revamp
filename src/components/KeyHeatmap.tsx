@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { aggregateKeyMistakes, averageMsByKey, heatLevel } from "@/lib/heatmap";
 import { KEYBOARD_ROWS, KEY_WIDTHS } from "@/lib/keyboardLayout";
 import type { KeySpeedMap } from "@/lib/keySpeed";
+import { DEFAULT_UI_PREFS, loadUiPrefs, saveUiPrefs } from "@/lib/uiPrefs";
 
 interface Props {
   mistakes: Record<string, number>;
@@ -34,9 +35,9 @@ function MetricChip({
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`rounded-md border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors sm:text-xs ${
+      className={`inline-flex min-h-7 items-center justify-center rounded-md border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors sm:min-h-6 sm:px-2.5 sm:py-0.5 sm:text-xs ${
         active
-          ? "border-primary/60 bg-primary/10 text-foreground"
+          ? "border-primary/60 bg-primary/10 font-semibold text-foreground ring-1 ring-primary/30"
           : "border-border text-muted-foreground hover:text-foreground"
       }`}
     >
@@ -49,9 +50,19 @@ function MetricChip({
  *  toggle. Keys stay decorative (aria-hidden); the accessible representation
  *  remains the ProblemKeys chip strip rendered above this panel. */
 export function KeyHeatmap({ mistakes, speed = null, className = "" }: Props) {
-  const [metric, setMetric] = useState<Metric>("misses");
+  const [metric, setMetric] = useState<Metric>(DEFAULT_UI_PREFS.heatmapMetric);
+
+  useEffect(() => {
+    setMetric(loadUiPrefs().heatmapMetric);
+  }, []);
+
   const hasSpeed = !!speed && Object.keys(speed).length > 0;
   const active: Metric = hasSpeed ? metric : "misses";
+
+  const handleSelectMetric = (nextMetric: Metric) => {
+    setMetric(nextMetric);
+    saveUiPrefs({ heatmapMetric: nextMetric });
+  };
 
   const missCounts = aggregateKeyMistakes(mistakes);
   const missMax = Math.max(0, ...Object.values(missCounts));
@@ -62,11 +73,11 @@ export function KeyHeatmap({ mistakes, speed = null, className = "" }: Props) {
   return (
     <div className={className}>
       {hasSpeed ? (
-        <div className="mb-1.5 flex gap-1" role="group" aria-label="Heatmap metric">
-          <MetricChip active={active === "misses"} onClick={() => setMetric("misses")}>
+        <div className="mb-1.5 flex gap-1.5" role="group" aria-label="Heatmap metric">
+          <MetricChip active={active === "misses"} onClick={() => handleSelectMetric("misses")}>
             Misses
           </MetricChip>
-          <MetricChip active={active === "speed"} onClick={() => setMetric("speed")}>
+          <MetricChip active={active === "speed"} onClick={() => handleSelectMetric("speed")}>
             Speed
           </MetricChip>
         </div>

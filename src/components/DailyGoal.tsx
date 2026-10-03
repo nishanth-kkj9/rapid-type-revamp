@@ -8,7 +8,7 @@ interface Props {
 
 export const DailyGoal = memo(function DailyGoal({ daily }: Props) {
   const today = getLocalDateString();
-  const { streak, runsToday } = getEffectiveDaily(daily, today);
+  const { runsToday } = getEffectiveDaily(daily, today);
   const goal = DAILY_GOAL;
   const progress = Math.min(100, Math.round((runsToday / goal) * 100));
 
@@ -19,8 +19,8 @@ export const DailyGoal = memo(function DailyGoal({ daily }: Props) {
     >
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-1.5 font-medium text-foreground">
-          <span aria-hidden="true">🔥</span>
-          <span>{streak}-day streak</span>
+          <span aria-hidden="true">🎯</span>
+          <span>Daily Goal</span>
           <span className="text-muted-foreground">·</span>
           <span className="text-muted-foreground">
             {runsToday}/{goal} runs today

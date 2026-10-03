@@ -1,8 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Moon, Sun, Crosshair, Timer, Sliders } from "lucide-react";
+import { Moon, Sun, Crosshair, Timer, Sliders, Target, BookOpen, Quote } from "lucide-react";
 import { toast } from "sonner";
-import { generatePassage, type Difficulty } from "@/lib/sentenceGenerator";
+import {
+  generatePassage,
+  generateWordQuota,
+  generateMissedWordsDrill,
+  type Difficulty,
+} from "@/lib/sentenceGenerator";
+import { getRandomQuote } from "@/lib/quotes";
 import { useTheme } from "@/lib/useTheme";
 import {
   clearHistory,
@@ -25,7 +31,13 @@ import {
   loadDrillSettings,
   saveDrillSettings,
   DEFAULT_DRILL_SETTINGS,
+  getDrillMode,
+  getWordCount,
+  getQuoteLength,
   type DrillSettings,
+  type DrillMode,
+  type WordCountOption,
+  type QuoteLengthOption,
 } from "@/lib/drillSettings";
 import { playDrillKeySound } from "@/lib/arcadeAudio";
 
@@ -45,11 +57,13 @@ import { AchievementsStrip } from "@/components/AchievementsStrip";
 import { loadKeyStats, pickWeakKeyPassage, recordKeyMistakes, topWeakKeys } from "@/lib/keyStats";
 import { loadKeySpeed, recordKeySpeed, PAUSE_CAP_MS, type KeySpeedMap } from "@/lib/keySpeed";
 import { WpmChart } from "@/components/WpmChart";
+import { WordShooterProgress } from "@/components/WordShooterProgress";
 import { CommandPalette } from "@/components/CommandPalette";
 import { WordShooter } from "@/components/WordShooter";
 import { ShooterSettingsDialog } from "@/components/ShooterSettingsDialog";
 import { DrillSettingsDialog } from "@/components/DrillSettingsDialog";
-import { DailyGoal } from "@/components/DailyGoal";
+import { ThemeAccentPicker } from "@/components/ThemeAccentPicker";
+import { applyThemeAccent, loadUiPrefs } from "@/lib/uiPrefs";
 import {
   loadDaily,
   saveDaily,
@@ -83,6 +97,8 @@ export const Route = createFileRoute("/")({
 
 const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
 const DURATIONS = [15, 30, 60, 120] as const;
+const WORD_COUNTS: WordCountOption[] = [10, 25, 50, 100];
+const QUOTE_LENGTHS: QuoteLengthOption[] = ["short", "medium", "long"];
 
 const MemoKeyboard = memo(Keyboard);
 const MemoHistory = memo(HistoryPanel);
@@ -117,6 +133,13 @@ function Index() {
   const [shooterSettings, setShooterSettings] = useState<ShooterSettings>(DEFAULT_SHOOTER_SETTINGS);
   const [activeShooterChar, setActiveShooterChar] = useState<string | null>(null);
 
+  const [drillMode, setDrillMode] = useState<DrillMode>("time");
+  const [wordCount, setWordCount] = useState<WordCountOption>(25);
+  const [quoteLength, setQuoteLength] = useState<QuoteLengthOption>("medium");
+  const [quoteAuthor, setQuoteAuthor] = useState<string | null>(null);
+  const [missedWords, setMissedWords] = useState<string[]>([]);
+  const missedWordsRef = useRef<Set<string>>(new Set());
+
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [duration, setDuration] = useState<number>(30);
   // Generated after mount: random text during SSR would hydration-mismatch.
@@ -128,17 +151,18 @@ function Index() {
   const [finished, setFinished] = useState(false);
   const [finalStats, setFinalStats] = useState<RunStats | null>(null);
   const [isRecord, setIsRecord] = useState(false);
+  const [recordDelta, setRecordDelta] = useState<number | null>(null);
   const [errorFlash, setErrorFlash] = useState(false);
   const [pressedChar, setPressedChar] = useState<string | null>(null);
   const [correct, setCorrect] = useState(0);
   const [incorrect, setIncorrect] = useState(0);
   const [mistakes, setMistakes] = useState<Record<string, number>>({});
   const [shooterMistakes, setShooterMistakes] = useState<Record<string, number>>({});
+  const [lastShooterSummary, setLastShooterSummary] = useState<ShooterRunSummary | null>(null);
   const [allTimeKeys, setAllTimeKeys] = useState<Record<string, number>>({});
   const [samples, setSamples] = useState<number[]>([]);
   const [ghostSamples, setGhostSamples] = useState<number[] | undefined>(undefined);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [daily, setDaily] = useState<DailyState | null>(null);
   const [focused, setFocused] = useState(true);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -170,7 +194,6 @@ function Index() {
 
     const loadedDaily = loadDaily();
     dailyRef.current = loadedDaily;
-    setDaily(loadedDaily);
 
     const loadedSettings = loadShooterSettings();
     setShooterSettings(loadedSettings);
@@ -179,6 +202,11 @@ function Index() {
     setDrillSettings(loadedDrill);
     setDifficulty(loadedDrill.difficulty);
     setDuration(loadedDrill.duration);
+    setDrillMode(getDrillMode(loadedDrill));
+    setWordCount(getWordCount(loadedDrill));
+    setQuoteLength(getQuoteLength(loadedDrill));
+
+    applyThemeAccent(loadUiPrefs().themeAccent);
 
     const ks = loadKeyStats();
     allTimeKeysRef.current = ks;
@@ -198,6 +226,9 @@ function Index() {
     saveDrillSettings(newSettings);
     setDifficulty(newSettings.difficulty);
     setDuration(newSettings.duration);
+    if (newSettings.drillMode) setDrillMode(newSettings.drillMode);
+    if (newSettings.wordCount) setWordCount(newSettings.wordCount);
+    if (newSettings.quoteLength) setQuoteLength(newSettings.quoteLength);
   }, []);
 
   const handleSaveShooterSettings = useCallback((newSettings: ShooterSettings) => {
@@ -223,6 +254,7 @@ function Index() {
 
   const handleShooterRunComplete = useCallback(
     (s: ShooterRunSummary) => {
+      setLastShooterSummary(s);
       const incorrect = (s.wrongKeys ?? 0) + (s.misses ?? 0);
       const fs = computeStats(s.wordsDestroyed, incorrect, s.durationSec * 1000, []);
       const { list, ok } = saveRun({
@@ -234,6 +266,7 @@ function Index() {
         score: s.score,
         wordsDestroyed: s.wordsDestroyed,
         level: s.level ?? 1,
+        samples: s.samples,
       });
       historyRef.current = list;
       setHistory(list);
@@ -248,7 +281,6 @@ function Index() {
       const prevDaily = dailyRef.current;
       const nextDaily = recordRunToday(prevDaily, today);
       dailyRef.current = nextDaily;
-      setDaily(nextDaily);
       saveDaily(nextDaily);
       if ((prevDaily?.runsToday ?? 0) < DAILY_GOAL && nextDaily.runsToday >= DAILY_GOAL) {
         toast.success("Daily goal complete!");
@@ -282,6 +314,21 @@ function Index() {
     setShooterMistakes({});
   }, []);
 
+  const effectiveShooterSummary = useMemo(() => {
+    if (lastShooterSummary) return lastShooterSummary;
+    const latestShooter = history.find((h) => h.mode === "shooter");
+    if (!latestShooter) return null;
+    return {
+      score: latestShooter.score ?? 0,
+      wordsDestroyed: latestShooter.wordsDestroyed ?? latestShooter.correct,
+      accuracy: latestShooter.accuracy,
+      durationSec: Math.max(1, Math.round(latestShooter.elapsed)),
+      difficulty: latestShooter.difficulty,
+      level: latestShooter.level ?? 1,
+      samples: latestShooter.samples,
+    } satisfies ShooterRunSummary;
+  }, [lastShooterSummary, history]);
+
   const handleDifficultyChange = useCallback((d: Difficulty) => {
     setDifficulty(d);
     setDrillSettings((prev) => {
@@ -300,6 +347,33 @@ function Index() {
     });
   }, []);
 
+  const handleDrillModeChange = useCallback((m: DrillMode) => {
+    setDrillMode(m);
+    setDrillSettings((prev) => {
+      const next = { ...prev, drillMode: m };
+      saveDrillSettings(next);
+      return next;
+    });
+  }, []);
+
+  const handleWordCountChange = useCallback((count: WordCountOption) => {
+    setWordCount(count);
+    setDrillSettings((prev) => {
+      const next = { ...prev, wordCount: count };
+      saveDrillSettings(next);
+      return next;
+    });
+  }, []);
+
+  const handleQuoteLengthChange = useCallback((qLen: QuoteLengthOption) => {
+    setQuoteLength(qLen);
+    setDrillSettings((prev) => {
+      const next = { ...prev, quoteLength: qLen };
+      saveDrillSettings(next);
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     historyRef.current = history;
   }, [history]);
@@ -313,22 +387,43 @@ function Index() {
   );
 
   const buildDrillText = useCallback(
-    (d: Difficulty, chars = 320): string => {
-      if (!drillSettings.focusWeakKeys) return generatePassage(d, chars);
+    (
+      d: Difficulty = difficulty,
+      m: DrillMode = drillMode,
+      count: WordCountOption = wordCount,
+      qLen: QuoteLengthOption = quoteLength,
+    ): { text: string; author: string | null } => {
+      if (m === "quote") {
+        const q = getRandomQuote(qLen);
+        return { text: q.text, author: `${q.author}${q.source ? ` (${q.source})` : ""}` };
+      }
+      if (m === "words") {
+        return { text: generateWordQuota(count, d), author: null };
+      }
+      if (!drillSettings.focusWeakKeys) return { text: generatePassage(d, 320), author: null };
       const weak = topWeakKeys(allTimeKeysRef.current, 12);
-      if (weak.length === 0) return generatePassage(d, chars);
-      const candidates = Array.from({ length: 5 }, () => generatePassage(d, chars));
-      return pickWeakKeyPassage(candidates, weak);
+      if (weak.length === 0) return { text: generatePassage(d, 320), author: null };
+      const candidates = Array.from({ length: 5 }, () => generatePassage(d, 320));
+      return { text: pickWeakKeyPassage(candidates, weak), author: null };
     },
-    [drillSettings.focusWeakKeys],
+    [difficulty, drillMode, wordCount, quoteLength, drillSettings.focusWeakKeys],
   );
 
   const reset = useCallback(
-    (d: Difficulty) => {
+    (
+      d: Difficulty = difficulty,
+      m: DrillMode = drillMode,
+      count: WordCountOption = wordCount,
+      qLen: QuoteLengthOption = quoteLength,
+    ) => {
       if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
       if (pressTimerRef.current) window.clearTimeout(pressTimerRef.current);
       setErrorFlash(false);
-      setText(buildDrillText(d, 320));
+      const built = buildDrillText(d, m, count, qLen);
+      setText(built.text);
+      setQuoteAuthor(built.author);
+      setMissedWords([]);
+      missedWordsRef.current.clear();
       setTyped("");
       setRunning(false);
       setElapsedMs(0);
@@ -336,6 +431,7 @@ function Index() {
       setFinished(false);
       setFinalStats(null);
       setIsRecord(false);
+      setRecordDelta(null);
       setCorrect(0);
       setIncorrect(0);
       correctRef.current = 0;
@@ -350,14 +446,48 @@ function Index() {
       savedRef.current = false;
       inputRef.current?.focus();
     },
-    [buildDrillText],
+    [difficulty, drillMode, wordCount, quoteLength, buildDrillText],
   );
 
-  const restart = useCallback(() => reset(difficulty), [reset, difficulty]);
+  const restart = useCallback(
+    () => reset(difficulty, drillMode, wordCount, quoteLength),
+    [reset, difficulty, drillMode, wordCount, quoteLength],
+  );
+
+  const handlePracticeMissedWords = useCallback(() => {
+    if (missedWords.length === 0) return;
+    if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
+    if (pressTimerRef.current) window.clearTimeout(pressTimerRef.current);
+    setErrorFlash(false);
+    const drillText = generateMissedWordsDrill(missedWords, 20);
+    setText(drillText);
+    setQuoteAuthor(null);
+    setTyped("");
+    setRunning(false);
+    setElapsedMs(0);
+    startTimeRef.current = null;
+    setFinished(false);
+    setFinalStats(null);
+    setIsRecord(false);
+    setRecordDelta(null);
+    setCorrect(0);
+    setIncorrect(0);
+    correctRef.current = 0;
+    incorrectRef.current = 0;
+    mistakesRef.current = {};
+    setMistakes({});
+    setSamples([]);
+    samplesRef.current = [];
+    keySpeedRef.current = {};
+    lastCorrectAtRef.current = null;
+    setPressedChar(null);
+    savedRef.current = false;
+    inputRef.current?.focus();
+  }, [missedWords]);
 
   useEffect(() => {
-    reset(difficulty);
-  }, [difficulty, duration, reset]);
+    reset(difficulty, drillMode, wordCount, quoteLength);
+  }, [difficulty, duration, drillMode, wordCount, quoteLength, reset]);
 
   useEffect(() => {
     try {
@@ -376,7 +506,7 @@ function Index() {
   }, [duration]);
 
   const elapsed = running ? Math.max(0, elapsedMs) : 0;
-  const remaining = Math.max(0, duration - elapsed / 1000);
+  const remaining = drillMode === "time" ? Math.max(0, duration - elapsed / 1000) : 0;
 
   // High-precision clock: rAF + performance.now, state throttled to ~10 Hz.
   useEffect(() => {
@@ -393,7 +523,7 @@ function Index() {
           last = bucket;
           setElapsedMs(ms);
         }
-        if (ms >= duration * 1000) {
+        if (drillMode === "time" && ms >= duration * 1000) {
           setElapsedMs(duration * 1000);
           return;
         }
@@ -402,7 +532,7 @@ function Index() {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [running, finished, duration]);
+  }, [running, finished, duration, drillMode]);
 
   // Sample cumulative correct chars once per second (consistency + WPM graph).
   useEffect(() => {
@@ -419,12 +549,19 @@ function Index() {
     [correct, incorrect, elapsed, samples],
   );
 
+  const activeModeKey =
+    drillMode === "words" ? `${wordCount}w` : drillMode === "quote" ? "quote" : `${duration}s`;
+
   const previousBest = useMemo(
     () =>
       history
-        .filter((h) => h.mode === `${duration}s` || h.mode === String(duration))
+        .filter(
+          (h) =>
+            h.mode === activeModeKey ||
+            (drillMode === "time" && (h.mode === `${duration}s` || h.mode === String(duration))),
+        )
         .reduce((m, h) => Math.max(m, h.wpm), 0),
-    [history, duration],
+    [history, activeModeKey, drillMode, duration],
   );
 
   const finish = useCallback(() => {
@@ -432,22 +569,32 @@ function Index() {
     setFinished(true);
     if (savedRef.current) return;
     savedRef.current = true;
+    const effectiveDurationMs =
+      drillMode === "words" || drillMode === "quote" ? Math.max(1000, elapsedMs) : duration * 1000;
     const fs = computeStats(
       correctRef.current,
       incorrectRef.current,
-      duration * 1000,
+      effectiveDurationMs,
       toDeltas(samplesRef.current),
     );
     setFinalStats(fs);
+    const modeKey =
+      drillMode === "words" ? `${wordCount}w` : drillMode === "quote" ? "quote" : `${duration}s`;
     const prevBest = historyRef.current
-      .filter((h) => h.mode === `${duration}s` || h.mode === String(duration))
+      .filter(
+        (h) =>
+          h.mode === modeKey ||
+          (drillMode === "time" && (h.mode === `${duration}s` || h.mode === String(duration))),
+      )
       .reduce((m, h) => Math.max(m, h.wpm), 0);
-    setIsRecord(fs.wpm > prevBest && fs.wpm > 0);
+    const newRecord = fs.wpm > prevBest && fs.wpm > 0;
+    setIsRecord(newRecord);
+    setRecordDelta(newRecord && prevBest > 0 ? Math.round(fs.wpm - prevBest) : null);
     if (fs.typed > 0) {
       if (fs.wpm >= prevBest && samplesRef.current.length > 0) {
         try {
           const toSave = samplesRef.current.slice(0, 240);
-          localStorage.setItem(`ttp:best:samples:v1:${duration}`, JSON.stringify(toSave));
+          localStorage.setItem(`ttp:best:samples:v1:${modeKey}`, JSON.stringify(toSave));
         } catch {
           // safe storage fallback
         }
@@ -457,7 +604,7 @@ function Index() {
         id: newRunId(),
         date: Date.now(),
         difficulty,
-        mode: `${duration}s`,
+        mode: modeKey,
       });
       historyRef.current = list;
       setHistory(list);
@@ -476,7 +623,6 @@ function Index() {
       const prevDaily = dailyRef.current;
       const nextDaily = recordRunToday(prevDaily, today);
       dailyRef.current = nextDaily;
-      setDaily(nextDaily);
       saveDaily(nextDaily);
       if ((prevDaily?.runsToday ?? 0) < DAILY_GOAL && nextDaily.runsToday >= DAILY_GOAL) {
         toast.success("Daily goal complete!");
@@ -491,7 +637,15 @@ function Index() {
         focused: drillSettings.focusWeakKeys,
       });
     }
-  }, [difficulty, duration, drillSettings.focusWeakKeys, commitAchievements]);
+  }, [
+    difficulty,
+    duration,
+    drillMode,
+    wordCount,
+    elapsedMs,
+    drillSettings.focusWeakKeys,
+    commitAchievements,
+  ]);
 
   // Move focus to the results action so keyboard users land on something useful.
   useEffect(() => {
@@ -499,15 +653,15 @@ function Index() {
   }, [finished]);
 
   useEffect(() => {
-    if (running && !finished && remaining <= 0) finish();
-  }, [remaining, running, finished, finish]);
+    if (drillMode === "time" && running && !finished && remaining <= 0) finish();
+  }, [drillMode, remaining, running, finished, finish]);
 
-  // Esc restarts. Tab is deliberately left alone so keyboard navigation works.
+  // Tab or Esc restarts quickly.
   useEffect(() => {
     if (mode !== "drill") return;
     const onKey = (e: KeyboardEvent) => {
       if (document.querySelector('[role="dialog"]')) return;
-      if (e.key === "Escape") {
+      if (e.key === "Escape" || (e.key === "Tab" && !e.shiftKey)) {
         e.preventDefault();
         restart();
         inputRef.current?.focus();
@@ -561,6 +715,15 @@ function Index() {
         setErrorFlash(true);
         if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
         flashTimerRef.current = window.setTimeout(() => setErrorFlash(false), 140);
+        // Track missed words for targeted drill remediation
+        const wordMatch = text.slice(0, value.length).split(/\s+/).pop();
+        if (wordMatch) {
+          const cleanWord = wordMatch.replace(/[^\w]/g, "");
+          if (cleanWord.length > 1) {
+            missedWordsRef.current.add(cleanWord);
+            setMissedWords(Array.from(missedWordsRef.current));
+          }
+        }
       }
 
       // Per-key speed telemetry: attribute the interval between two
@@ -596,13 +759,20 @@ function Index() {
     }
 
     setTyped(value);
-    if (value.length >= text.length - 60 && text.length < 6000) {
-      setText((t) => `${t} ${buildDrillText(difficulty, 200)}`);
+    if ((drillMode === "words" || drillMode === "quote") && value.length >= text.length) {
+      finish();
+      return;
+    }
+    if (drillMode === "time" && value.length >= text.length - 60 && text.length < 6000) {
+      setText((t) => `${t} ${buildDrillText(difficulty, "time", wordCount, quoteLength).text}`);
     }
   };
 
   const nextChar = finished ? null : (text[typed.length] ?? null);
-  const progress = Math.min(100, running ? (elapsed / 1000 / duration) * 100 : 0);
+  const progress =
+    drillMode === "words" || drillMode === "quote"
+      ? Math.min(100, (typed.length / (text.length || 1)) * 100)
+      : Math.min(100, running ? (elapsed / 1000 / duration) * 100 : 0);
   const settled = elapsed > 1000;
   // Results must show the frozen end-of-run snapshot, not the live counters.
   const shown = finished && finalStats ? finalStats : stats;
@@ -615,7 +785,11 @@ function Index() {
       data-lpignore="true"
       data-1p-ignore="true"
     >
-      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-wrap sm:items-end sm:justify-between sm:gap-4">
+      <header
+        className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 transition-opacity duration-300 sm:flex sm:flex-wrap sm:items-end sm:justify-between sm:gap-4 ${
+          running && !finished ? "focus-dimmed" : ""
+        }`}
+      >
         <div className="min-w-0">
           <h1 className="truncate font-mono text-xl font-bold tracking-tight sm:text-3xl">
             Typing<span className="text-primary">Trainer</span>Pro
@@ -627,6 +801,7 @@ function Index() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <ThemeAccentPicker />
           <button
             type="button"
             onClick={() => {
@@ -666,7 +841,11 @@ function Index() {
       </header>
 
       {/* Mode Switcher Tabs */}
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+      <div
+        className={`mt-6 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4 transition-opacity duration-300 ${
+          running && !finished ? "focus-dimmed" : ""
+        }`}
+      >
         <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
           <button
             type="button"
@@ -700,13 +879,26 @@ function Index() {
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-mono text-muted-foreground">
               <span>
-                Diff:{" "}
-                <strong className="capitalize text-foreground">{drillSettings.difficulty}</strong>
+                Mode:{" "}
+                <strong className="capitalize text-foreground">
+                  {drillMode === "words"
+                    ? `${wordCount} words`
+                    : drillMode === "quote"
+                      ? "quote"
+                      : `${duration}s`}
+                </strong>
               </span>
-              <span>·</span>
-              <span>
-                Length: <strong className="text-primary">{drillSettings.duration}s</strong>
-              </span>
+              {drillMode !== "quote" ? (
+                <>
+                  <span>·</span>
+                  <span>
+                    Diff:{" "}
+                    <strong className="capitalize text-foreground">
+                      {drillSettings.difficulty}
+                    </strong>
+                  </span>
+                </>
+              ) : null}
               <span>·</span>
               <span>
                 Target:{" "}
@@ -740,42 +932,146 @@ function Index() {
 
       {mode === "drill" ? (
         <>
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+          <div
+            className={`mt-6 flex flex-wrap items-center justify-between gap-3 transition-opacity duration-300 ${
+              running && !finished ? "focus-dimmed" : ""
+            }`}
+          >
             <div className="flex flex-wrap items-center gap-2">
+              {/* Test Type: Time | Words | Quote */}
               <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
-                {DIFFICULTIES.map((d) => (
-                  <button
-                    type="button"
-                    key={d}
-                    onClick={() => handleDifficultyChange(d)}
-                    aria-pressed={difficulty === d}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
-                      difficulty === d
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {d}
-                  </button>
-                ))}
+                <button
+                  type="button"
+                  onClick={() => handleDrillModeChange("time")}
+                  aria-pressed={drillMode === "time"}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer ${
+                    drillMode === "time"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Timer className="size-3" />
+                  Time
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDrillModeChange("words")}
+                  aria-pressed={drillMode === "words"}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer ${
+                    drillMode === "words"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <BookOpen className="size-3" />
+                  Words
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDrillModeChange("quote")}
+                  aria-pressed={drillMode === "quote"}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer ${
+                    drillMode === "quote"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Quote className="size-3" />
+                  Quote
+                </button>
               </div>
-              <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
-                {DURATIONS.map((s) => (
-                  <button
-                    type="button"
-                    key={s}
-                    onClick={() => handleDurationChange(s)}
-                    aria-pressed={duration === s}
-                    className={`rounded-lg px-3 py-1.5 font-mono text-xs transition-colors cursor-pointer ${
-                      duration === s
-                        ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {s}s
-                  </button>
-                ))}
-              </div>
+
+              {/* Mode-specific duration / word count / quote length */}
+              {drillMode === "time" ? (
+                <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
+                  {DURATIONS.map((s) => (
+                    <button
+                      type="button"
+                      key={s}
+                      onClick={() => handleDurationChange(s)}
+                      aria-pressed={duration === s}
+                      className={`rounded-lg px-3 py-1.5 font-mono text-xs transition-colors cursor-pointer ${
+                        duration === s
+                          ? "bg-accent text-accent-foreground font-semibold"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {s}s
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              {drillMode === "words" ? (
+                <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
+                  {WORD_COUNTS.map((cnt) => (
+                    <button
+                      type="button"
+                      key={cnt}
+                      onClick={() => handleWordCountChange(cnt)}
+                      aria-pressed={wordCount === cnt}
+                      className={`rounded-lg px-3 py-1.5 font-mono text-xs transition-colors cursor-pointer ${
+                        wordCount === cnt
+                          ? "bg-accent text-accent-foreground font-semibold"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {cnt}w
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              {drillMode === "quote" ? (
+                <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
+                  {QUOTE_LENGTHS.map((ql) => (
+                    <button
+                      type="button"
+                      key={ql}
+                      onClick={() => handleQuoteLengthChange(ql)}
+                      aria-pressed={quoteLength === ql}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors cursor-pointer ${
+                        quoteLength === ql
+                          ? "bg-accent text-accent-foreground font-semibold"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {ql}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              {/* Difficulty (shown for time and words) */}
+              {drillMode !== "quote" ? (
+                <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
+                  {DIFFICULTIES.map((d) => (
+                    <button
+                      type="button"
+                      key={d}
+                      onClick={() => handleDifficultyChange(d)}
+                      aria-pressed={difficulty === d}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer ${
+                        difficulty === d
+                          ? "bg-primary text-primary-foreground font-semibold"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <div className="hidden items-center gap-1 font-mono text-[11px] text-muted-foreground sm:flex">
+              <kbd className="rounded border border-border bg-secondary/80 px-1.5 py-0.5 text-[10px]">
+                Tab
+              </kbd>
+              <span>or</span>
+              <kbd className="rounded border border-border bg-secondary/80 px-1.5 py-0.5 text-[10px]">
+                Esc
+              </kbd>
+              <span>restart</span>
             </div>
           </div>
 
@@ -792,10 +1088,26 @@ function Index() {
               hint={`${stats.incorrect} errors`}
             />
             <StatCard
-              label="Time left"
-              value={`${Math.ceil(remaining)}s`}
-              hint={`${duration}s run`}
-              warn={running && !finished && remaining <= 5}
+              label={
+                drillMode === "words" ? "Words" : drillMode === "quote" ? "Quote" : "Time left"
+              }
+              value={
+                drillMode === "words"
+                  ? `${Math.min(wordCount, typed.split(/\s+/).filter(Boolean).length)} / ${wordCount}`
+                  : drillMode === "quote"
+                    ? `${Math.min(100, Math.round((typed.length / (text.length || 1)) * 100))}%`
+                    : `${Math.ceil(remaining)}s`
+              }
+              hint={
+                drillMode === "words"
+                  ? `${wordCount} words quota`
+                  : drillMode === "quote"
+                    ? quoteAuthor
+                      ? `by ${quoteAuthor.split(" (")[0]}`
+                      : "quote drill"
+                    : `${duration}s run`
+              }
+              warn={drillMode === "time" && running && !finished && remaining <= 5}
             />
             <StatCard
               label="Consistency"
@@ -823,6 +1135,11 @@ function Index() {
               }
             >
               <TypingText text={text} typed={typed} caretStyle={drillSettings.caretStyle} />
+              {drillMode === "quote" && quoteAuthor ? (
+                <p className="mt-3 text-right font-sans text-xs italic text-muted-foreground">
+                  — {quoteAuthor}
+                </p>
+              ) : null}
             </div>
             {mounted ? (
               <input
@@ -880,8 +1197,9 @@ function Index() {
             {finished ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 overflow-y-auto rounded-xl bg-card/95 px-4 text-center backdrop-blur-sm sm:gap-3 sm:px-6">
                 {isRecord ? (
-                  <span className="rounded-full bg-accent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent-foreground">
+                  <span className="animate-in fade-in zoom-in-95 rounded-full bg-accent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent-foreground shadow-sm duration-300">
                     New personal best
+                    {recordDelta != null && recordDelta > 0 ? ` (+${recordDelta} wpm)` : ""}
                   </span>
                 ) : null}
                 {shown.wpm >= drillSettings.targetWpm ? (
@@ -889,44 +1207,116 @@ function Index() {
                     Target met
                   </span>
                 ) : null}
-                <div className="font-mono text-4xl font-bold text-primary sm:text-5xl">
+                <div
+                  className={`font-mono text-4xl font-bold transition-all sm:text-5xl ${
+                    isRecord ? "text-primary record-glow" : "text-primary"
+                  }`}
+                >
                   {shown.wpm.toFixed(0)}
                   <span className="ml-2 text-base font-normal text-muted-foreground">wpm</span>
                 </div>
-                <div className="text-xs text-muted-foreground sm:text-sm">
-                  {shown.accuracy.toFixed(1)}% accuracy · {shown.correct} correct ·{" "}
-                  {shown.incorrect} errors · raw {shown.rawWpm.toFixed(0)} · net{" "}
-                  {shown.adjustedWpm.toFixed(0)} · consistency {shown.consistency.toFixed(0)}%
+
+                <div className="grid w-full max-w-xl grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5">
+                  <div className="panel flex flex-col items-center justify-center p-2 text-center">
+                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                      Accuracy
+                    </span>
+                    <span className="font-mono text-base font-semibold tabular-nums text-foreground sm:text-lg">
+                      {shown.accuracy.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="panel flex flex-col items-center justify-center p-2 text-center">
+                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                      Correct
+                    </span>
+                    <span className="font-mono text-base font-semibold tabular-nums text-success sm:text-lg">
+                      {shown.correct}
+                    </span>
+                  </div>
+                  <div className="panel flex flex-col items-center justify-center p-2 text-center">
+                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                      Errors
+                    </span>
+                    <span
+                      className={`font-mono text-base font-semibold tabular-nums sm:text-lg ${
+                        shown.incorrect > 0 ? "text-destructive" : "text-foreground"
+                      }`}
+                    >
+                      {shown.incorrect}
+                    </span>
+                  </div>
+                  <div className="panel flex flex-col items-center justify-center p-2 text-center">
+                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                      Raw WPM
+                    </span>
+                    <span className="font-mono text-base font-semibold tabular-nums text-foreground sm:text-lg">
+                      {shown.rawWpm.toFixed(0)}
+                    </span>
+                  </div>
+                  <div className="panel flex flex-col items-center justify-center p-2 text-center">
+                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                      Net WPM
+                    </span>
+                    <span className="font-mono text-base font-semibold tabular-nums text-primary sm:text-lg">
+                      {shown.adjustedWpm.toFixed(0)}
+                    </span>
+                  </div>
+                  <div className="panel flex flex-col items-center justify-center p-2 text-center">
+                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                      Consistency
+                    </span>
+                    <span className="font-mono text-base font-semibold tabular-nums text-foreground sm:text-lg">
+                      {shown.consistency.toFixed(0)}%
+                    </span>
+                  </div>
                 </div>
 
                 <WpmChart
                   samples={samples}
                   ghost={ghostSamples}
                   targetWpm={drillSettings.targetWpm}
+                  className="mt-3"
                 />
                 <ProblemKeys mistakes={mistakes} />
                 {Object.keys(allTimeKeys).length > 0 ? (
                   <ProblemKeys mistakes={allTimeKeys} limit={8} label="All-time problem keys" />
                 ) : null}
-                {Object.keys(allTimeKeys).length > 0 ? (
+                {Object.keys(allTimeKeys).length > 0 || Object.keys(allTimeSpeed).length > 0 ? (
                   <KeyHeatmap mistakes={allTimeKeys} speed={allTimeSpeed} className="mt-3" />
                 ) : null}
                 <AchievementsStrip unlocked={achState.unlocked} className="mt-3" />
-                <button
-                  type="button"
-                  ref={againRef}
-                  onClick={restart}
-                  className="mt-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-                >
-                  Go again
-                </button>
+                {drillMode === "quote" && quoteAuthor ? (
+                  <p className="text-xs italic text-muted-foreground sm:text-sm">— {quoteAuthor}</p>
+                ) : null}
+                <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    ref={againRef}
+                    onClick={restart}
+                    className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 cursor-pointer"
+                  >
+                    Go again <span className="ml-1 text-xs opacity-75 font-mono">(Tab)</span>
+                  </button>
+                  {missedWords.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={handlePracticeMissedWords}
+                      className="flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/25 cursor-pointer"
+                    >
+                      <Target className="size-4 text-accent" />
+                      Practice Missed Words ({missedWords.length})
+                    </button>
+                  ) : null}
+                </div>
               </div>
             ) : null}
           </section>
 
-          <div className="mt-4">
-            <MemoKeyboard nextChar={nextChar} errorFlash={errorFlash} pressedChar={pressedChar} />
-          </div>
+          {drillSettings.showKeyboard ? (
+            <div className="mt-4">
+              <MemoKeyboard nextChar={nextChar} errorFlash={errorFlash} pressedChar={pressedChar} />
+            </div>
+          ) : null}
         </>
       ) : (
         <>
@@ -945,6 +1335,13 @@ function Index() {
           />
 
           <div className="mt-4 flex flex-col gap-2">
+            {effectiveShooterSummary ? (
+              <WordShooterProgress
+                summary={effectiveShooterSummary}
+                samples={effectiveShooterSummary.samples}
+                className="mb-1"
+              />
+            ) : null}
             <ProblemKeys mistakes={shooterMistakes} />
             {Object.keys(allTimeKeys).length > 0 ? (
               <ProblemKeys mistakes={allTimeKeys} limit={8} label="All-time problem keys" />
@@ -953,19 +1350,17 @@ function Index() {
             <AchievementsStrip unlocked={achState.unlocked} />
           </div>
 
-          <div className="mt-4">
-            <MemoKeyboard
-              nextChar={activeShooterChar}
-              errorFlash={false}
-              pressedChar={pressedChar}
-            />
-          </div>
+          {shooterSettings.showKeyboard ? (
+            <div className="mt-4">
+              <MemoKeyboard
+                nextChar={activeShooterChar}
+                errorFlash={false}
+                pressedChar={pressedChar}
+              />
+            </div>
+          ) : null}
         </>
       )}
-
-      <div className="mt-4">
-        <DailyGoal daily={daily} />
-      </div>
 
       <div className="mt-4">
         <MemoHistory

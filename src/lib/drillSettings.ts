@@ -2,6 +2,9 @@ import type { Difficulty } from "@/lib/sentenceGenerator";
 
 export type CaretStyle = "smooth" | "block" | "bar" | "underline";
 export type DrillSound = "off" | "click" | "beep";
+export type DrillMode = "time" | "words" | "quote";
+export type WordCountOption = 10 | 25 | 50 | 100;
+export type QuoteLengthOption = "short" | "medium" | "long";
 
 export interface DrillSettings {
   difficulty: Difficulty;
@@ -10,7 +13,11 @@ export interface DrillSettings {
   caretStyle: CaretStyle;
   targetWpm: number; // e.g. 60
   showLiveWpm: boolean;
+  showKeyboard: boolean;
   focusWeakKeys: boolean;
+  drillMode?: DrillMode;
+  wordCount?: WordCountOption;
+  quoteLength?: QuoteLengthOption;
 }
 
 export const DEFAULT_DRILL_SETTINGS: DrillSettings = {
@@ -20,11 +27,24 @@ export const DEFAULT_DRILL_SETTINGS: DrillSettings = {
   caretStyle: "smooth",
   targetWpm: 60,
   showLiveWpm: true,
+  showKeyboard: true,
   focusWeakKeys: false,
 };
 
 export const DRILL_SETTINGS_KEY = "ttp:drill:settings:v1";
 const LEGACY_DIFF_KEY = "ttp:drill:diff:v1";
+
+export function getDrillMode(settings: DrillSettings): DrillMode {
+  return settings.drillMode ?? "time";
+}
+
+export function getWordCount(settings: DrillSettings): WordCountOption {
+  return settings.wordCount ?? 25;
+}
+
+export function getQuoteLength(settings: DrillSettings): QuoteLengthOption {
+  return settings.quoteLength ?? "medium";
+}
 
 export function loadDrillSettings(): DrillSettings {
   if (typeof window === "undefined") return DEFAULT_DRILL_SETTINGS;
@@ -42,8 +62,9 @@ export function loadDrillSettings(): DrillSettings {
     const validDurations = [15, 30, 60, 120];
     const validCaret: CaretStyle[] = ["smooth", "block", "bar", "underline"];
     const validSound: DrillSound[] = ["off", "click", "beep"];
+    const validWordCounts = [10, 25, 50, 100];
 
-    return {
+    const result: DrillSettings = {
       difficulty:
         parsed.difficulty === "easy" ||
         parsed.difficulty === "medium" ||
@@ -71,11 +92,37 @@ export function loadDrillSettings(): DrillSettings {
         typeof parsed.showLiveWpm === "boolean"
           ? parsed.showLiveWpm
           : DEFAULT_DRILL_SETTINGS.showLiveWpm,
+      showKeyboard:
+        typeof parsed.showKeyboard === "boolean"
+          ? parsed.showKeyboard
+          : DEFAULT_DRILL_SETTINGS.showKeyboard,
       focusWeakKeys:
         typeof parsed.focusWeakKeys === "boolean"
           ? parsed.focusWeakKeys
           : DEFAULT_DRILL_SETTINGS.focusWeakKeys,
     };
+
+    if (
+      parsed.drillMode === "time" ||
+      parsed.drillMode === "words" ||
+      parsed.drillMode === "quote"
+    ) {
+      result.drillMode = parsed.drillMode;
+    }
+
+    if (typeof parsed.wordCount === "number" && validWordCounts.includes(parsed.wordCount)) {
+      result.wordCount = parsed.wordCount as WordCountOption;
+    }
+
+    if (
+      parsed.quoteLength === "short" ||
+      parsed.quoteLength === "medium" ||
+      parsed.quoteLength === "long"
+    ) {
+      result.quoteLength = parsed.quoteLength;
+    }
+
+    return result;
   } catch {
     return DEFAULT_DRILL_SETTINGS;
   }

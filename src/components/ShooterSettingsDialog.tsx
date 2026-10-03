@@ -9,7 +9,7 @@ import {
 import type { ShooterSettings } from "@/lib/shooterSettings";
 import { DEFAULT_SHOOTER_SETTINGS } from "@/lib/shooterSettings";
 import type { Difficulty } from "@/lib/sentenceGenerator";
-import { Volume2, VolumeX, RotateCcw, Zap, Heart, Gauge } from "lucide-react";
+import { Volume2, VolumeX, RotateCcw, Zap, Heart, Gauge, Keyboard } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -260,6 +260,33 @@ export function ShooterSettingsDialog({ open, onOpenChange, settings, onSaveSett
               }`}
             >
               {draft.soundEnabled ? "Enabled" : "Muted"}
+            </button>
+          </div>
+
+          {/* Virtual Keyboard Toggle */}
+          <div className="flex items-center justify-between rounded-xl border border-border bg-secondary/40 p-3">
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
+                <Keyboard className="size-4 text-primary" />
+              </div>
+              <div>
+                <div className="text-xs font-semibold">Virtual Keyboard</div>
+                <div className="text-[11px] text-muted-foreground">
+                  Display on-screen keyboard below arcade canvas
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => update("showKeyboard", !draft.showKeyboard)}
+              aria-pressed={draft.showKeyboard}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+                draft.showKeyboard
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border bg-secondary text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {draft.showKeyboard ? "Visible" : "Hidden"}
             </button>
           </div>
         </div>
