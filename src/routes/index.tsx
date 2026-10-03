@@ -126,8 +126,7 @@ function reconcile(text: string, value: string) {
 }
 
 function Index() {
-  const { theme, toggleTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const { theme, toggleTheme, mounted } = useTheme();
   const [mode, setMode] = useState<"drill" | "shooter">("drill");
   const [drillSettingsOpen, setDrillSettingsOpen] = useState(false);
   const [shooterSettingsOpen, setShooterSettingsOpen] = useState(false);
@@ -190,7 +189,6 @@ function Index() {
   const [daily, setDaily] = useState<DailyState | null>(null);
 
   useEffect(() => {
-    setMounted(true);
     const loaded = loadHistory();
     historyRef.current = loaded;
     setHistory(loaded);
@@ -265,6 +263,7 @@ function Index() {
       const fs = computeStats(realChars, incorrect, s.durationSec * 1000, samplesDeltas);
       const { list, ok } = saveRun({
         ...fs,
+        accuracy: s.accuracy,
         id: newRunId(),
         date: Date.now(),
         difficulty: s.difficulty,
@@ -1108,10 +1107,6 @@ function Index() {
             </div>
             <div className="hidden items-center gap-1 font-mono text-[11px] text-muted-foreground sm:flex">
               <kbd className="rounded border border-border bg-secondary/80 px-1.5 py-0.5 text-[10px]">
-                Tab
-              </kbd>
-              <span>or</span>
-              <kbd className="rounded border border-border bg-secondary/80 px-1.5 py-0.5 text-[10px]">
                 Esc
               </kbd>
               <span>restart</span>
@@ -1139,8 +1134,16 @@ function Index() {
             />
             <StatCard
               label="Accuracy"
-              value={`${stats.accuracy.toFixed(0)}%`}
-              hint={`${stats.incorrect} errors`}
+              value={
+                !drillSettings.showLiveWpm && running && !finished
+                  ? "•••"
+                  : `${stats.accuracy.toFixed(0)}%`
+              }
+              hint={
+                !drillSettings.showLiveWpm && running && !finished
+                  ? "hidden during test"
+                  : `${stats.incorrect} errors`
+              }
             />
             <StatCard
               label={
@@ -1166,8 +1169,20 @@ function Index() {
             />
             <StatCard
               label="Consistency"
-              value={samples.length >= 3 ? `${stats.consistency.toFixed(0)}%` : "—"}
-              hint={previousBest ? `best ${previousBest.toFixed(0)} wpm` : "no record yet"}
+              value={
+                !drillSettings.showLiveWpm && running && !finished
+                  ? "•••"
+                  : samples.length >= 3
+                    ? `${stats.consistency.toFixed(0)}%`
+                    : "—"
+              }
+              hint={
+                !drillSettings.showLiveWpm && running && !finished
+                  ? "hidden during test"
+                  : previousBest
+                    ? `best ${previousBest.toFixed(0)} wpm`
+                    : "no record yet"
+              }
             />
           </div>
 

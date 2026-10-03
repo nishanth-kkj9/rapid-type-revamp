@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { QUOTES, getRandomQuote } from "./quotes";
+import { QUOTES, getRandomQuote, getQuoteLengthCategory } from "./quotes";
 
 describe("quotes", () => {
   it("contains curated quotes", () => {
@@ -8,6 +8,20 @@ describe("quotes", () => {
       expect(q.text.length).toBeGreaterThan(10);
       expect(q.author.length).toBeGreaterThan(2);
       expect(["short", "medium", "long"]).toContain(q.length);
+    }
+  });
+
+  it("every quote has length tag matching its derived length band", () => {
+    for (const q of QUOTES) {
+      expect(q.length).toBe(getQuoteLengthCategory(q.text));
+      if (q.length === "short") {
+        expect(q.text.length).toBeLessThan(100);
+      } else if (q.length === "medium") {
+        expect(q.text.length).toBeGreaterThanOrEqual(100);
+        expect(q.text.length).toBeLessThan(200);
+      } else {
+        expect(q.text.length).toBeGreaterThanOrEqual(200);
+      }
     }
   });
 

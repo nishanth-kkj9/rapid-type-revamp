@@ -4,7 +4,7 @@
   "sideEffects": false,
   "type": "module",
   "engines": {
-    "node": ">=22.22.0"
+    "node": ">=22.22.2"
   },
   "scripts": {
     "dev": "vite dev --host 0.0.0.0 --port 3000",

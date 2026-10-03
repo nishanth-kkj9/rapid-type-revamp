@@ -226,7 +226,8 @@ export function WordShooter({
   useEffect(() => {
     if (phase !== "playing") return undefined;
     const interval = setInterval(() => {
-      samplesRef.current.push(hitsRef.current * 5);
+      const chars = charsDestroyedRef.current > 0 ? charsDestroyedRef.current : hitsRef.current * 5;
+      samplesRef.current.push(chars);
     }, 1000);
     return () => clearInterval(interval);
   }, [phase]);
