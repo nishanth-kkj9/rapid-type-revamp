@@ -306,13 +306,86 @@
   animation: level-banner-anim 1200ms ease-out forwards;
 }
 
+@utility panel-raised {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.07) inset,
+    0 2px 8px oklch(0 0 0 / 0.25),
+    0 20px 48px oklch(0 0 0 / 0.4);
+}
+
+@utility insight-banner {
+  border-radius: var(--radius-xl);
+  border: 1px solid oklch(from var(--color-primary) l c h / 0.35);
+  background: linear-gradient(
+    135deg,
+    oklch(from var(--color-primary) l c h / 0.14),
+    transparent 65%
+  );
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@utility skeleton {
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    90deg,
+    var(--color-secondary) 25%,
+    var(--color-muted) 50%,
+    var(--color-secondary) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@keyframes digit-pop {
+  0% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-2px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@utility digit-pop {
+  animation: digit-pop 180ms cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+@keyframes success-ping {
+  0% {
+    box-shadow: 0 0 0 0 oklch(from var(--color-success) l c h / 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 14px transparent;
+  }
+}
+
+@utility success-ping {
+  animation: success-ping 900ms ease-out 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .shake,
   .record-glow,
   .caret,
   .caret-smooth,
   .score-popup,
-  .level-banner {
+  .level-banner,
+  .skeleton,
+  .digit-pop,
+  .success-ping {
     animation: none !important;
     transition: none !important;
   }

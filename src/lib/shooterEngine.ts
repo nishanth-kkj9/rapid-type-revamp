@@ -32,16 +32,25 @@ export function getLevel(score: number): number {
   return 1 + Math.max(0, Math.floor(score / 400));
 }
 
-export function wordPoolFor(difficulty: Difficulty): string[] {
+export function wordPoolFor(difficulty: Difficulty, extraWords: string[] = []): string[] {
   const passage = generatePassage(difficulty, 900);
   const words = passage
     .toLowerCase()
     .replace(/[^a-z\s'-]/g, " ")
     .split(/\s+/)
     .filter((w) => w.length >= 2);
-  return words.length
-    ? Array.from(new Set(words))
-    : ["type", "fast", "word", "laser", "ship", "speed", "focus"];
+
+  const cleanedExtra = extraWords
+    .map((w) =>
+      w
+        .toLowerCase()
+        .replace(/[^a-z\s'-]/g, "")
+        .trim(),
+    )
+    .filter((w) => w.length >= 2);
+
+  const merged = Array.from(new Set([...cleanedExtra, ...words]));
+  return merged.length ? merged : ["type", "fast", "word", "laser", "ship", "speed", "focus"];
 }
 
 export function createInitialEnemies(pool: string[], speedMult: number, lvl: number): Enemy[] {

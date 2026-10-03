@@ -9,12 +9,13 @@ interface Props {
 
 export function StatCard({ label, value, hint, emphasis, warn }: Props) {
   return (
-    <div className="panel px-4 py-3 transition-transform duration-200 hover:-translate-y-0.5">
+    <div className="panel px-4 py-3">
       <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
         {label}
       </div>
       <div
-        className={`mt-1 font-mono text-2xl font-semibold tabular-nums transition-colors sm:text-3xl ${
+        key={value}
+        className={`digit-pop mt-1 inline-block font-mono text-2xl font-semibold tabular-nums sm:text-3xl ${
           warn ? "text-destructive" : emphasis ? "text-primary" : "text-foreground"
         }`}
       >

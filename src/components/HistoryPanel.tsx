@@ -31,6 +31,7 @@ interface Props {
   mode: "drill" | "shooter";
   onClear: (mode?: "all" | "drill" | "shooter") => void;
   onImport?: (entries: HistoryEntry[]) => void;
+  onStartRun?: () => void;
 }
 
 const DRILL_DURATIONS = ["all", "15s", "30s", "60s", "120s"] as const;
@@ -39,7 +40,7 @@ type DrillDurationFilter = (typeof DRILL_DURATIONS)[number];
 const DIFFICULTIES = ["all", "easy", "medium", "hard"] as const;
 type DifficultyFilter = (typeof DIFFICULTIES)[number];
 
-export function HistoryPanel({ history, mode, onClear, onImport }: Props) {
+export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: Props) {
   const [importError, setImportError] = useState<string | null>(null);
   const [drillDuration, setDrillDuration] = useState<DrillDurationFilter>("all");
   const [drillDifficulty, setDrillDifficulty] = useState<DifficultyFilter>("all");
@@ -444,9 +445,21 @@ export function HistoryPanel({ history, mode, onClear, onImport }: Props) {
           </div>
 
           {drillAll.length === 0 ? (
-            <p className="mt-6 text-sm text-muted-foreground">
-              No timed drill runs completed yet. Start a test above to record your speed!
-            </p>
+            <div className="panel flex flex-col items-center gap-3 px-6 py-10 text-center mt-6">
+              <Trophy className="size-8 text-muted-foreground/50" />
+              <p className="text-sm text-muted-foreground">
+                No runs yet. Your first result starts the graph.
+              </p>
+              {onStartRun ? (
+                <button
+                  type="button"
+                  onClick={onStartRun}
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  Start your first run
+                </button>
+              ) : null}
+            </div>
           ) : filteredDrillHistory.length === 0 ? (
             <p className="mt-6 text-sm text-muted-foreground">
               No runs recorded matching the selected filter criteria.

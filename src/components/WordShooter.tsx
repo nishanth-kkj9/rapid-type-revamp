@@ -15,6 +15,7 @@ import {
   wordPoolFor,
   type Enemy,
 } from "@/lib/shooterEngine";
+import { loadMissedWords } from "@/lib/missedWords";
 import type { ShooterRunSummary } from "@/lib/typingStats";
 import { Sliders, Volume2, VolumeX, Pause, Play, RotateCcw, Crosshair, Award } from "lucide-react";
 
@@ -134,7 +135,7 @@ export function WordShooter({
 
   // Update spawn pool when difficulty changes without killing current active targets
   useEffect(() => {
-    poolRef.current = wordPoolFor(settings.difficulty);
+    poolRef.current = wordPoolFor(settings.difficulty, loadMissedWords());
   }, [settings.difficulty]);
 
   const level = useMemo(() => getLevel(score), [score]);
@@ -155,7 +156,9 @@ export function WordShooter({
   }, [enemies, targetId, phase, onActiveTargetCharChange]);
 
   const start = useCallback(() => {
-    const pool = poolRef.current.length ? poolRef.current : wordPoolFor(settings.difficulty);
+    const pool = poolRef.current.length
+      ? poolRef.current
+      : wordPoolFor(settings.difficulty, loadMissedWords());
     poolRef.current = pool;
     idRef.current = 10;
     spawnRef.current = 2.0;

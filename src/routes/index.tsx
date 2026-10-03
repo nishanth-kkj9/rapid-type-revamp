@@ -43,7 +43,7 @@ import {
 } from "@/lib/drillSettings";
 import { playDrillKeySound } from "@/lib/arcadeAudio";
 
-import { Keyboard } from "@/components/Keyboard";
+import { Keyboard, useCoarsePointer } from "@/components/Keyboard";
 import { TypingText } from "@/components/TypingText";
 import { StatCard } from "@/components/StatCard";
 import { ProblemKeys } from "@/components/ProblemKeys";
@@ -58,6 +58,9 @@ import { AchievementsStrip } from "@/components/AchievementsStrip";
 import { DailyGoal } from "@/components/DailyGoal";
 import { loadKeyStats, pickWeakKeyPassage, recordKeyMistakes, topWeakKeys } from "@/lib/keyStats";
 import { loadKeySpeed, recordKeySpeed, PAUSE_CAP_MS, type KeySpeedMap } from "@/lib/keySpeed";
+import { buildInsight } from "@/lib/insights";
+import { loadMissedWords, saveMissedWords, mergeMissedWords } from "@/lib/missedWords";
+import { ChartSkeleton, PanelSkeleton } from "@/components/Skeletons";
 import { ThemeAccentPicker } from "@/components/ThemeAccentPicker";
 import { applyThemeAccent, loadUiPrefs } from "@/lib/uiPrefs";
 import {
@@ -83,6 +86,9 @@ const LazyWordShooterProgress = lazy(() =>
 );
 const LazyCommandPalette = lazy(() =>
   import("@/components/CommandPalette").then((m) => ({ default: m.CommandPalette })),
+);
+const LazyOnboarding = lazy(() =>
+  import("@/components/Onboarding").then((m) => ({ default: m.Onboarding })),
 );
 const DrillSettingsDialog = lazy(() =>
   import("@/components/DrillSettingsDialog").then((m) => ({ default: m.DrillSettingsDialog })),
@@ -122,6 +128,7 @@ const MemoKeyboard = memo(Keyboard);
 
 function Index() {
   const { theme, toggleTheme, mounted } = useTheme();
+  const coarsePointer = useCoarsePointer();
   const [mode, setMode] = useState<"drill" | "shooter">("drill");
   const [drillSettingsOpen, setDrillSettingsOpen] = useState(false);
   const [shooterSettingsOpen, setShooterSettingsOpen] = useState(false);
@@ -465,8 +472,9 @@ function Index() {
   );
 
   const handlePracticeMissedWords = useCallback(() => {
-    if (missedWords.length === 0) return;
-    const drillText = generateMissedWordsDrill(missedWords, 20);
+    const words = missedWords.length > 0 ? missedWords : loadMissedWords();
+    if (words.length === 0) return;
+    const drillText = generateMissedWordsDrill(words, 20);
     startSession({ text: drillText, quoteAuthor: null, keepMissedWords: true });
   }, [missedWords, startSession]);
 
@@ -558,6 +566,12 @@ function Index() {
     [correct, incorrect, elapsed, samples],
   );
 
+  const insight = useMemo(
+    () =>
+      finished && finalStats ? buildInsight(finalStats, history, allTimeSpeed, mistakes) : null,
+    [finished, finalStats, history, allTimeSpeed, mistakes],
+  );
+
   const activeModeKey =
     drillMode === "words" ? `${wordCount}w` : drillMode === "quote" ? "quote" : `${duration}s`;
 
@@ -627,6 +641,10 @@ function Index() {
       const updatedSpeed = recordKeySpeed(keySpeedRef.current);
       allTimeSpeedRef.current = updatedSpeed;
       setAllTimeSpeed(updatedSpeed);
+
+      if (missedWordsRef.current.size > 0) {
+        saveMissedWords(mergeMissedWords(loadMissedWords(), Array.from(missedWordsRef.current)));
+      }
 
       const today = getLocalDateString();
       const prevDaily = dailyRef.current;
@@ -1252,7 +1270,7 @@ function Index() {
               </div>
             ) : null}
             {finished ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 overflow-y-auto rounded-xl bg-card/95 px-4 text-center backdrop-blur-sm sm:gap-3 sm:px-6">
+              <div className="absolute inset-0 flex flex-col items-center justify-start gap-3 overflow-y-auto rounded-xl bg-card/95 px-4 py-6 text-center backdrop-blur-sm sm:gap-4 sm:px-6">
                 {isRecord ? (
                   <span className="animate-in fade-in zoom-in-95 rounded-full bg-accent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent-foreground shadow-sm duration-300">
                     New personal best
@@ -1260,7 +1278,7 @@ function Index() {
                   </span>
                 ) : null}
                 {shown.wpm >= drillSettings.targetWpm ? (
-                  <span className="rounded-full bg-primary/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+                  <span className="success-ping rounded-full bg-primary/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
                     Target met
                   </span>
                 ) : null}
@@ -1273,62 +1291,104 @@ function Index() {
                   <span className="ml-2 text-base font-normal text-muted-foreground">wpm</span>
                 </div>
 
-                <div className="grid w-full max-w-xl grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5">
-                  <div className="panel flex flex-col items-center justify-center p-2 text-center">
-                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                      Accuracy
-                    </span>
-                    <span className="font-mono text-base font-semibold tabular-nums text-foreground sm:text-lg">
-                      {shown.accuracy.toFixed(1)}%
-                    </span>
+                {insight ? (
+                  <div className="insight-banner panel-raised flex w-full max-w-xl flex-col items-center gap-2 px-4 py-3">
+                    <p className="text-sm leading-relaxed text-foreground sm:text-base">
+                      {insight.headline}
+                    </p>
+                    {insight.action === "practice-weak-keys" ? (
+                      <button
+                        type="button"
+                        onClick={handlePracticeWeakKeys}
+                        className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                      >
+                        Fix it now — targeted drill
+                      </button>
+                    ) : insight.action === "practice-missed-words" ? (
+                      <button
+                        type="button"
+                        onClick={handlePracticeMissedWords}
+                        className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                      >
+                        Fix it now — practice missed words
+                      </button>
+                    ) : null}
                   </div>
-                  <div className="panel flex flex-col items-center justify-center p-2 text-center">
-                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                      Correct
-                    </span>
-                    <span className="font-mono text-base font-semibold tabular-nums text-success sm:text-lg">
-                      {shown.correct}
-                    </span>
-                  </div>
-                  <div className="panel flex flex-col items-center justify-center p-2 text-center">
-                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                      Errors
-                    </span>
-                    <span
-                      className={`font-mono text-base font-semibold tabular-nums sm:text-lg ${
-                        shown.incorrect > 0 ? "text-destructive" : "text-foreground"
-                      }`}
-                    >
-                      {shown.incorrect}
-                    </span>
-                  </div>
-                  <div className="panel flex flex-col items-center justify-center p-2 text-center">
-                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                      Raw WPM
-                    </span>
-                    <span className="font-mono text-base font-semibold tabular-nums text-foreground sm:text-lg">
-                      {shown.rawWpm.toFixed(0)}
-                    </span>
-                  </div>
-                  <div className="panel flex flex-col items-center justify-center p-2 text-center">
-                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                      Net WPM
-                    </span>
-                    <span className="font-mono text-base font-semibold tabular-nums text-primary sm:text-lg">
-                      {shown.adjustedWpm.toFixed(0)}
-                    </span>
-                  </div>
-                  <div className="panel flex flex-col items-center justify-center p-2 text-center">
-                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                      Consistency
-                    </span>
-                    <span className="font-mono text-base font-semibold tabular-nums text-foreground sm:text-lg">
-                      {shown.consistency.toFixed(0)}%
-                    </span>
-                  </div>
-                </div>
+                ) : null}
 
-                <Suspense fallback={<div className="h-48" />}>
+                <p className="text-xs text-muted-foreground">
+                  Too tense?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setMode("shooter")}
+                    className="font-semibold text-primary underline-offset-2 hover:underline cursor-pointer"
+                  >
+                    Loosen up in Arcade
+                  </button>{" "}
+                  — your weak keys show up there too.
+                </p>
+
+                <details className="w-full max-w-xl" open={false}>
+                  <summary className="cursor-pointer text-xs uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground">
+                    Full stats
+                  </summary>
+                  <div className="mt-2 grid w-full grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5">
+                    <div className="panel flex flex-col items-center justify-center p-2 text-center">
+                      <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                        Accuracy
+                      </span>
+                      <span className="font-mono text-base font-semibold tabular-nums text-foreground sm:text-lg">
+                        {shown.accuracy.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="panel flex flex-col items-center justify-center p-2 text-center">
+                      <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                        Correct
+                      </span>
+                      <span className="font-mono text-base font-semibold tabular-nums text-success sm:text-lg">
+                        {shown.correct}
+                      </span>
+                    </div>
+                    <div className="panel flex flex-col items-center justify-center p-2 text-center">
+                      <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                        Errors
+                      </span>
+                      <span
+                        className={`font-mono text-base font-semibold tabular-nums sm:text-lg ${
+                          shown.incorrect > 0 ? "text-destructive" : "text-foreground"
+                        }`}
+                      >
+                        {shown.incorrect}
+                      </span>
+                    </div>
+                    <div className="panel flex flex-col items-center justify-center p-2 text-center">
+                      <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                        Raw WPM
+                      </span>
+                      <span className="font-mono text-base font-semibold tabular-nums text-foreground sm:text-lg">
+                        {shown.rawWpm.toFixed(0)}
+                      </span>
+                    </div>
+                    <div className="panel flex flex-col items-center justify-center p-2 text-center">
+                      <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                        Net WPM
+                      </span>
+                      <span className="font-mono text-base font-semibold tabular-nums text-primary sm:text-lg">
+                        {shown.adjustedWpm.toFixed(0)}
+                      </span>
+                    </div>
+                    <div className="panel flex flex-col items-center justify-center p-2 text-center">
+                      <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                        Consistency
+                      </span>
+                      <span className="font-mono text-base font-semibold tabular-nums text-foreground sm:text-lg">
+                        {shown.consistency.toFixed(0)}%
+                      </span>
+                    </div>
+                  </div>
+                </details>
+
+                <Suspense fallback={<ChartSkeleton />}>
                   <LazyWpmChart
                     samples={samples}
                     ghost={ghostSamples}
@@ -1356,14 +1416,15 @@ function Index() {
                   >
                     Go again <span className="ml-1 text-xs opacity-75 font-mono">(Tab)</span>
                   </button>
-                  {missedWords.length > 0 ? (
+                  {missedWords.length > 0 || loadMissedWords().length > 0 ? (
                     <button
                       type="button"
                       onClick={handlePracticeMissedWords}
                       className="flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/25 cursor-pointer"
                     >
                       <Target className="size-4 text-accent" />
-                      Practice Missed Words ({missedWords.length})
+                      Practice Missed Words (
+                      {missedWords.length > 0 ? missedWords.length : loadMissedWords().length})
                     </button>
                   ) : topWeakKeys(allTimeKeys, 3).length > 0 ? (
                     <button
@@ -1380,7 +1441,7 @@ function Index() {
             ) : null}
           </section>
 
-          {drillSettings.showKeyboard ? (
+          {drillSettings.showKeyboard && !coarsePointer ? (
             <div className="mt-4">
               <MemoKeyboard nextChar={nextChar} errorFlash={errorFlash} pressedChar={pressedChar} />
             </div>
@@ -1422,7 +1483,7 @@ function Index() {
             <AchievementsStrip unlocked={achState.unlocked} />
           </div>
 
-          {shooterSettings.showKeyboard ? (
+          {shooterSettings.showKeyboard && !coarsePointer ? (
             <div className="mt-4">
               <MemoKeyboard
                 nextChar={activeShooterChar}
@@ -1435,12 +1496,16 @@ function Index() {
       )}
 
       <div className="mt-4">
-        <Suspense fallback={<div className="h-32" />}>
+        <Suspense fallback={<PanelSkeleton lines={5} />}>
           <LazyHistoryPanel
             history={history}
             mode={mode}
             onClear={handleClearHistory}
             onImport={handleImportHistory}
+            onStartRun={() => {
+              setMode("drill");
+              inputRef.current?.focus();
+            }}
           />
         </Suspense>
       </div>
@@ -1452,6 +1517,13 @@ function Index() {
       </footer>
 
       <Suspense fallback={null}>
+        <LazyOnboarding
+          onStart={() => {
+            setDuration(15);
+            inputRef.current?.focus();
+          }}
+        />
+
         <DrillSettingsDialog
           open={drillSettingsOpen}
           onOpenChange={setDrillSettingsOpen}
@@ -1478,7 +1550,11 @@ function Index() {
           onModeChange={setMode}
           onOpenDrillSettings={() => setDrillSettingsOpen(true)}
           onOpenShooterSettings={() => setShooterSettingsOpen(true)}
-          onPracticeMissedWords={missedWords.length > 0 ? handlePracticeMissedWords : undefined}
+          onPracticeMissedWords={
+            missedWords.length > 0 || loadMissedWords().length > 0
+              ? handlePracticeMissedWords
+              : undefined
+          }
           onPracticeWeakKeys={
             topWeakKeys(allTimeKeys, 1).length > 0 ? handlePracticeWeakKeys : undefined
           }

@@ -6,6 +6,7 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
+import type { RolldownLog, RolldownLogWithString } from "rolldown";
 
 export default defineConfig({
   plugins: [mcpPlugin()],
@@ -22,6 +23,18 @@ export default defineConfig({
     },
     build: {
       rollupOptions: {
+        onwarn(
+          warning: RolldownLog,
+          defaultHandler: (warning: RolldownLogWithString | (() => RolldownLogWithString)) => void,
+        ) {
+          if (
+            warning.code === "MODULE_LEVEL_DIRECTIVE" ||
+            warning.message?.includes("use client")
+          ) {
+            return;
+          }
+          defaultHandler(warning);
+        },
         output: {
           manualChunks(id: string): string | undefined {
             if (id.includes("node_modules/recharts")) return "charts";
