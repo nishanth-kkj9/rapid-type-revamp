@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { Target, Flame } from "lucide-react";
 import type { DailyState } from "../lib/daily";
 import { getEffectiveDaily, getLocalDateString, DAILY_GOAL } from "../lib/daily";
 
@@ -19,7 +20,7 @@ export const DailyGoal = memo(function DailyGoal({ daily }: Props) {
     >
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-1.5 font-medium text-foreground">
-          <span aria-hidden="true">🎯</span>
+          <Target className="size-3.5 text-primary" />
           <span>Daily Goal</span>
           <span className="text-muted-foreground">·</span>
           <span className="text-muted-foreground">
@@ -29,10 +30,10 @@ export const DailyGoal = memo(function DailyGoal({ daily }: Props) {
             <>
               <span className="text-muted-foreground">·</span>
               <span
-                className="flex items-center gap-0.5 font-semibold text-amber-500"
+                className="flex items-center gap-1 font-semibold text-amber-500"
                 title={`${streak} day streak`}
               >
-                <span aria-hidden="true">🔥</span>
+                <Flame className="size-3 text-amber-500 fill-amber-500/20" />
                 <span>{streak}d streak</span>
               </span>
             </>

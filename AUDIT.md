@@ -15,8 +15,8 @@ The main risks are architectural and deployment-related rather than an obvious c
 2. The generated MCP routes trust forwarded host/protocol headers. The current README correctly limits that trust to Lovable-hosted deployments; other deployments must change the generated configuration or own the files.
 3. The CI dependency audit is report-only. A high-severity advisory does not fail CI.
 4. The anti-paste/anti-drop typing guard is a fairness feature, not a security boundary. Browser users can modify client code or browser state.
-5. `WordShooter.tsx` was added in the latest commit, but the current root route does not render it. The game exists in the repository but is not part of the active application flow.
-6. The README is generally strong, but the documented feature set should distinguish the active trainer from the unmounted game component.
+5. `WordShooter.tsx` is mounted and accessible via the "Arcade" mode switcher tab in `src/routes/index.tsx`, with dedicated settings, progression tracking, and achievement triggers.
+6. The README and application accurately surface both the timed typing trainer and the Word Shooter arcade mode.
 
 No critical server-side data-processing vulnerability was identified from the reviewed source. This is a source audit, not a penetration test or a dependency database scan performed locally.
 
@@ -92,15 +92,11 @@ The typing input rejects paste, drop, and some multi-character changes. This is 
 
 **Recommended action:** Keep the guard for UX/fairness. Do not describe it as tamper-proof or suitable for competitive rankings. If competitive leaderboards are added later, validate attempts server-side and treat the browser as untrusted.
 
-### A-05 — Game component is currently unmounted
+### A-05 — Game component mounted and integrated (Resolved)
 
-**Severity:** Medium (feature/integration quality).
+**Status:** Resolved in active route.
 
-`src/components/WordShooter.tsx` exists, but `src/routes/index.tsx` does not import or render it. The latest commit message says a game mode was added, while the current route still renders only the original typing trainer flow.
-
-**Impact:** The repository can advertise or imply a game mode that users cannot reach through the active route. The component also becomes less likely to receive CI/runtime coverage.
-
-**Recommended action:** Either integrate the component through an explicit game-mode state/route or keep it clearly marked as an inactive experiment. Do not list it as an active product feature until mounted and tested through the user flow.
+`src/components/WordShooter.tsx` is mounted and accessible via the mode switcher tab ("Arcade") in `src/routes/index.tsx`. It features dedicated settings (`ShooterSettingsDialog`), local history persistence (`saveRun`), stats calculation with character-level accuracy tracking, and achievement unlocks.
 
 ### A-06 — History schema validates shape better than semantics
 

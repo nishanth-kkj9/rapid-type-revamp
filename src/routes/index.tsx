@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
 import { Moon, Sun, Crosshair, Timer, Sliders, Target, BookOpen, Quote } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -15,6 +15,7 @@ import {
   computeStats,
   loadHistory,
   newRunId,
+  reconcile,
   saveRun,
   toDeltas,
   bestSamplesKey,
@@ -45,7 +46,6 @@ import { playDrillKeySound } from "@/lib/arcadeAudio";
 import { Keyboard } from "@/components/Keyboard";
 import { TypingText } from "@/components/TypingText";
 import { StatCard } from "@/components/StatCard";
-import { HistoryPanel } from "@/components/HistoryPanel";
 import { ProblemKeys } from "@/components/ProblemKeys";
 import {
   evaluateAchievements,
@@ -58,12 +58,6 @@ import { AchievementsStrip } from "@/components/AchievementsStrip";
 import { DailyGoal } from "@/components/DailyGoal";
 import { loadKeyStats, pickWeakKeyPassage, recordKeyMistakes, topWeakKeys } from "@/lib/keyStats";
 import { loadKeySpeed, recordKeySpeed, PAUSE_CAP_MS, type KeySpeedMap } from "@/lib/keySpeed";
-import { WpmChart } from "@/components/WpmChart";
-import { WordShooterProgress } from "@/components/WordShooterProgress";
-import { CommandPalette } from "@/components/CommandPalette";
-import { WordShooter } from "@/components/WordShooter";
-import { ShooterSettingsDialog } from "@/components/ShooterSettingsDialog";
-import { DrillSettingsDialog } from "@/components/DrillSettingsDialog";
 import { ThemeAccentPicker } from "@/components/ThemeAccentPicker";
 import { applyThemeAccent, loadUiPrefs } from "@/lib/uiPrefs";
 import {
@@ -74,6 +68,28 @@ import {
   DAILY_GOAL,
   type DailyState,
 } from "@/lib/daily";
+
+const LazyHistoryPanel = lazy(() =>
+  import("@/components/HistoryPanel").then((m) => ({ default: m.HistoryPanel })),
+);
+const LazyWpmChart = lazy(() =>
+  import("@/components/WpmChart").then((m) => ({ default: m.WpmChart })),
+);
+const LazyWordShooter = lazy(() =>
+  import("@/components/WordShooter").then((m) => ({ default: m.WordShooter })),
+);
+const LazyWordShooterProgress = lazy(() =>
+  import("@/components/WordShooterProgress").then((m) => ({ default: m.WordShooterProgress })),
+);
+const LazyCommandPalette = lazy(() =>
+  import("@/components/CommandPalette").then((m) => ({ default: m.CommandPalette })),
+);
+const DrillSettingsDialog = lazy(() =>
+  import("@/components/DrillSettingsDialog").then((m) => ({ default: m.DrillSettingsDialog })),
+);
+const ShooterSettingsDialog = lazy(() =>
+  import("@/components/ShooterSettingsDialog").then((m) => ({ default: m.ShooterSettingsDialog })),
+);
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -103,27 +119,6 @@ const WORD_COUNTS: WordCountOption[] = [10, 25, 50, 100];
 const QUOTE_LENGTHS: QuoteLengthOption[] = ["short", "medium", "long"];
 
 const MemoKeyboard = memo(Keyboard);
-const MemoHistory = memo(HistoryPanel);
-
-/** Recompute counters from the whole typed string so backspaces reconcile. */
-function reconcile(text: string, value: string) {
-  let correct = 0;
-  let incorrect = 0;
-  const mistakes: Record<string, number> = {};
-  for (let i = 0; i < value.length; i++) {
-    const expected = text[i];
-    if (expected === undefined) {
-      incorrect++;
-      continue;
-    }
-    if (value[i] === expected) correct++;
-    else {
-      incorrect++;
-      mistakes[expected] = (mistakes[expected] ?? 0) + 1;
-    }
-  }
-  return { correct, incorrect, mistakes };
-}
 
 function Index() {
   const { theme, toggleTheme, mounted } = useTheme();
@@ -415,21 +410,17 @@ function Index() {
     [difficulty, drillMode, wordCount, quoteLength, drillSettings.focusWeakKeys],
   );
 
-  const reset = useCallback(
-    (
-      d: Difficulty = difficulty,
-      m: DrillMode = drillMode,
-      count: WordCountOption = wordCount,
-      qLen: QuoteLengthOption = quoteLength,
-    ) => {
+  const startSession = useCallback(
+    (opts: { text: string; quoteAuthor?: string | null; keepMissedWords?: boolean }) => {
       if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
       if (pressTimerRef.current) window.clearTimeout(pressTimerRef.current);
       setErrorFlash(false);
-      const built = buildDrillText(d, m, count, qLen);
-      setText(built.text);
-      setQuoteAuthor(built.author);
-      setMissedWords([]);
-      missedWordsRef.current.clear();
+      setText(opts.text);
+      setQuoteAuthor(opts.quoteAuthor ?? null);
+      if (!opts.keepMissedWords) {
+        setMissedWords([]);
+        missedWordsRef.current.clear();
+      }
       setTyped("");
       setRunning(false);
       setElapsedMs(0);
@@ -452,7 +443,20 @@ function Index() {
       savedRef.current = false;
       inputRef.current?.focus();
     },
-    [difficulty, drillMode, wordCount, quoteLength, buildDrillText],
+    [],
+  );
+
+  const reset = useCallback(
+    (
+      d: Difficulty = difficulty,
+      m: DrillMode = drillMode,
+      count: WordCountOption = wordCount,
+      qLen: QuoteLengthOption = quoteLength,
+    ) => {
+      const built = buildDrillText(d, m, count, qLen);
+      startSession({ text: built.text, quoteAuthor: built.author, keepMissedWords: false });
+    },
+    [difficulty, drillMode, wordCount, quoteLength, buildDrillText, startSession],
   );
 
   const restart = useCallback(
@@ -462,34 +466,17 @@ function Index() {
 
   const handlePracticeMissedWords = useCallback(() => {
     if (missedWords.length === 0) return;
-    if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
-    if (pressTimerRef.current) window.clearTimeout(pressTimerRef.current);
-    setErrorFlash(false);
     const drillText = generateMissedWordsDrill(missedWords, 20);
-    setText(drillText);
-    setQuoteAuthor(null);
-    setTyped("");
-    setRunning(false);
-    setElapsedMs(0);
-    startTimeRef.current = null;
-    setFinished(false);
-    setFinalStats(null);
-    setIsRecord(false);
-    setRecordDelta(null);
-    setCorrect(0);
-    setIncorrect(0);
-    correctRef.current = 0;
-    incorrectRef.current = 0;
-    mistakesRef.current = {};
-    setMistakes({});
-    setSamples([]);
-    samplesRef.current = [];
-    keySpeedRef.current = {};
-    lastCorrectAtRef.current = null;
-    setPressedChar(null);
-    savedRef.current = false;
-    inputRef.current?.focus();
-  }, [missedWords]);
+    startSession({ text: drillText, quoteAuthor: null, keepMissedWords: true });
+  }, [missedWords, startSession]);
+
+  const handlePracticeWeakKeys = useCallback(() => {
+    const weak = topWeakKeys(allTimeKeysRef.current, 12);
+    if (weak.length === 0) return;
+    const candidates = Array.from({ length: 8 }, () => generatePassage(difficulty, 320));
+    const passage = pickWeakKeyPassage(candidates, weak);
+    startSession({ text: passage, quoteAuthor: null, keepMissedWords: false });
+  }, [difficulty, startSession]);
 
   useEffect(() => {
     reset(difficulty, drillMode, wordCount, quoteLength);
@@ -1341,12 +1328,14 @@ function Index() {
                   </div>
                 </div>
 
-                <WpmChart
-                  samples={samples}
-                  ghost={ghostSamples}
-                  targetWpm={drillSettings.targetWpm}
-                  className="mt-3"
-                />
+                <Suspense fallback={<div className="h-48" />}>
+                  <LazyWpmChart
+                    samples={samples}
+                    ghost={ghostSamples}
+                    targetWpm={drillSettings.targetWpm}
+                    className="mt-3"
+                  />
+                </Suspense>
                 <ProblemKeys mistakes={mistakes} />
                 {Object.keys(allTimeKeys).length > 0 ? (
                   <ProblemKeys mistakes={allTimeKeys} limit={8} label="All-time problem keys" />
@@ -1376,6 +1365,15 @@ function Index() {
                       <Target className="size-4 text-accent" />
                       Practice Missed Words ({missedWords.length})
                     </button>
+                  ) : topWeakKeys(allTimeKeys, 3).length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={handlePracticeWeakKeys}
+                      className="flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/25 cursor-pointer"
+                    >
+                      <Target className="size-4 text-accent" />
+                      Target Weak Keys ({topWeakKeys(allTimeKeys, 3).join(", ")})
+                    </button>
                   ) : null}
                 </div>
               </div>
@@ -1390,27 +1388,31 @@ function Index() {
         </>
       ) : (
         <>
-          <WordShooter
-            settings={shooterSettings}
-            onOpenSettings={() => setShooterSettingsOpen(true)}
-            onActiveTargetCharChange={setActiveShooterChar}
-            onCharPressed={(char) => {
-              setPressedChar(char);
-              if (pressTimerRef.current) window.clearTimeout(pressTimerRef.current);
-              pressTimerRef.current = window.setTimeout(() => setPressedChar(null), 160);
-            }}
-            onRunComplete={handleShooterRunComplete}
-            onWrongKey={handleShooterWrongKey}
-            onStart={handleShooterStart}
-          />
+          <Suspense fallback={<div className="h-96" />}>
+            <LazyWordShooter
+              settings={shooterSettings}
+              onOpenSettings={() => setShooterSettingsOpen(true)}
+              onActiveTargetCharChange={setActiveShooterChar}
+              onCharPressed={(char) => {
+                setPressedChar(char);
+                if (pressTimerRef.current) window.clearTimeout(pressTimerRef.current);
+                pressTimerRef.current = window.setTimeout(() => setPressedChar(null), 160);
+              }}
+              onRunComplete={handleShooterRunComplete}
+              onWrongKey={handleShooterWrongKey}
+              onStart={handleShooterStart}
+            />
+          </Suspense>
 
           <div className="mt-4 flex flex-col gap-2">
             {effectiveShooterSummary ? (
-              <WordShooterProgress
-                summary={effectiveShooterSummary}
-                samples={effectiveShooterSummary.samples}
-                className="mb-1"
-              />
+              <Suspense fallback={null}>
+                <LazyWordShooterProgress
+                  summary={effectiveShooterSummary}
+                  samples={effectiveShooterSummary.samples}
+                  className="mb-1"
+                />
+              </Suspense>
             ) : null}
             <ProblemKeys mistakes={shooterMistakes} />
             {Object.keys(allTimeKeys).length > 0 ? (
@@ -1433,12 +1435,14 @@ function Index() {
       )}
 
       <div className="mt-4">
-        <MemoHistory
-          history={history}
-          mode={mode}
-          onClear={handleClearHistory}
-          onImport={handleImportHistory}
-        />
+        <Suspense fallback={<div className="h-32" />}>
+          <LazyHistoryPanel
+            history={history}
+            mode={mode}
+            onClear={handleClearHistory}
+            onImport={handleImportHistory}
+          />
+        </Suspense>
       </div>
 
       <footer className="mt-10 text-center text-xs text-muted-foreground">
@@ -1447,33 +1451,40 @@ function Index() {
         the command palette.
       </footer>
 
-      <DrillSettingsDialog
-        open={drillSettingsOpen}
-        onOpenChange={setDrillSettingsOpen}
-        settings={drillSettings}
-        onSaveSettings={handleSaveDrillSettings}
-      />
+      <Suspense fallback={null}>
+        <DrillSettingsDialog
+          open={drillSettingsOpen}
+          onOpenChange={setDrillSettingsOpen}
+          settings={drillSettings}
+          onSaveSettings={handleSaveDrillSettings}
+        />
 
-      <ShooterSettingsDialog
-        open={shooterSettingsOpen}
-        onOpenChange={setShooterSettingsOpen}
-        settings={shooterSettings}
-        onSaveSettings={handleSaveShooterSettings}
-      />
+        <ShooterSettingsDialog
+          open={shooterSettingsOpen}
+          onOpenChange={setShooterSettingsOpen}
+          settings={shooterSettings}
+          onSaveSettings={handleSaveShooterSettings}
+        />
 
-      <CommandPalette
-        difficulty={difficulty}
-        duration={duration}
-        difficulties={DIFFICULTIES}
-        durations={DURATIONS}
-        mode={mode}
-        onDifficulty={handleDifficultyChange}
-        onDuration={handleDurationChange}
-        onRestart={restart}
-        onModeChange={setMode}
-        onOpenDrillSettings={() => setDrillSettingsOpen(true)}
-        onOpenShooterSettings={() => setShooterSettingsOpen(true)}
-      />
+        <LazyCommandPalette
+          difficulty={difficulty}
+          duration={duration}
+          difficulties={DIFFICULTIES}
+          durations={DURATIONS}
+          mode={mode}
+          onDifficulty={handleDifficultyChange}
+          onDuration={handleDurationChange}
+          onRestart={restart}
+          onModeChange={setMode}
+          onOpenDrillSettings={() => setDrillSettingsOpen(true)}
+          onOpenShooterSettings={() => setShooterSettingsOpen(true)}
+          onPracticeMissedWords={missedWords.length > 0 ? handlePracticeMissedWords : undefined}
+          onPracticeWeakKeys={
+            topWeakKeys(allTimeKeys, 1).length > 0 ? handlePracticeWeakKeys : undefined
+          }
+          onToggleTheme={toggleTheme}
+        />
+      </Suspense>
     </main>
   );
 }

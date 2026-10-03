@@ -1,6 +1,6 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
-import { computeStats, toDeltas } from "@/lib/typingStats";
+import { computeStats, reconcile, toDeltas } from "@/lib/typingStats";
 
 export default defineTool({
   name: "analyze_typing",
@@ -23,21 +23,7 @@ export default defineTool({
   },
   annotations: { readOnlyHint: true, openWorldHint: false },
   handler: ({ target, typed, elapsedSeconds, perSecondCorrect }) => {
-    let correct = 0;
-    let incorrect = 0;
-    const mistakes: Record<string, number> = {};
-    for (let i = 0; i < typed.length; i++) {
-      const expected = target[i];
-      if (expected === undefined) {
-        incorrect++;
-        continue;
-      }
-      if (typed[i] === expected) correct++;
-      else {
-        incorrect++;
-        mistakes[expected] = (mistakes[expected] ?? 0) + 1;
-      }
-    }
+    const { correct, incorrect, mistakes } = reconcile(target, typed);
 
     const stats = computeStats(
       correct,

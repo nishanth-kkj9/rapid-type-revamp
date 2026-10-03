@@ -20,5 +20,17 @@ export default defineConfig({
       port: 3000,
       allowedHosts: true,
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id: string): string | undefined {
+            if (id.includes("node_modules/recharts")) return "charts";
+            if (id.includes("node_modules/framer-motion")) return "motion";
+            if (id.includes("node_modules/cmdk")) return "cmdk";
+            return undefined;
+          },
+        },
+      },
+    },
   },
 });

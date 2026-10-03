@@ -193,7 +193,13 @@ export function HistoryPanel({ history, mode, onClear, onImport }: Props) {
 
   const handleExport = () => {
     const listToExport = mode === "drill" ? drillAll : shooterAll;
-    const blob = new Blob([JSON.stringify(listToExport, null, 2)], {
+    const payload = {
+      schemaVersion: 1,
+      exportedAt: Date.now(),
+      mode,
+      entries: listToExport,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: "application/json",
     });
     const url = URL.createObjectURL(blob);
@@ -362,6 +368,22 @@ export function HistoryPanel({ history, mode, onClear, onImport }: Props) {
         <div className="mt-3 flex items-center gap-2 rounded-lg bg-destructive/15 p-2.5 text-xs text-destructive">
           <AlertCircle className="size-4 shrink-0" />
           <span>{importError}</span>
+        </div>
+      ) : null}
+
+      {currentModeRunsCount >= 75 ? (
+        <div className="mt-3 flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+          <span>
+            Storage notice: You have {currentModeRunsCount}/100 saved runs. Oldest runs will cycle
+            out when full.
+          </span>
+          <button
+            type="button"
+            onClick={handleExport}
+            className="font-semibold underline hover:no-underline cursor-pointer"
+          >
+            Export backup
+          </button>
         </div>
       ) : null}
 

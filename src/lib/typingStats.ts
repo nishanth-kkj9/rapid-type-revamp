@@ -20,6 +20,32 @@ export function toDeltas(cumulative: number[]): number[] {
   return cumulative.map((v, i, a) => (i === 0 ? v : v - (a[i - 1] ?? 0)));
 }
 
+export interface ReconcileResult {
+  correct: number;
+  incorrect: number;
+  mistakes: Record<string, number>;
+}
+
+/** Recompute counters and problem keys from the whole typed string against target passage. */
+export function reconcile(text: string, value: string): ReconcileResult {
+  let correct = 0;
+  let incorrect = 0;
+  const mistakes: Record<string, number> = {};
+  for (let i = 0; i < value.length; i++) {
+    const expected = text[i];
+    if (expected === undefined) {
+      incorrect++;
+      continue;
+    }
+    if (value[i] === expected) correct++;
+    else {
+      incorrect++;
+      mistakes[expected] = (mistakes[expected] ?? 0) + 1;
+    }
+  }
+  return { correct, incorrect, mistakes };
+}
+
 export function computeStats(
   correct: number,
   incorrect: number,
@@ -181,8 +207,22 @@ export function clearHistory(mode?: "all" | "drill" | "shooter"): HistoryEntry[]
   return retained;
 }
 
+export interface HistoryExportPayload {
+  schemaVersion: number;
+  exportedAt: number;
+  entries: HistoryEntry[];
+}
+
+export function exportHistoryPayload(entries = loadHistory()): HistoryExportPayload {
+  return {
+    schemaVersion: 1,
+    exportedAt: Date.now(),
+    entries,
+  };
+}
+
 export function exportHistory(): string {
-  return JSON.stringify(loadHistory(), null, 2);
+  return JSON.stringify(exportHistoryPayload(), null, 2);
 }
 
 export type ImportResult =
@@ -194,8 +234,19 @@ export function importHistoryResult(json: string): ImportResult {
   let parsedEntries: HistoryEntry[];
   try {
     const raw: unknown = JSON.parse(json);
-    if (!Array.isArray(raw) || raw.length > 1000) return { ok: false, reason: "invalid" };
-    const parsed = z.array(HistoryEntrySchema).safeParse(raw);
+    let itemsToParse = raw;
+    if (
+      raw &&
+      typeof raw === "object" &&
+      !Array.isArray(raw) &&
+      "entries" in raw &&
+      Array.isArray((raw as { entries: unknown }).entries)
+    ) {
+      itemsToParse = (raw as { entries: unknown }).entries;
+    }
+    if (!Array.isArray(itemsToParse) || itemsToParse.length > 1000)
+      return { ok: false, reason: "invalid" };
+    const parsed = z.array(HistoryEntrySchema).safeParse(itemsToParse);
     if (!parsed.success) return { ok: false, reason: "invalid" };
     parsedEntries = parsed.data as HistoryEntry[];
   } catch {

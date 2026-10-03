@@ -14,13 +14,16 @@ interface Props {
   duration: number;
   difficulties: Difficulty[];
   durations: readonly number[];
-  mode?: "drill" | "shooter";
+  mode?: "drill" | "shooter" | undefined;
   onDifficulty: (d: Difficulty) => void;
   onDuration: (s: number) => void;
   onRestart: () => void;
-  onModeChange?: (m: "drill" | "shooter") => void;
-  onOpenDrillSettings?: () => void;
-  onOpenShooterSettings?: () => void;
+  onModeChange?: ((m: "drill" | "shooter") => void) | undefined;
+  onOpenDrillSettings?: (() => void) | undefined;
+  onOpenShooterSettings?: (() => void) | undefined;
+  onPracticeMissedWords?: (() => void) | undefined;
+  onPracticeWeakKeys?: (() => void) | undefined;
+  onToggleTheme?: (() => void) | undefined;
 }
 
 export function CommandPalette({
@@ -35,6 +38,9 @@ export function CommandPalette({
   onModeChange,
   onOpenDrillSettings,
   onOpenShooterSettings,
+  onPracticeMissedWords,
+  onPracticeWeakKeys,
+  onToggleTheme,
 }: Props) {
   const [open, setOpen] = useState(false);
 
@@ -124,9 +130,30 @@ export function CommandPalette({
           </CommandItem>
         </CommandGroup>
         <CommandGroup heading="Actions">
-          <CommandItem value="restart test" onSelect={() => run(onRestart)}>
+          <CommandItem value="restart test drill" onSelect={() => run(onRestart)}>
             Restart test
           </CommandItem>
+          {onPracticeMissedWords ? (
+            <CommandItem
+              value="practice missed problem words"
+              onSelect={() => run(onPracticeMissedWords)}
+            >
+              Practice missed words
+            </CommandItem>
+          ) : null}
+          {onPracticeWeakKeys ? (
+            <CommandItem
+              value="practice weak keys targeted drill"
+              onSelect={() => run(onPracticeWeakKeys)}
+            >
+              Practice weak keys
+            </CommandItem>
+          ) : null}
+          {onToggleTheme ? (
+            <CommandItem value="toggle theme switch light dark" onSelect={() => run(onToggleTheme)}>
+              Toggle light / dark theme
+            </CommandItem>
+          ) : null}
         </CommandGroup>
       </CommandList>
     </CommandDialog>
