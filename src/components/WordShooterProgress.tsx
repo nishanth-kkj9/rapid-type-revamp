@@ -150,16 +150,24 @@ export function WordShooterProgress({
           stiffness: 300,
           damping: 28,
         }}
+        onClick={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.closest("button") || target.closest("a")) return;
+          setIsExpanded((prev) => !prev);
+        }}
         className={
           isExpanded
-            ? "fixed inset-3 sm:inset-6 md:inset-10 lg:inset-16 z-50 flex flex-col justify-between overflow-y-auto rounded-2xl border border-primary/50 bg-card/98 p-4 sm:p-6 md:p-8 shadow-2xl backdrop-blur-xl ring-1 ring-primary/20"
-            : `panel p-3 text-sm transition-colors hover:border-primary/40 ${className}`
+            ? "fixed inset-3 sm:inset-6 md:inset-10 lg:inset-16 z-50 flex flex-col justify-between overflow-y-auto rounded-2xl border border-accent/50 bg-card/98 p-4 sm:p-6 md:p-8 shadow-2xl backdrop-blur-xl ring-1 ring-accent/20"
+            : `panel p-3 text-sm transition-colors hover:border-accent/40 cursor-pointer ${className}`
         }
       >
         {/* Header / Interactive Toggle Bar */}
         <div className="flex select-none items-center justify-between gap-2 border-b border-border/60 pb-3">
           <div
-            onClick={() => setIsExpanded((prev) => !prev)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsExpanded((prev) => !prev);
+            }}
             className="flex flex-1 cursor-pointer items-center gap-2.5 truncate"
           >
             <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent">
@@ -190,7 +198,10 @@ export function WordShooterProgress({
 
             <button
               type="button"
-              onClick={() => setIsExpanded((prev) => !prev)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded((prev) => !prev);
+              }}
               aria-label={isExpanded ? "Collapse shooter chart" : "Expand shooter chart"}
               className="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border bg-secondary/60 text-muted-foreground transition-all hover:bg-secondary hover:text-foreground active:scale-95"
             >
@@ -204,7 +215,10 @@ export function WordShooterProgress({
             {isExpanded ? (
               <button
                 type="button"
-                onClick={() => setIsExpanded(false)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExpanded(false);
+                }}
                 aria-label="Close expanded view"
                 className="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border bg-secondary/60 text-muted-foreground transition-all hover:bg-destructive/20 hover:text-destructive active:scale-95"
               >

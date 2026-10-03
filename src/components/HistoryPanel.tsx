@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CartesianGrid,
   Line,
@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { motion, AnimatePresence } from "framer-motion";
 import { importHistoryResult, type HistoryEntry } from "@/lib/typingStats";
 import { toast } from "sonner";
 import {
@@ -20,6 +21,9 @@ import {
   Trophy,
   Target,
   Zap,
+  Maximize2,
+  Minimize2,
+  X,
 } from "lucide-react";
 
 interface Props {
@@ -41,7 +45,22 @@ export function HistoryPanel({ history, mode, onClear, onImport }: Props) {
   const [drillDifficulty, setDrillDifficulty] = useState<DifficultyFilter>("all");
   const [shooterDifficulty, setShooterDifficulty] = useState<DifficultyFilter>("all");
   const [confirmClear, setConfirmClear] = useState<boolean>(false);
+  const [isDrillChartExpanded, setIsDrillChartExpanded] = useState<boolean>(false);
+  const [isShooterChartExpanded, setIsShooterChartExpanded] = useState<boolean>(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Close full-screen charts on Escape
+  useEffect(() => {
+    if (!isDrillChartExpanded && !isShooterChartExpanded) return undefined;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsDrillChartExpanded(false);
+        setIsShooterChartExpanded(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isDrillChartExpanded, isShooterChartExpanded]);
 
   // Split history by mode
   const drillAll = useMemo(() => history.filter((h) => h.mode !== "shooter"), [history]);
@@ -462,67 +481,159 @@ export function HistoryPanel({ history, mode, onClear, onImport }: Props) {
               </div>
 
               {/* Drill Progress Line Chart */}
-              <div className="mt-5 h-48 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={drillChartData}
-                    margin={{ top: 8, right: 8, bottom: 0, left: -18 }}
+              <>
+                <AnimatePresence>
+                  {isDrillChartExpanded && (
+                    <motion.div
+                      key="drill-chart-backdrop"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      onClick={() => setIsDrillChartExpanded(false)}
+                      className="fixed inset-0 z-40 bg-background/80 backdrop-blur-md"
+                      aria-hidden="true"
+                    />
+                  )}
+                </AnimatePresence>
+
+                <motion.div
+                  layout
+                  transition={{
+                    type: "spring",
+                    stiffness: 300,
+                    damping: 28,
+                  }}
+                  onClick={(e) => {
+                    const target = e.target as HTMLElement;
+                    if (target.closest("button") || target.closest("a")) return;
+                    setIsDrillChartExpanded((prev) => !prev);
+                  }}
+                  className={
+                    isDrillChartExpanded
+                      ? "fixed inset-3 sm:inset-6 md:inset-10 lg:inset-16 z-50 flex flex-col justify-between overflow-y-auto rounded-2xl border border-primary/50 bg-card/98 p-4 sm:p-6 md:p-8 shadow-2xl backdrop-blur-xl ring-1 ring-primary/20"
+                      : "mt-5 rounded-xl border border-border/70 bg-card/60 p-3 sm:p-4 transition-colors hover:border-primary/40 cursor-pointer"
+                  }
+                >
+                  <div className="flex select-none items-center justify-between gap-2 border-b border-border/60 pb-2 mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-foreground">
+                        Timed Drill Progress
+                      </span>
+                      <span className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-primary">
+                        {filteredDrillHistory.length} runs
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsDrillChartExpanded((prev) => !prev);
+                        }}
+                        aria-label={
+                          isDrillChartExpanded ? "Collapse progress chart" : "Expand progress chart"
+                        }
+                        className="flex size-7 cursor-pointer items-center justify-center rounded-lg border border-border bg-secondary/60 text-muted-foreground transition-all hover:bg-secondary hover:text-foreground active:scale-95"
+                      >
+                        {isDrillChartExpanded ? (
+                          <Minimize2 className="size-3.5 text-primary" />
+                        ) : (
+                          <Maximize2 className="size-3.5" />
+                        )}
+                      </button>
+                      {isDrillChartExpanded && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsDrillChartExpanded(false);
+                          }}
+                          aria-label="Close expanded chart"
+                          className="flex size-7 cursor-pointer items-center justify-center rounded-lg border border-border bg-secondary/60 text-muted-foreground transition-all hover:bg-destructive/20 hover:text-destructive active:scale-95"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div
+                    className={
+                      isDrillChartExpanded ? "h-[360px] sm:h-[480px] w-full" : "h-48 w-full"
+                    }
                   >
-                    <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
-                    <XAxis
-                      dataKey="run"
-                      tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      yAxisId="left"
-                      tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      yAxisId="right"
-                      orientation="right"
-                      domain={[0, 100]}
-                      tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "var(--card)",
-                        border: "1px solid var(--border)",
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
-                      formatter={(val: unknown, name: unknown) => [
-                        typeof val === "number" ? val : String(val),
-                        name === "wpm" ? "WPM" : name === "accuracy" ? "Accuracy %" : String(name),
-                      ]}
-                    />
-                    <Line
-                      yAxisId="left"
-                      type="monotone"
-                      dataKey="wpm"
-                      name="WPM"
-                      stroke="var(--color-primary, var(--primary))"
-                      strokeWidth={2.5}
-                      dot={{ r: 2 }}
-                    />
-                    <Line
-                      yAxisId="right"
-                      type="monotone"
-                      dataKey="accuracy"
-                      name="Accuracy"
-                      stroke="var(--color-accent, var(--accent))"
-                      strokeWidth={2}
-                      strokeDasharray="4 3"
-                      dot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={drillChartData}
+                        margin={{ top: 8, right: 8, bottom: 0, left: -18 }}
+                      >
+                        <CartesianGrid
+                          stroke="var(--border)"
+                          strokeDasharray="3 3"
+                          vertical={false}
+                        />
+                        <XAxis
+                          dataKey="run"
+                          tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          yAxisId="left"
+                          tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          yAxisId="right"
+                          orientation="right"
+                          domain={[0, 100]}
+                          tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            background: "var(--card)",
+                            border: "1px solid var(--border)",
+                            borderRadius: 8,
+                            fontSize: 12,
+                          }}
+                          formatter={(val: unknown, name: unknown) => [
+                            typeof val === "number" ? val : String(val),
+                            name === "wpm"
+                              ? "WPM"
+                              : name === "accuracy"
+                                ? "Accuracy %"
+                                : String(name),
+                          ]}
+                        />
+                        <Line
+                          yAxisId="left"
+                          type="monotone"
+                          dataKey="wpm"
+                          name="WPM"
+                          stroke="var(--color-primary, var(--primary))"
+                          strokeWidth={2.5}
+                          dot={{ r: 2 }}
+                        />
+                        <Line
+                          yAxisId="right"
+                          type="monotone"
+                          dataKey="accuracy"
+                          name="Accuracy"
+                          stroke="var(--color-accent, var(--accent))"
+                          strokeWidth={2}
+                          strokeDasharray="4 3"
+                          dot={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </motion.div>
+              </>
 
               {/* Recent Drill Runs List */}
               <div className="mt-5">
@@ -656,71 +767,161 @@ export function HistoryPanel({ history, mode, onClear, onImport }: Props) {
               </div>
 
               {/* Shooter Score & Accuracy Line Chart */}
-              <div className="mt-5 h-48 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={shooterChartData}
-                    margin={{ top: 8, right: 8, bottom: 0, left: -14 }}
+              <>
+                <AnimatePresence>
+                  {isShooterChartExpanded && (
+                    <motion.div
+                      key="shooter-chart-backdrop"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      onClick={() => setIsShooterChartExpanded(false)}
+                      className="fixed inset-0 z-40 bg-background/80 backdrop-blur-md"
+                      aria-hidden="true"
+                    />
+                  )}
+                </AnimatePresence>
+
+                <motion.div
+                  layout
+                  transition={{
+                    type: "spring",
+                    stiffness: 300,
+                    damping: 28,
+                  }}
+                  onClick={(e) => {
+                    const target = e.target as HTMLElement;
+                    if (target.closest("button") || target.closest("a")) return;
+                    setIsShooterChartExpanded((prev) => !prev);
+                  }}
+                  className={
+                    isShooterChartExpanded
+                      ? "fixed inset-3 sm:inset-6 md:inset-10 lg:inset-16 z-50 flex flex-col justify-between overflow-y-auto rounded-2xl border border-accent/50 bg-card/98 p-4 sm:p-6 md:p-8 shadow-2xl backdrop-blur-xl ring-1 ring-accent/20"
+                      : "mt-5 rounded-xl border border-border/70 bg-card/60 p-3 sm:p-4 transition-colors hover:border-accent/40 cursor-pointer"
+                  }
+                >
+                  <div className="flex select-none items-center justify-between gap-2 border-b border-border/60 pb-2 mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-foreground">
+                        Word Shooter Progress
+                      </span>
+                      <span className="rounded bg-accent/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-accent">
+                        {filteredShooterHistory.length} games
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsShooterChartExpanded((prev) => !prev);
+                        }}
+                        aria-label={
+                          isShooterChartExpanded
+                            ? "Collapse shooter progress chart"
+                            : "Expand shooter progress chart"
+                        }
+                        className="flex size-7 cursor-pointer items-center justify-center rounded-lg border border-border bg-secondary/60 text-muted-foreground transition-all hover:bg-secondary hover:text-foreground active:scale-95"
+                      >
+                        {isShooterChartExpanded ? (
+                          <Minimize2 className="size-3.5 text-accent" />
+                        ) : (
+                          <Maximize2 className="size-3.5" />
+                        )}
+                      </button>
+                      {isShooterChartExpanded && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsShooterChartExpanded(false);
+                          }}
+                          aria-label="Close expanded chart"
+                          className="flex size-7 cursor-pointer items-center justify-center rounded-lg border border-border bg-secondary/60 text-muted-foreground transition-all hover:bg-destructive/20 hover:text-destructive active:scale-95"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div
+                    className={
+                      isShooterChartExpanded ? "h-[360px] sm:h-[480px] w-full" : "h-48 w-full"
+                    }
                   >
-                    <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
-                    <XAxis
-                      dataKey="game"
-                      tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      yAxisId="left"
-                      tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      yAxisId="right"
-                      orientation="right"
-                      domain={[0, 100]}
-                      tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "var(--card)",
-                        border: "1px solid var(--border)",
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
-                      formatter={(val: unknown, name: unknown) => [
-                        typeof val === "number" ? val.toLocaleString() : String(val),
-                        name === "score"
-                          ? "Score"
-                          : name === "accuracy"
-                            ? "Accuracy %"
-                            : String(name),
-                      ]}
-                    />
-                    <Line
-                      yAxisId="left"
-                      type="monotone"
-                      dataKey="score"
-                      name="Score"
-                      stroke="var(--color-primary, var(--primary))"
-                      strokeWidth={2.5}
-                      dot={{ r: 2 }}
-                    />
-                    <Line
-                      yAxisId="right"
-                      type="monotone"
-                      dataKey="accuracy"
-                      name="Accuracy"
-                      stroke="var(--color-accent, var(--accent))"
-                      strokeWidth={2}
-                      strokeDasharray="4 3"
-                      dot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={shooterChartData}
+                        margin={{ top: 8, right: 8, bottom: 0, left: -14 }}
+                      >
+                        <CartesianGrid
+                          stroke="var(--border)"
+                          strokeDasharray="3 3"
+                          vertical={false}
+                        />
+                        <XAxis
+                          dataKey="game"
+                          tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          yAxisId="left"
+                          tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          yAxisId="right"
+                          orientation="right"
+                          domain={[0, 100]}
+                          tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            background: "var(--card)",
+                            border: "1px solid var(--border)",
+                            borderRadius: 8,
+                            fontSize: 12,
+                          }}
+                          formatter={(val: unknown, name: unknown) => [
+                            typeof val === "number" ? val.toLocaleString() : String(val),
+                            name === "score"
+                              ? "Score"
+                              : name === "accuracy"
+                                ? "Accuracy %"
+                                : String(name),
+                          ]}
+                        />
+                        <Line
+                          yAxisId="left"
+                          type="monotone"
+                          dataKey="score"
+                          name="Score"
+                          stroke="var(--color-primary, var(--primary))"
+                          strokeWidth={2.5}
+                          dot={{ r: 2 }}
+                        />
+                        <Line
+                          yAxisId="right"
+                          type="monotone"
+                          dataKey="accuracy"
+                          name="Accuracy"
+                          stroke="var(--color-accent, var(--accent))"
+                          strokeWidth={2}
+                          strokeDasharray="4 3"
+                          dot={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </motion.div>
+              </>
 
               {/* Recent Shooter Games List */}
               <div className="mt-5">
