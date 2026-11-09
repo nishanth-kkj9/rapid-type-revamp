@@ -90,7 +90,12 @@ export const Route = createRootRoute({
           "Practice typing speed and accuracy with timed drills, Word Shooter arcade mode, problem keys analysis, and live stats.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:image", content: "/og-image.svg" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: "/og-image.svg" },
+      { name: "theme-color", content: "#09090b" },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },

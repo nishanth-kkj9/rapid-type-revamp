@@ -275,7 +275,7 @@ export function WpmChart({
 
               <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
                 <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  <Flame className="size-3 text-primary" /> Personal Best
+                  <Flame className="size-3 text-primary" /> Ghost Avg (Best)
                 </span>
                 <span className="mt-1 font-mono text-base font-bold text-foreground">
                   {stats.ghostAvg !== undefined ? `${stats.ghostAvg} WPM` : "None"}

@@ -10,7 +10,6 @@ import {
   Trophy,
   Zap,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { ACHIEVEMENTS, type AchievementState } from "@/lib/achievements";
 
 const ICONS: Record<string, typeof Zap> = {
@@ -26,23 +25,31 @@ const ICONS: Record<string, typeof Zap> = {
   "boss-slayer": Crown,
 };
 
+function formatUnlockDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    }
+  } catch {
+    // fallback
+  }
+  return iso.slice(0, 10);
+}
+
 interface Props {
   unlocked: AchievementState["unlocked"];
   className?: string;
   defaultOpen?: boolean;
 }
 
-/** Expandable achievements collection with Framer Motion layout transition. */
+/** Expandable achievements collection with pure CSS transition (no eager framer-motion dependency). */
 export function AchievementsStrip({ unlocked, className = "", defaultOpen = false }: Props) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const count = ACHIEVEMENTS.filter((a) => unlocked[a.id]).length;
 
   return (
-    <motion.div
-      layout
-      transition={{ layout: { duration: 0.3, ease: [0.16, 1, 0.3, 1] } }}
-      className={`panel p-3 text-sm ${className}`}
-    >
+    <div className={`panel p-3 text-sm transition-all ${className}`}>
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
@@ -59,77 +66,57 @@ export function AchievementsStrip({ unlocked, className = "", defaultOpen = fals
           <span className="font-semibold text-primary">
             {Math.round((count / ACHIEVEMENTS.length) * 100)}%
           </span>
-          <motion.div
-            animate={{ rotate: isOpen ? 180 : 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
-            className="flex items-center justify-center"
-          >
-            <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden="true" />
-          </motion.div>
+          <ChevronDown
+            className={`size-3.5 text-muted-foreground transition-transform duration-200 ${
+              isOpen ? "rotate-180" : ""
+            }`}
+            aria-hidden="true"
+          />
         </div>
       </button>
 
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            key="achievements-content"
-            layout
-            initial={{ opacity: 0, height: 0 }}
-            animate={{
-              opacity: 1,
-              height: "auto",
-              transition: {
-                height: { duration: 0.32, ease: [0.16, 1, 0.3, 1] },
-                opacity: { duration: 0.25, delay: 0.05 },
-              },
-            }}
-            exit={{
-              opacity: 0,
-              height: 0,
-              transition: {
-                height: { duration: 0.25, ease: [0.16, 1, 0.3, 1] },
-                opacity: { duration: 0.15 },
-              },
-            }}
-            className="overflow-hidden"
-          >
-            <div className="mt-3 grid grid-cols-1 gap-2 pt-1 sm:grid-cols-2">
-              {ACHIEVEMENTS.map((a) => {
-                const got = unlocked[a.id];
-                const Icon = ICONS[a.id] ?? Trophy;
-                return (
-                  <div
-                    key={a.id}
-                    className={`flex items-start gap-2 rounded-lg border p-2.5 transition-colors ${
-                      got
-                        ? "border-primary/40 bg-primary/10"
-                        : "border-border bg-secondary/40 opacity-60"
-                    }`}
-                  >
-                    <Icon
-                      className={`mt-0.5 size-4 shrink-0 ${got ? "text-primary" : "text-muted-foreground"}`}
-                      aria-hidden="true"
-                    />
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold">
-                        {a.title}
-                        {got ? (
-                          <span className="ml-2 font-mono text-[10px] font-normal text-muted-foreground">
-                            {got.slice(0, 10)}
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="text-[11px] leading-snug text-muted-foreground">
-                        {a.description}
-                      </div>
+      <div
+        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
+          isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="mt-3 grid grid-cols-1 gap-2 pt-1 sm:grid-cols-2">
+            {ACHIEVEMENTS.map((a) => {
+              const got = unlocked[a.id];
+              const Icon = ICONS[a.id] ?? Trophy;
+              return (
+                <div
+                  key={a.id}
+                  className={`flex items-start gap-2 rounded-lg border p-2.5 transition-colors ${
+                    got
+                      ? "border-primary/40 bg-primary/10"
+                      : "border-border bg-secondary/40 opacity-60"
+                  }`}
+                >
+                  <Icon
+                    className={`mt-0.5 size-4 shrink-0 ${got ? "text-primary" : "text-muted-foreground"}`}
+                    aria-hidden="true"
+                  />
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold">
+                      {a.title}
+                      {got ? (
+                        <span className="ml-2 font-mono text-[10px] font-normal text-muted-foreground">
+                          {formatUnlockDate(got)}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="text-[11px] leading-snug text-muted-foreground">
+                      {a.description}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

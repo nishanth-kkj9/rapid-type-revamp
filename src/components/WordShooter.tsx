@@ -682,7 +682,7 @@ export function WordShooter({
           return (
             <div
               key={enemy.id}
-              className={`absolute -translate-x-1/2 select-none transition-transform duration-75 ${
+              className={`absolute -translate-x-1/2 select-none will-change-transform ${
                 isTarget ? "z-20 scale-105" : "z-10"
               }`}
               style={{
@@ -724,7 +724,7 @@ export function WordShooter({
         {shots.map((shot) => (
           <div
             key={shot.id}
-            className="pointer-events-none absolute h-6 w-1 -translate-x-1/2 rounded-full bg-primary shadow-[0_0_8px_var(--color-primary)] transition-all"
+            className="pointer-events-none absolute h-6 w-1 -translate-x-1/2 rounded-full bg-primary shadow-[0_0_8px_var(--color-primary)] will-change-transform"
             style={{
               left: `${shot.targetX}%`,
               top: `${shot.y}%`,

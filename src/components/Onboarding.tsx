@@ -20,22 +20,28 @@ export function Onboarding({ onStart }: Props) {
     }
   }, []);
 
-  const dismiss = useCallback(() => {
-    try {
-      localStorage.setItem(ONBOARDED_KEY, "1");
-    } catch {
-      // ignore
-    }
-    setOpen(false);
-    onStart();
-  }, [onStart]);
+  const dismiss = useCallback(
+    (start = false) => {
+      try {
+        localStorage.setItem(ONBOARDED_KEY, "1");
+      } catch {
+        // ignore
+      }
+      setOpen(false);
+      if (start) onStart();
+    },
+    [onStart],
+  );
 
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        dismiss();
+        dismiss(false);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        dismiss(true);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -79,11 +85,11 @@ export function Onboarding({ onStart }: Props) {
         </ol>
         <button
           type="button"
-          onClick={dismiss}
+          onClick={() => dismiss(true)}
           autoFocus
           className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-transform hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
         >
-          Start 15-second test <kbd className="ml-1 opacity-70 font-mono text-xs">Esc</kbd>
+          Start 15-second test <kbd className="ml-1 opacity-70 font-mono text-xs">Enter</kbd>
         </button>
         <p className="text-xs text-muted-foreground">
           Everything stays in your browser. No account, no tracking.

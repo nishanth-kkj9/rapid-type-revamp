@@ -707,7 +707,7 @@ function Index() {
   useEffect(() => {
     if (finished) {
       resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      againRef.current?.focus();
+      againRef.current?.focus({ preventScroll: true });
     }
   }, [finished]);
 
@@ -784,12 +784,16 @@ function Index() {
         setErrorFlash(true);
         if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
         flashTimerRef.current = window.setTimeout(() => setErrorFlash(false), 140);
-        // Track missed words for targeted drill remediation
-        const wordMatch = text.slice(0, value.length).split(/\s+/).pop();
-        if (wordMatch) {
-          const cleanWord = wordMatch.replace(/[^\w]/g, "");
+        // Track missed full target words for targeted drill remediation
+        const currIdx = value.length - 1;
+        const startIdx = text.lastIndexOf(" ", currIdx) + 1;
+        const spaceAfter = text.indexOf(" ", currIdx);
+        const endIdx = spaceAfter === -1 ? text.length : spaceAfter;
+        const fullWord = text.slice(startIdx, endIdx);
+        if (fullWord) {
+          const cleanWord = fullWord.replace(/[^\w]/g, "");
           if (cleanWord.length > 1) {
-            missedWordsRef.current.add(cleanWord);
+            missedWordsRef.current.add(cleanWord.toLowerCase());
             setMissedWords(Array.from(missedWordsRef.current));
           }
         }
@@ -1315,8 +1319,9 @@ function Index() {
           {finished ? (
             <section
               ref={resultsRef}
+              tabIndex={-1}
               aria-label="Run results"
-              className="panel relative mt-4 flex flex-col items-center justify-start gap-4 p-6 text-center sm:p-8"
+              className="panel relative mt-4 flex flex-col items-center justify-start gap-4 p-6 text-center focus-visible:outline-none sm:p-8"
             >
               {isRecord ? (
                 <span className="animate-in fade-in zoom-in-95 rounded-full bg-accent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent-foreground shadow-sm duration-300">
@@ -1362,6 +1367,37 @@ function Index() {
                   ) : null}
                 </div>
               ) : null}
+
+              {/* Primary Actions directly underneath headline & diagnosis */}
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  ref={againRef}
+                  onClick={restart}
+                  className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 cursor-pointer"
+                >
+                  Go again <span className="ml-1 text-xs opacity-75 font-mono">(Tab)</span>
+                </button>
+                {effectiveMissedWordsCount > 0 ? (
+                  <button
+                    type="button"
+                    onClick={handlePracticeMissedWords}
+                    className="flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/25 cursor-pointer"
+                  >
+                    <Target className="size-4 text-accent" />
+                    Practice Missed Words ({effectiveMissedWordsCount})
+                  </button>
+                ) : weakKeys3.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={handlePracticeWeakKeys}
+                    className="flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/25 cursor-pointer"
+                  >
+                    <Target className="size-4 text-accent" />
+                    Target Weak Keys ({weakKeys3.join(", ")})
+                  </button>
+                ) : null}
+              </div>
 
               <p className="text-xs text-muted-foreground">
                 Too tense?{" "}
@@ -1454,35 +1490,6 @@ function Index() {
               {drillMode === "quote" && quoteAuthor ? (
                 <p className="text-xs italic text-muted-foreground sm:text-sm">— {quoteAuthor}</p>
               ) : null}
-              <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-                <button
-                  type="button"
-                  ref={againRef}
-                  onClick={restart}
-                  className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 cursor-pointer"
-                >
-                  Go again <span className="ml-1 text-xs opacity-75 font-mono">(Tab)</span>
-                </button>
-                {effectiveMissedWordsCount > 0 ? (
-                  <button
-                    type="button"
-                    onClick={handlePracticeMissedWords}
-                    className="flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/25 cursor-pointer"
-                  >
-                    <Target className="size-4 text-accent" />
-                    Practice Missed Words ({effectiveMissedWordsCount})
-                  </button>
-                ) : weakKeys3.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={handlePracticeWeakKeys}
-                    className="flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/25 cursor-pointer"
-                  >
-                    <Target className="size-4 text-accent" />
-                    Target Weak Keys ({weakKeys3.join(", ")})
-                  </button>
-                ) : null}
-              </div>
             </section>
           ) : null}
 
