@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Timer, Keyboard, LineChart } from "lucide-react";
 
 export const ONBOARDED_KEY = "ttp:onboarded:v1";
@@ -20,6 +20,16 @@ export function Onboarding({ onStart }: Props) {
     }
   }, []);
 
+  const dismiss = useCallback(() => {
+    try {
+      localStorage.setItem(ONBOARDED_KEY, "1");
+    } catch {
+      // ignore
+    }
+    setOpen(false);
+    onStart();
+  }, [onStart]);
+
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -30,19 +40,9 @@ export function Onboarding({ onStart }: Props) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open]);
+  }, [open, dismiss]);
 
   if (!open) return null;
-
-  const dismiss = () => {
-    try {
-      localStorage.setItem(ONBOARDED_KEY, "1");
-    } catch {
-      // ignore
-    }
-    setOpen(false);
-    onStart();
-  };
 
   return (
     <div

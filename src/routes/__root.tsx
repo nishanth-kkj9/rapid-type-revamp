@@ -116,11 +116,11 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Applies the saved theme before first paint to avoid a dark flash. */}
+        {/* Applies the saved theme or OS preference before first paint to avoid a theme flash. */}
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{if(localStorage.getItem('ttp:theme:v1')==='light')document.documentElement.classList.add('light')}catch(e){}",
+              "try{var s=localStorage.getItem('ttp:theme:v1');if(s==='light'||(!s&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches))document.documentElement.classList.add('light')}catch(e){}",
           }}
         />
         <HeadContent />

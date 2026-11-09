@@ -1,23 +1,9 @@
-import { useEffect, useState } from "react";
 import { KEYBOARD_ROWS, KEY_WIDTHS, keyFor } from "@/lib/keyboardLayout";
 
 interface Props {
   nextChar: string | null;
   errorFlash: boolean;
   pressedChar?: string | null;
-}
-
-export function useCoarsePointer(): boolean {
-  const [coarse, setCoarse] = useState(false);
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return;
-    const mq = window.matchMedia("(pointer: coarse)");
-    setCoarse(mq.matches);
-    const on = (e: MediaQueryListEvent) => setCoarse(e.matches);
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
-  return coarse;
 }
 
 /** Compact symbols for narrow screens where full labels can't fit. */

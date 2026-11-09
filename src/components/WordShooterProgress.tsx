@@ -87,27 +87,8 @@ export function WordShooterProgress({
       });
     }
 
-    // Fallback if raw per-second samples were unavailable: synthesize second points from summary
-    const duration = Math.max(2, summary.durationSec || 15);
-    const totalWords = summary.wordsDestroyed || 1;
-    const avgWordsPerSec = totalWords / duration;
-
-    return Array.from({ length: duration }, (_, i) => {
-      const sec = i + 1;
-      const progress = sec / duration;
-      // Slight sinusoidal natural curve to mimic wave pacing
-      const velocityWave = Math.sin((sec / duration) * Math.PI) * 0.4 + 0.8;
-      const rateWpm = Math.max(10, Math.round(avgWordsPerSec * velocityWave * 60));
-      const cumulativeWords = Math.min(totalWords, Math.round(avgWordsPerSec * sec));
-      const score = Math.round(progress * summary.score);
-
-      return {
-        second: sec,
-        rateWpm,
-        cumulativeWords,
-        score,
-      };
-    });
+    // When raw per-second samples were unavailable, do not synthesize fake data
+    return [];
   }, [summary, samples]);
 
   const stats = useMemo(() => {
@@ -301,68 +282,76 @@ export function WordShooterProgress({
         {/* Dynamic Responsive Chart Area */}
         <div
           onClick={() => {
-            if (!isExpanded) setIsExpanded(true);
+            if (!isExpanded && data.length > 0) setIsExpanded(true);
           }}
           className={`mt-3 rounded-xl border border-border/80 bg-background/60 p-2 sm:p-4 transition-all ${
             isExpanded
               ? "h-[340px] sm:h-[440px] md:h-[500px]"
-              : "h-44 sm:h-52 cursor-pointer hover:border-primary/50"
+              : data.length > 0
+                ? "h-44 sm:h-52 cursor-pointer hover:border-primary/50"
+                : "h-32 flex items-center justify-center"
           }`}
         >
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 12, right: 16, bottom: 6, left: -4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.4} />
-              <XAxis
-                dataKey="second"
-                tick={{ fontSize: isExpanded ? 12 : 10 }}
-                stroke="var(--color-muted-foreground)"
-                tickLine={false}
-                axisLine={{ stroke: "var(--color-border)" }}
-                label={{
-                  value: "Combat Time (seconds)",
-                  position: "insideBottomRight",
-                  offset: -4,
-                  fontSize: isExpanded ? 12 : 10,
-                  fill: "var(--color-muted-foreground)",
-                }}
-              />
-              <YAxis
-                width={isExpanded ? 40 : 34}
-                tick={{ fontSize: isExpanded ? 12 : 10 }}
-                stroke="var(--color-muted-foreground)"
-                tickLine={false}
-                axisLine={{ stroke: "var(--color-border)" }}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: "var(--color-card)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 10,
-                  fontSize: 12,
-                  padding: "8px 12px",
-                  boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
-                }}
-                formatter={(v: number, name: string) => [
-                  name === "rateWpm" ? `${v} WPM` : `${v} words`,
-                  name === "rateWpm" ? "Fire Velocity" : "Words Destroyed",
-                ]}
-                labelFormatter={(l) => `Combat Time: ${l}s`}
-              />
-              <Line
-                type="monotone"
-                dataKey="rateWpm"
-                stroke="var(--color-accent)"
-                strokeWidth={isExpanded ? 3 : 2}
-                dot={{ r: isExpanded ? 3.5 : 2, fill: "var(--color-accent)" }}
-                activeDot={{
-                  r: isExpanded ? 7 : 5,
-                  stroke: "var(--color-background)",
-                  strokeWidth: 2,
-                }}
-                isAnimationActive={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          {data.length === 0 ? (
+            <p className="text-center text-xs text-muted-foreground">
+              Per-second firing velocity telemetry unavailable for this run.
+            </p>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={data} margin={{ top: 12, right: 16, bottom: 6, left: -4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.4} />
+                <XAxis
+                  dataKey="second"
+                  tick={{ fontSize: isExpanded ? 12 : 10 }}
+                  stroke="var(--color-muted-foreground)"
+                  tickLine={false}
+                  axisLine={{ stroke: "var(--color-border)" }}
+                  label={{
+                    value: "Combat Time (seconds)",
+                    position: "insideBottomRight",
+                    offset: -4,
+                    fontSize: isExpanded ? 12 : 10,
+                    fill: "var(--color-muted-foreground)",
+                  }}
+                />
+                <YAxis
+                  width={isExpanded ? 40 : 34}
+                  tick={{ fontSize: isExpanded ? 12 : 10 }}
+                  stroke="var(--color-muted-foreground)"
+                  tickLine={false}
+                  axisLine={{ stroke: "var(--color-border)" }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--color-card)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 10,
+                    fontSize: 12,
+                    padding: "8px 12px",
+                    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
+                  }}
+                  formatter={(v: number, name: string) => [
+                    name === "rateWpm" ? `${v} WPM` : `${v} words`,
+                    name === "rateWpm" ? "Fire Velocity" : "Words Destroyed",
+                  ]}
+                  labelFormatter={(l) => `Combat Time: ${l}s`}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="rateWpm"
+                  stroke="var(--color-accent)"
+                  strokeWidth={isExpanded ? 3 : 2}
+                  dot={{ r: isExpanded ? 3.5 : 2, fill: "var(--color-accent)" }}
+                  activeDot={{
+                    r: isExpanded ? 7 : 5,
+                    stroke: "var(--color-background)",
+                    strokeWidth: 2,
+                  }}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Legend & Footer Info */}

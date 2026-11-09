@@ -283,6 +283,21 @@
   animation: score-popup-anim 700ms ease-out forwards;
 }
 
+@keyframes particle-burst {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(0.3);
+  }
+}
+
+.particle-burst {
+  animation: particle-burst 400ms ease-out forwards;
+}
+
 @keyframes level-banner-anim {
   0% {
     opacity: 0;
@@ -382,6 +397,7 @@
   .caret,
   .caret-smooth,
   .score-popup,
+  .particle-burst,
   .level-banner,
   .skeleton,
   .digit-pop,

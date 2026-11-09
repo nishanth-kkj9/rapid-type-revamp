@@ -745,15 +745,16 @@ export function WordShooter({
             {exp.particles.map((p, idx) => (
               <div
                 key={idx}
-                className="absolute rounded-full transition-transform duration-300 ease-out"
-                style={{
-                  width: `${p.size}px`,
-                  height: `${p.size}px`,
-                  backgroundColor: p.color,
-                  transform: `translate(${p.dx}px, ${p.dy}px)`,
-                  opacity: 0,
-                  transition: "transform 400ms ease-out, opacity 400ms ease-out",
-                }}
+                className="particle-burst pointer-events-none absolute rounded-full"
+                style={
+                  {
+                    width: `${p.size}px`,
+                    height: `${p.size}px`,
+                    backgroundColor: p.color,
+                    "--dx": `${p.dx}px`,
+                    "--dy": `${p.dy}px`,
+                  } as React.CSSProperties
+                }
               />
             ))}
           </div>
