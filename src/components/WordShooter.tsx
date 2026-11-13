@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { ShooterSettings } from "@/lib/shooterSettings";
 import {
   playLaserSound,
@@ -52,6 +52,63 @@ interface WordShooterProps {
   onStart?: () => void;
 }
 
+interface FrameState {
+  enemies: Enemy[];
+  shots: Shot[];
+  explosions: Explosion[];
+  popups: Popup[];
+}
+
+type FrameAction =
+  | { type: "RESET"; enemies: Enemy[] }
+  | { type: "SET_ENEMIES"; enemies: Enemy[] }
+  | { type: "TICK"; enemies: Enemy[]; dt: number }
+  | { type: "ADD_SHOT"; shot: Shot }
+  | { type: "ADD_EXPLOSION"; explosion: Explosion }
+  | { type: "REMOVE_EXPLOSION"; id: number }
+  | { type: "ADD_POPUP"; popup: Popup }
+  | { type: "REMOVE_POPUP"; id: number };
+
+const INITIAL_FRAME: FrameState = {
+  enemies: [],
+  shots: [],
+  explosions: [],
+  popups: [],
+};
+
+function frameReducer(state: FrameState, action: FrameAction): FrameState {
+  switch (action.type) {
+    case "RESET":
+      return { enemies: action.enemies, shots: [], explosions: [], popups: [] };
+    case "SET_ENEMIES":
+      return { ...state, enemies: action.enemies };
+    case "TICK": {
+      const nextShots =
+        state.shots.length > 0
+          ? state.shots.map((s) => ({ ...s, y: s.y - 240 * action.dt })).filter((s) => s.y > -10)
+          : state.shots;
+      const nextExplosions =
+        state.explosions.length > 8 ? state.explosions.slice(-8) : state.explosions;
+      return {
+        ...state,
+        enemies: action.enemies,
+        shots: nextShots,
+        explosions: nextExplosions,
+      };
+    }
+    case "ADD_SHOT":
+      return { ...state, shots: [...state.shots, action.shot] };
+    case "ADD_EXPLOSION":
+      return { ...state, explosions: [...state.explosions, action.explosion] };
+    case "REMOVE_EXPLOSION":
+      return { ...state, explosions: state.explosions.filter((e) => e.id !== action.id) };
+    case "ADD_POPUP":
+      return { ...state, popups: [...state.popups, action.popup] };
+    case "REMOVE_POPUP":
+      return { ...state, popups: state.popups.filter((p) => p.id !== action.id) };
+  }
+}
+
 export function WordShooter({
   settings,
   onOpenSettings,
@@ -63,10 +120,12 @@ export function WordShooter({
 }: WordShooterProps) {
   const [mounted, setMounted] = useState(false);
   const [phase, setPhase] = useState<"idle" | "playing" | "paused" | "over">("idle");
-  const [enemies, setEnemies] = useState<Enemy[]>([]);
-  const [shots, setShots] = useState<Shot[]>([]);
-  const [explosions, setExplosions] = useState<Explosion[]>([]);
-  const [popups, setPopups] = useState<Popup[]>([]);
+  const [frame, dispatchFrame] = useReducer(frameReducer, INITIAL_FRAME);
+  const { enemies, shots, explosions, popups } = frame;
+  const [fieldSize, setFieldSize] = useState<{ width: number; height: number }>({
+    width: 800,
+    height: 440,
+  });
   const [levelBanner, setLevelBanner] = useState<number | null>(null);
   const prevLevelRef = useRef(1);
   const [score, setScore] = useState(0);
@@ -84,6 +143,7 @@ export function WordShooter({
   const [liveAnnouncement, setLiveAnnouncement] = useState("");
 
   const enemiesRef = useRef<Enemy[]>([]);
+  const fieldRef = useRef<HTMLDivElement>(null);
   const idRef = useRef(10);
   const poolRef = useRef<string[]>([]);
   const spawnRef = useRef(2.0);
@@ -120,6 +180,23 @@ export function WordShooter({
     }
   }, []);
 
+  // Measure field dimensions so translate3d uses GPU-composited pixel offsets
+  useEffect(() => {
+    const el = fieldRef.current;
+    if (!el) return;
+    const measure = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setFieldSize({ width: rect.width, height: rect.height });
+      }
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   // Smoothly update speed on existing enemies without resetting the field
   const prevSpeedRef = useRef(settings.speedMultiplier);
   useEffect(() => {
@@ -128,7 +205,7 @@ export function WordShooter({
       const ratio = settings.speedMultiplier / prevSpeed;
       const next = enemiesRef.current.map((e) => ({ ...e, speed: e.speed * ratio }));
       enemiesRef.current = next;
-      setEnemies(next);
+      dispatchFrame({ type: "SET_ENEMIES", enemies: next });
     }
     prevSpeedRef.current = settings.speedMultiplier;
   }, [settings.speedMultiplier]);
@@ -164,10 +241,7 @@ export function WordShooter({
     spawnRef.current = 2.0;
     const initial = createInitialEnemies(pool, settings.speedMultiplier, 1);
     enemiesRef.current = initial;
-    setEnemies(initial);
-    setShots([]);
-    setExplosions([]);
-    setPopups([]);
+    dispatchFrame({ type: "RESET", enemies: initial });
     setLevelBanner(null);
     prevLevelRef.current = 1;
     lastBossLevelSpawnedRef.current = 0;
@@ -238,15 +312,15 @@ export function WordShooter({
   const fire = useCallback(
     (enemy: Enemy) => {
       setShipX(enemy.x);
-      setShots((s) => [
-        ...s,
-        {
+      dispatchFrame({
+        type: "ADD_SHOT",
+        shot: {
           id: idRef.current++,
           startX: enemy.x,
           targetX: enemy.x,
           y: 86,
         },
-      ]);
+      });
       playLaserSound(soundMuted);
     },
     [soundMuted],
@@ -277,9 +351,9 @@ export function WordShooter({
       particles,
     };
 
-    setExplosions((prev) => [...prev, exp]);
+    dispatchFrame({ type: "ADD_EXPLOSION", explosion: exp });
     setTimeout(() => {
-      setExplosions((prev) => prev.filter((e) => e.id !== exp.id));
+      dispatchFrame({ type: "REMOVE_EXPLOSION", id: exp.id });
     }, 400);
   }, []);
 
@@ -290,9 +364,9 @@ export function WordShooter({
       y,
       text,
     };
-    setPopups((prev) => [...prev, p]);
+    dispatchFrame({ type: "ADD_POPUP", popup: p });
     setTimeout(() => {
-      setPopups((prev) => prev.filter((item) => item.id !== p.id));
+      dispatchFrame({ type: "REMOVE_POPUP", id: p.id });
     }, 700);
   }, []);
 
@@ -408,19 +482,9 @@ export function WordShooter({
         }
       }
 
-      // Commit plain value; keep ref mirror in sync
+      // Commit plain value; keep ref mirror in sync & batch frame update in one dispatch
       enemiesRef.current = next;
-      setEnemies(next);
-
-      // Advance shots
-      setShots((prev) =>
-        prev.length > 0
-          ? prev.map((s) => ({ ...s, y: s.y - 240 * dt })).filter((s) => s.y > -10)
-          : prev,
-      );
-
-      // Clean up explosions
-      setExplosions((prev) => (prev.length > 8 ? prev.slice(-8) : prev));
+      dispatchFrame({ type: "TICK", enemies: next, dt });
 
       raf = requestAnimationFrame(tick);
     };
@@ -494,7 +558,7 @@ export function WordShooter({
 
       // Commit plain values — no functional updaters, no side effects inside.
       enemiesRef.current = res.nextEnemies;
-      setEnemies(res.nextEnemies);
+      dispatchFrame({ type: "SET_ENEMIES", enemies: res.nextEnemies });
       targetIdRef.current = res.nextTargetId;
       setTargetId(res.nextTargetId);
 
@@ -657,6 +721,7 @@ export function WordShooter({
 
       {/* Main Canvas Arena */}
       <div
+        ref={fieldRef}
         role="region"
         aria-label="Word shooter game field"
         onClick={() => {
@@ -678,20 +743,23 @@ export function WordShooter({
           const nextChar = enemy.word[enemy.typed] ?? "";
           const remainingPart = enemy.word.slice(enemy.typed + 1);
           const isDanger = enemy.y > 65;
+          const px = (enemy.x / 100) * fieldSize.width;
+          const py = (enemy.y / 100) * fieldSize.height;
 
           return (
             <div
               key={enemy.id}
-              className={`absolute -translate-x-1/2 select-none will-change-transform ${
-                isTarget ? "z-20 scale-105" : "z-10"
+              className={`absolute left-0 top-0 select-none will-change-transform ${
+                isTarget ? "z-20" : "z-10"
               }`}
               style={{
-                left: `${enemy.x}%`,
-                top: `${enemy.y}%`,
+                transform: `translate3d(${px}px, ${py}px, 0) translateX(-50%)`,
               }}
             >
               <div
                 className={`relative flex items-center gap-1 rounded-xl border font-mono shadow-md transition-colors ${
+                  isTarget ? "scale-105 " : ""
+                }${
                   enemy.boss
                     ? "border-destructive ring-2 ring-destructive animate-pulse bg-destructive/20 text-foreground text-base px-3.5 py-2 font-semibold"
                     : isTarget
@@ -721,58 +789,69 @@ export function WordShooter({
         })}
 
         {/* Laser Shots */}
-        {shots.map((shot) => (
-          <div
-            key={shot.id}
-            className="pointer-events-none absolute h-6 w-1 -translate-x-1/2 rounded-full bg-primary shadow-[0_0_8px_var(--color-primary)] will-change-transform"
-            style={{
-              left: `${shot.targetX}%`,
-              top: `${shot.y}%`,
-            }}
-          />
-        ))}
+        {shots.map((shot) => {
+          const px = (shot.targetX / 100) * fieldSize.width;
+          const py = (shot.y / 100) * fieldSize.height;
+          return (
+            <div
+              key={shot.id}
+              className="pointer-events-none absolute left-0 top-0 h-6 w-1 rounded-full bg-primary shadow-[0_0_8px_var(--color-primary)] will-change-transform"
+              style={{
+                transform: `translate3d(${px}px, ${py}px, 0) translateX(-50%)`,
+              }}
+            />
+          );
+        })}
 
         {/* Explosion Particles */}
-        {explosions.map((exp) => (
-          <div
-            key={exp.id}
-            className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
-            style={{
-              left: `${exp.x}%`,
-              top: `${exp.y}%`,
-            }}
-          >
-            {exp.particles.map((p, idx) => (
-              <div
-                key={idx}
-                className="particle-burst pointer-events-none absolute rounded-full"
-                style={
-                  {
-                    width: `${p.size}px`,
-                    height: `${p.size}px`,
-                    backgroundColor: p.color,
-                    "--dx": `${p.dx}px`,
-                    "--dy": `${p.dy}px`,
-                  } as React.CSSProperties
-                }
-              />
-            ))}
-          </div>
-        ))}
+        {explosions.map((exp) => {
+          const px = (exp.x / 100) * fieldSize.width;
+          const py = (exp.y / 100) * fieldSize.height;
+          return (
+            <div
+              key={exp.id}
+              className="pointer-events-none absolute left-0 top-0 will-change-transform"
+              style={{
+                transform: `translate3d(${px}px, ${py}px, 0) translate(-50%, -50%)`,
+              }}
+            >
+              {exp.particles.map((p, idx) => (
+                <div
+                  key={idx}
+                  className="particle-burst pointer-events-none absolute rounded-full"
+                  style={
+                    {
+                      width: `${p.size}px`,
+                      height: `${p.size}px`,
+                      backgroundColor: p.color,
+                      "--dx": `${p.dx}px`,
+                      "--dy": `${p.dy}px`,
+                    } as React.CSSProperties
+                  }
+                />
+              ))}
+            </div>
+          );
+        })}
 
         {/* Floating Score Popups */}
-        {popups.map((pop) => (
-          <span
-            key={pop.id}
-            className="score-popup pointer-events-none absolute z-20 -translate-x-1/2 font-mono text-sm font-bold text-primary drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
-            style={{
-              left: `${pop.x}%`,
-              top: `${pop.y}%`,
-            }}
-          >
-            {pop.text}
-          </span>
-        ))}
+        {popups.map((pop) => {
+          const px = (pop.x / 100) * fieldSize.width;
+          const py = (pop.y / 100) * fieldSize.height;
+          return (
+            <div
+              key={pop.id}
+              className="pointer-events-none absolute left-0 top-0 z-20 will-change-transform"
+              style={{
+                transform: `translate3d(${px}px, ${py}px, 0)`,
+              }}
+            >
+              <span className="score-popup block font-mono text-sm font-bold text-primary drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                {pop.text}
+              </span>
+            </div>
+          );
+        })}
 
         {/* Level Up Banner */}
         {levelBanner !== null && (
@@ -785,8 +864,10 @@ export function WordShooter({
 
         {/* Defender Ship Cannon */}
         <div
-          className="pointer-events-none absolute bottom-4 -translate-x-1/2 transition-all duration-100 ease-out"
-          style={{ left: `${shipX}%` }}
+          className="pointer-events-none absolute bottom-4 left-0 transition-transform duration-100 ease-out will-change-transform"
+          style={{
+            transform: `translate3d(${(shipX / 100) * fieldSize.width}px, 0, 0) translateX(-50%)`,
+          }}
         >
           <div className="relative flex flex-col items-center">
             {/* Cannon Barrel */}

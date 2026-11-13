@@ -1,14 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import { motion, AnimatePresence } from "framer-motion";
+import { useMemo, useRef, useState } from "react";
 import { importHistoryResult, type HistoryEntry } from "@/lib/typingStats";
 import { toast } from "sonner";
 import {
@@ -21,10 +11,18 @@ import {
   Trophy,
   Target,
   Zap,
-  Maximize2,
-  Minimize2,
-  X,
+  ClipboardPaste,
 } from "lucide-react";
+import { ExpandableChartCard } from "@/components/charts/ExpandableChartCard";
+import { SvgLineChart, type LineSeriesConfig } from "@/components/charts/LineChart";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Props {
   history: HistoryEntry[];
@@ -40,28 +38,35 @@ type DrillDurationFilter = (typeof DRILL_DURATIONS)[number];
 const DIFFICULTIES = ["all", "easy", "medium", "hard"] as const;
 type DifficultyFilter = (typeof DIFFICULTIES)[number];
 
+interface DrillChartRow extends Record<string, unknown> {
+  run: number;
+  wpm: number;
+  rawWpm: number;
+  accuracy: number;
+  mode: string;
+  diff: string;
+  date: string;
+}
+
+interface ShooterChartRow extends Record<string, unknown> {
+  game: number;
+  score: number;
+  level: number;
+  words: number;
+  accuracy: number;
+  diff: string;
+  date: string;
+}
+
 export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: Props) {
   const [importError, setImportError] = useState<string | null>(null);
   const [drillDuration, setDrillDuration] = useState<DrillDurationFilter>("all");
   const [drillDifficulty, setDrillDifficulty] = useState<DifficultyFilter>("all");
   const [shooterDifficulty, setShooterDifficulty] = useState<DifficultyFilter>("all");
   const [confirmClear, setConfirmClear] = useState<boolean>(false);
-  const [isDrillChartExpanded, setIsDrillChartExpanded] = useState<boolean>(false);
-  const [isShooterChartExpanded, setIsShooterChartExpanded] = useState<boolean>(false);
+  const [pasteOpen, setPasteOpen] = useState<boolean>(false);
+  const [pasteText, setPasteText] = useState<string>("");
   const fileRef = useRef<HTMLInputElement>(null);
-
-  // Close full-screen charts on Escape
-  useEffect(() => {
-    if (!isDrillChartExpanded && !isShooterChartExpanded) return undefined;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setIsDrillChartExpanded(false);
-        setIsShooterChartExpanded(false);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isDrillChartExpanded, isShooterChartExpanded]);
 
   // Split history by mode
   const drillAll = useMemo(() => history.filter((h) => h.mode !== "shooter"), [history]);
@@ -70,13 +75,11 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
   // Filtered Drill History
   const filteredDrillHistory = useMemo(() => {
     return drillAll.filter((h) => {
-      // Duration filter
       if (drillDuration !== "all") {
         const m = (h.mode || "30").toLowerCase();
         const matchesDuration = m === drillDuration || m === drillDuration.replace("s", "");
         if (!matchesDuration) return false;
       }
-      // Difficulty filter
       if (drillDifficulty !== "all") {
         if (h.difficulty.toLowerCase() !== drillDifficulty) return false;
       }
@@ -121,7 +124,7 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
   }, [filteredDrillHistory]);
 
   // Drill Chart Data
-  const drillChartData = useMemo(
+  const drillChartData: DrillChartRow[] = useMemo(
     () =>
       filteredDrillHistory
         .slice(0, 25)
@@ -172,7 +175,7 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
   );
 
   // Shooter Chart Data
-  const shooterChartData = useMemo(
+  const shooterChartData: ShooterChartRow[] = useMemo(
     () =>
       filteredShooterHistory
         .slice(0, 25)
@@ -191,6 +194,70 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
         })),
     [filteredShooterHistory],
   );
+
+  const drillSeries: LineSeriesConfig<DrillChartRow>[] = useMemo(
+    () => [
+      {
+        key: "wpm",
+        label: "WPM",
+        color: "var(--color-primary)",
+        strokeWidth: 2.5,
+        showDots: true,
+        fillArea: true,
+        formatValue: (v) => `${v} WPM`,
+      },
+      {
+        key: "accuracy",
+        label: "Accuracy",
+        color: "var(--color-accent)",
+        strokeWidth: 2,
+        dashed: true,
+        axis: "right",
+        formatValue: (v) => `${v}%`,
+      },
+    ],
+    [],
+  );
+
+  const shooterSeries: LineSeriesConfig<ShooterChartRow>[] = useMemo(
+    () => [
+      {
+        key: "score",
+        label: "Score",
+        color: "var(--color-primary)",
+        strokeWidth: 2.5,
+        showDots: true,
+        fillArea: true,
+        formatValue: (v) => v.toLocaleString(),
+      },
+      {
+        key: "accuracy",
+        label: "Accuracy",
+        color: "var(--color-accent)",
+        strokeWidth: 2,
+        dashed: true,
+        axis: "right",
+        formatValue: (v) => `${v}%`,
+      },
+    ],
+    [],
+  );
+
+  const applyImportJson = (rawText: string) => {
+    const res = importHistoryResult(rawText);
+    if (!res.ok) {
+      if (res.reason === "quota") {
+        setImportError("Browser storage is full. Please clear space or export existing runs.");
+      } else {
+        setImportError("Invalid or corrupted history JSON.");
+      }
+      return false;
+    }
+    setImportError(null);
+    toast.success(`Imported ${res.list.length} history records.`);
+    onImport?.(res.list);
+    return true;
+  };
 
   const handleExport = () => {
     const listToExport = mode === "drill" ? drillAll : shooterAll;
@@ -214,20 +281,17 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
   const handleImport = (file: File) => {
     const reader = new FileReader();
     reader.onload = (event) => {
-      const res = importHistoryResult(String(event.target?.result ?? ""));
-      if (!res.ok) {
-        if (res.reason === "quota") {
-          setImportError("Browser storage is full. Please clear space or export existing runs.");
-        } else {
-          setImportError("Invalid or corrupted history JSON file.");
-        }
-      } else {
-        setImportError(null);
-        toast.success(`Imported ${res.list.length} history records.`);
-        onImport?.(res.list);
-      }
+      applyImportJson(String(event.target?.result ?? ""));
     };
     reader.readAsText(file);
+  };
+
+  const handlePasteImport = () => {
+    if (!pasteText.trim()) return;
+    if (applyImportJson(pasteText)) {
+      setPasteText("");
+      setPasteOpen(false);
+    }
   };
 
   const handleClearCurrentMode = () => {
@@ -268,7 +332,7 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
                 <h2 className="text-sm font-semibold tracking-tight text-foreground">
                   Timed Drill Progress
                 </h2>
-                <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-mono text-muted-foreground">
+                <span className="rounded-full bg-secondary px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
                   {drillAll.length} {drillAll.length === 1 ? "run" : "runs"}
                 </span>
               </div>
@@ -287,7 +351,7 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
                 <h2 className="text-sm font-semibold tracking-tight text-foreground">
                   Word Shooter Progress
                 </h2>
-                <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-mono text-muted-foreground">
+                <span className="rounded-full bg-secondary px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
                   {shooterAll.length} {shooterAll.length === 1 ? "game" : "games"}
                 </span>
               </div>
@@ -298,14 +362,14 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
           </div>
         )}
 
-        {/* Global actions: Export, Import, Clear */}
-        <div className="flex items-center gap-2">
+        {/* Global actions: Export, Import, Paste JSON, Clear */}
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={handleExport}
             disabled={currentModeRunsCount === 0}
             title={`Export ${mode === "drill" ? "Drill" : "Shooter"} history`}
-            className="flex items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40 cursor-pointer"
+            className="flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
           >
             <Download className="size-3" />
             Export
@@ -313,10 +377,19 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="flex items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+            className="flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             <Upload className="size-3" />
             Import
+          </button>
+          <button
+            type="button"
+            onClick={() => setPasteOpen(true)}
+            title="Paste exported JSON text"
+            className="flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ClipboardPaste className="size-3" />
+            Paste
           </button>
           <input
             ref={fileRef}
@@ -339,7 +412,7 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
                 <button
                   type="button"
                   onClick={handleClearCurrentMode}
-                  className="flex items-center gap-1 rounded-md bg-destructive px-2.5 py-1 text-xs font-semibold text-destructive-foreground transition-opacity hover:opacity-90 cursor-pointer"
+                  className="flex cursor-pointer items-center gap-1 rounded-md bg-destructive px-2.5 py-1 text-xs font-semibold text-destructive-foreground transition-opacity hover:opacity-90"
                 >
                   <Trash2 className="size-3" />
                   Clear {mode === "drill" ? "Drill Runs" : "Shooter Games"}
@@ -347,7 +420,7 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
                 <button
                   type="button"
                   onClick={() => setConfirmClear(false)}
-                  className="rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                  className="cursor-pointer rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
                 >
                   Cancel
                 </button>
@@ -356,7 +429,7 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
               <button
                 type="button"
                 onClick={() => setConfirmClear(true)}
-                className="rounded-md px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive cursor-pointer"
+                className="cursor-pointer rounded-md px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
               >
                 Clear
               </button>
@@ -381,7 +454,7 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
           <button
             type="button"
             onClick={handleExport}
-            className="font-semibold underline hover:no-underline cursor-pointer"
+            className="cursor-pointer font-semibold underline hover:no-underline"
           >
             Export backup
           </button>
@@ -393,10 +466,9 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
       {/* ========================================================= */}
       {mode === "drill" && (
         <div className="mt-4">
-          {/* Filters: Duration & Difficulty */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-3">
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mr-1">
+              <span className="mr-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 Duration:
               </span>
               {DRILL_DURATIONS.map((d) => {
@@ -407,9 +479,9 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
                     type="button"
                     aria-pressed={active}
                     onClick={() => setDrillDuration(d)}
-                    className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors cursor-pointer ${
+                    className={`cursor-pointer rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
                       active
-                        ? "bg-primary text-primary-foreground font-semibold"
+                        ? "bg-primary font-semibold text-primary-foreground"
                         : "bg-secondary text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -420,7 +492,7 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mr-1">
+              <span className="mr-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 Diff:
               </span>
               {DIFFICULTIES.map((diff) => {
@@ -431,9 +503,9 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
                     type="button"
                     aria-pressed={active}
                     onClick={() => setDrillDifficulty(diff)}
-                    className={`rounded-md px-2 py-0.5 text-xs font-medium capitalize transition-colors cursor-pointer ${
+                    className={`cursor-pointer rounded-md px-2 py-0.5 text-xs font-medium capitalize transition-colors ${
                       active
-                        ? "bg-foreground text-background font-semibold"
+                        ? "bg-foreground font-semibold text-background"
                         : "bg-secondary text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -445,7 +517,7 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
           </div>
 
           {drillAll.length === 0 ? (
-            <div className="panel flex flex-col items-center gap-3 px-6 py-10 text-center mt-6">
+            <div className="panel mt-6 flex flex-col items-center gap-3 px-6 py-10 text-center">
               <Trophy className="size-8 text-muted-foreground/50" />
               <p className="text-sm text-muted-foreground">
                 No runs yet. Your first result starts the graph.
@@ -454,7 +526,7 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
                 <button
                   type="button"
                   onClick={onStartRun}
-                  className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                  className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-transform hover:scale-[1.02] active:scale-[0.98]"
                 >
                   Start your first run
                 </button>
@@ -466,13 +538,12 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
             </p>
           ) : (
             <>
-              {/* Drill KPI Cards */}
               <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-5">
                 <div className="rounded-xl border border-border/70 bg-card p-3">
                   <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
                     Best WPM
                   </div>
-                  <div className="font-mono text-2xl font-bold text-primary tabular-nums">
+                  <div className="font-mono text-2xl font-bold tabular-nums text-primary">
                     {drillBestWpm.toFixed(0)}
                   </div>
                 </div>
@@ -488,7 +559,7 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
                   <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
                     Accuracy
                   </div>
-                  <div className="font-mono text-2xl font-bold text-accent-foreground tabular-nums">
+                  <div className="font-mono text-2xl font-bold tabular-nums text-accent-foreground">
                     {drillAvgAccuracy.toFixed(0)}%
                   </div>
                 </div>
@@ -515,162 +586,37 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
                 </div>
               </div>
 
-              {/* Drill Progress Line Chart */}
-              <>
-                <AnimatePresence>
-                  {isDrillChartExpanded && (
-                    <motion.div
-                      key="drill-chart-backdrop"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      onClick={() => setIsDrillChartExpanded(false)}
-                      className="fixed inset-0 z-40 bg-background/80 backdrop-blur-md"
-                      aria-hidden="true"
-                    />
-                  )}
-                </AnimatePresence>
-
-                <motion.div
-                  layout
-                  transition={{
-                    type: "spring",
-                    stiffness: 300,
-                    damping: 28,
-                  }}
-                  onClick={(e) => {
-                    const target = e.target as HTMLElement;
-                    if (target.closest("button") || target.closest("a")) return;
-                    setIsDrillChartExpanded((prev) => !prev);
-                  }}
-                  className={
-                    isDrillChartExpanded
-                      ? "fixed inset-3 sm:inset-6 md:inset-10 lg:inset-16 z-50 flex flex-col justify-between overflow-y-auto rounded-2xl border border-primary/50 bg-card/98 p-4 sm:p-6 md:p-8 shadow-2xl backdrop-blur-xl ring-1 ring-primary/20"
-                      : "mt-5 rounded-xl border border-border/70 bg-card/60 p-3 sm:p-4 transition-colors hover:border-primary/40 cursor-pointer"
-                  }
-                >
-                  <div className="flex select-none items-center justify-between gap-2 border-b border-border/60 pb-2 mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-foreground">
-                        Timed Drill Progress
-                      </span>
-                      <span className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-primary">
-                        {filteredDrillHistory.length} runs
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIsDrillChartExpanded((prev) => !prev);
-                        }}
-                        aria-label={
-                          isDrillChartExpanded ? "Collapse progress chart" : "Expand progress chart"
-                        }
-                        className="flex size-7 cursor-pointer items-center justify-center rounded-lg border border-border bg-secondary/60 text-muted-foreground transition-all hover:bg-secondary hover:text-foreground active:scale-95"
-                      >
-                        {isDrillChartExpanded ? (
-                          <Minimize2 className="size-3.5 text-primary" />
-                        ) : (
-                          <Maximize2 className="size-3.5" />
-                        )}
-                      </button>
-                      {isDrillChartExpanded && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsDrillChartExpanded(false);
-                          }}
-                          aria-label="Close expanded chart"
-                          className="flex size-7 cursor-pointer items-center justify-center rounded-lg border border-border bg-secondary/60 text-muted-foreground transition-all hover:bg-destructive/20 hover:text-destructive active:scale-95"
-                        >
-                          <X className="size-3.5" />
-                        </button>
-                      )}
-                    </div>
+              <ExpandableChartCard
+                title="Timed Drill Progress"
+                badge={`${filteredDrillHistory.length} runs`}
+                subtitle="Speed & accuracy trend across recent sessions"
+                className="mt-5"
+                expandAriaLabel="Expand drill progress chart"
+                collapseAriaLabel="Collapse drill progress chart"
+                footer={() => (
+                  <div className="mt-2.5 flex items-center gap-4 text-[11px] text-muted-foreground">
+                    <span className="flex items-center gap-1.5">
+                      <span className="inline-block h-1 w-3.5 rounded-full bg-primary" /> WPM
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="inline-block h-1 w-3.5 border-b-2 border-dashed border-accent" />{" "}
+                      Accuracy %
+                    </span>
                   </div>
+                )}
+              >
+                {(isExpanded) => (
+                  <SvgLineChart
+                    data={drillChartData}
+                    xKey="run"
+                    series={drillSeries}
+                    expanded={isExpanded}
+                    formatXTick={(v) => `#${v}`}
+                    formatTooltipTitle={(row) => `Run #${row.run} · ${row.mode} (${row.diff})`}
+                  />
+                )}
+              </ExpandableChartCard>
 
-                  <div
-                    className={
-                      isDrillChartExpanded ? "h-[360px] sm:h-[480px] w-full" : "h-48 w-full"
-                    }
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart
-                        data={drillChartData}
-                        margin={{ top: 8, right: 8, bottom: 0, left: -18 }}
-                      >
-                        <CartesianGrid
-                          stroke="var(--border)"
-                          strokeDasharray="3 3"
-                          vertical={false}
-                        />
-                        <XAxis
-                          dataKey="run"
-                          tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <YAxis
-                          yAxisId="left"
-                          tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <YAxis
-                          yAxisId="right"
-                          orientation="right"
-                          domain={[0, 100]}
-                          tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            background: "var(--card)",
-                            border: "1px solid var(--border)",
-                            borderRadius: 8,
-                            fontSize: 12,
-                          }}
-                          formatter={(val: unknown, name: unknown) => [
-                            typeof val === "number" ? val : String(val),
-                            name === "wpm"
-                              ? "WPM"
-                              : name === "accuracy"
-                                ? "Accuracy %"
-                                : String(name),
-                          ]}
-                        />
-                        <Line
-                          yAxisId="left"
-                          type="monotone"
-                          dataKey="wpm"
-                          name="WPM"
-                          stroke="var(--color-primary, var(--primary))"
-                          strokeWidth={2.5}
-                          dot={{ r: 2 }}
-                        />
-                        <Line
-                          yAxisId="right"
-                          type="monotone"
-                          dataKey="accuracy"
-                          name="Accuracy"
-                          stroke="var(--color-accent, var(--accent))"
-                          strokeWidth={2}
-                          strokeDasharray="4 3"
-                          dot={false}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </motion.div>
-              </>
-
-              {/* Recent Drill Runs List */}
               <div className="mt-5">
                 <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Recent Drill Runs
@@ -678,7 +624,7 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
                 <ul className="divide-y divide-border/70 text-sm">
                   {filteredDrillHistory.slice(0, 6).map((h) => (
                     <li key={h.id} className="flex items-center justify-between gap-3 py-2">
-                      <span className="min-w-0 truncate text-muted-foreground flex items-center gap-2">
+                      <span className="flex min-w-0 items-center gap-2 truncate text-muted-foreground">
                         <span>
                           {new Date(h.date).toLocaleString(undefined, {
                             month: "short",
@@ -687,18 +633,18 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
                             minute: "2-digit",
                           })}
                         </span>
-                        <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] uppercase font-mono tracking-wider text-foreground">
+                        <span className="rounded bg-secondary px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-foreground">
                           {h.difficulty}
                         </span>
-                        <span className="rounded border border-border bg-secondary/70 px-1.5 py-0.5 text-[10px] font-mono text-primary font-semibold">
+                        <span className="rounded border border-border bg-secondary/70 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-primary">
                           {h.mode ? (h.mode.endsWith("s") ? h.mode : `${h.mode}s`) : "30s"}
                         </span>
                       </span>
-                      <span className="shrink-0 font-mono tabular-nums text-xs sm:text-sm">
-                        <strong className="text-primary font-semibold">{h.wpm.toFixed(0)}</strong>{" "}
+                      <span className="shrink-0 font-mono text-xs tabular-nums sm:text-sm">
+                        <strong className="font-semibold text-primary">{h.wpm.toFixed(0)}</strong>{" "}
                         wpm · <span className="text-foreground">{h.accuracy.toFixed(0)}% acc</span>{" "}
                         ·{" "}
-                        <span className="text-muted-foreground text-xs">
+                        <span className="text-xs text-muted-foreground">
                           {h.consistency.toFixed(0)}% sync
                         </span>
                       </span>
@@ -716,10 +662,9 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
       {/* ========================================================= */}
       {mode === "shooter" && (
         <div className="mt-4">
-          {/* Difficulty Filter */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-3">
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mr-1">
+              <span className="mr-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 Difficulty:
               </span>
               {DIFFICULTIES.map((diff) => {
@@ -730,9 +675,9 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
                     type="button"
                     aria-pressed={active}
                     onClick={() => setShooterDifficulty(diff)}
-                    className={`rounded-md px-2 py-0.5 text-xs font-medium capitalize transition-colors cursor-pointer ${
+                    className={`cursor-pointer rounded-md px-2 py-0.5 text-xs font-medium capitalize transition-colors ${
                       active
-                        ? "bg-accent text-accent-foreground font-semibold"
+                        ? "bg-accent font-semibold text-accent-foreground"
                         : "bg-secondary text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -741,7 +686,7 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
                 );
               })}
             </div>
-            <span className="text-xs font-mono text-muted-foreground">Arcade Mode Tracker</span>
+            <span className="font-mono text-xs text-muted-foreground">Arcade Mode Tracker</span>
           </div>
 
           {shooterAll.length === 0 ? (
@@ -754,14 +699,13 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
             </p>
           ) : (
             <>
-              {/* Shooter KPI Cards */}
               <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-5">
                 <div className="rounded-xl border border-border/70 bg-card p-3">
                   <div className="flex items-center gap-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
                     <Trophy className="size-3 text-amber-500" />
                     High Score
                   </div>
-                  <div className="font-mono text-2xl font-bold text-amber-500 tabular-nums">
+                  <div className="font-mono text-2xl font-bold tabular-nums text-amber-500">
                     {shooterHighScore.toLocaleString()}
                   </div>
                 </div>
@@ -770,7 +714,7 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
                     <Zap className="size-3 text-accent" />
                     Best Level
                   </div>
-                  <div className="font-mono text-2xl font-bold text-accent-foreground tabular-nums">
+                  <div className="font-mono text-2xl font-bold tabular-nums text-accent-foreground">
                     Lvl {shooterBestLevel}
                   </div>
                 </div>
@@ -787,7 +731,7 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
                     <Target className="size-3 text-primary" />
                     Accuracy
                   </div>
-                  <div className="font-mono text-2xl font-bold text-primary tabular-nums">
+                  <div className="font-mono text-2xl font-bold tabular-nums text-primary">
                     {shooterAvgAccuracy.toFixed(0)}%
                   </div>
                 </div>
@@ -801,164 +745,40 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
                 </div>
               </div>
 
-              {/* Shooter Score & Accuracy Line Chart */}
-              <>
-                <AnimatePresence>
-                  {isShooterChartExpanded && (
-                    <motion.div
-                      key="shooter-chart-backdrop"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      onClick={() => setIsShooterChartExpanded(false)}
-                      className="fixed inset-0 z-40 bg-background/80 backdrop-blur-md"
-                      aria-hidden="true"
-                    />
-                  )}
-                </AnimatePresence>
-
-                <motion.div
-                  layout
-                  transition={{
-                    type: "spring",
-                    stiffness: 300,
-                    damping: 28,
-                  }}
-                  onClick={(e) => {
-                    const target = e.target as HTMLElement;
-                    if (target.closest("button") || target.closest("a")) return;
-                    setIsShooterChartExpanded((prev) => !prev);
-                  }}
-                  className={
-                    isShooterChartExpanded
-                      ? "fixed inset-3 sm:inset-6 md:inset-10 lg:inset-16 z-50 flex flex-col justify-between overflow-y-auto rounded-2xl border border-accent/50 bg-card/98 p-4 sm:p-6 md:p-8 shadow-2xl backdrop-blur-xl ring-1 ring-accent/20"
-                      : "mt-5 rounded-xl border border-border/70 bg-card/60 p-3 sm:p-4 transition-colors hover:border-accent/40 cursor-pointer"
-                  }
-                >
-                  <div className="flex select-none items-center justify-between gap-2 border-b border-border/60 pb-2 mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-foreground">
-                        Word Shooter Progress
-                      </span>
-                      <span className="rounded bg-accent/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-accent">
-                        {filteredShooterHistory.length} games
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIsShooterChartExpanded((prev) => !prev);
-                        }}
-                        aria-label={
-                          isShooterChartExpanded
-                            ? "Collapse shooter progress chart"
-                            : "Expand shooter progress chart"
-                        }
-                        className="flex size-7 cursor-pointer items-center justify-center rounded-lg border border-border bg-secondary/60 text-muted-foreground transition-all hover:bg-secondary hover:text-foreground active:scale-95"
-                      >
-                        {isShooterChartExpanded ? (
-                          <Minimize2 className="size-3.5 text-accent" />
-                        ) : (
-                          <Maximize2 className="size-3.5" />
-                        )}
-                      </button>
-                      {isShooterChartExpanded && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsShooterChartExpanded(false);
-                          }}
-                          aria-label="Close expanded chart"
-                          className="flex size-7 cursor-pointer items-center justify-center rounded-lg border border-border bg-secondary/60 text-muted-foreground transition-all hover:bg-destructive/20 hover:text-destructive active:scale-95"
-                        >
-                          <X className="size-3.5" />
-                        </button>
-                      )}
-                    </div>
+              <ExpandableChartCard
+                title="Word Shooter Progress"
+                badge={`${filteredShooterHistory.length} games`}
+                subtitle="Score & accuracy trend across arcade battles"
+                accent="accent"
+                className="mt-5"
+                expandAriaLabel="Expand shooter progress chart"
+                collapseAriaLabel="Collapse shooter progress chart"
+                footer={() => (
+                  <div className="mt-2.5 flex items-center gap-4 text-[11px] text-muted-foreground">
+                    <span className="flex items-center gap-1.5">
+                      <span className="inline-block h-1 w-3.5 rounded-full bg-primary" /> Score
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="inline-block h-1 w-3.5 border-b-2 border-dashed border-accent" />{" "}
+                      Accuracy %
+                    </span>
                   </div>
-
-                  <div
-                    className={
-                      isShooterChartExpanded ? "h-[360px] sm:h-[480px] w-full" : "h-48 w-full"
+                )}
+              >
+                {(isExpanded) => (
+                  <SvgLineChart
+                    data={shooterChartData}
+                    xKey="game"
+                    series={shooterSeries}
+                    expanded={isExpanded}
+                    formatXTick={(v) => `#${v}`}
+                    formatTooltipTitle={(row) =>
+                      `Game #${row.game} · Lvl ${row.level} (${row.diff})`
                     }
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart
-                        data={shooterChartData}
-                        margin={{ top: 8, right: 8, bottom: 0, left: -14 }}
-                      >
-                        <CartesianGrid
-                          stroke="var(--border)"
-                          strokeDasharray="3 3"
-                          vertical={false}
-                        />
-                        <XAxis
-                          dataKey="game"
-                          tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <YAxis
-                          yAxisId="left"
-                          tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <YAxis
-                          yAxisId="right"
-                          orientation="right"
-                          domain={[0, 100]}
-                          tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            background: "var(--card)",
-                            border: "1px solid var(--border)",
-                            borderRadius: 8,
-                            fontSize: 12,
-                          }}
-                          formatter={(val: unknown, name: unknown) => [
-                            typeof val === "number" ? val.toLocaleString() : String(val),
-                            name === "score"
-                              ? "Score"
-                              : name === "accuracy"
-                                ? "Accuracy %"
-                                : String(name),
-                          ]}
-                        />
-                        <Line
-                          yAxisId="left"
-                          type="monotone"
-                          dataKey="score"
-                          name="Score"
-                          stroke="var(--color-primary, var(--primary))"
-                          strokeWidth={2.5}
-                          dot={{ r: 2 }}
-                        />
-                        <Line
-                          yAxisId="right"
-                          type="monotone"
-                          dataKey="accuracy"
-                          name="Accuracy"
-                          stroke="var(--color-accent, var(--accent))"
-                          strokeWidth={2}
-                          strokeDasharray="4 3"
-                          dot={false}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </motion.div>
-              </>
+                  />
+                )}
+              </ExpandableChartCard>
 
-              {/* Recent Shooter Games List */}
               <div className="mt-5">
                 <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Recent Shooter Battles
@@ -970,7 +790,7 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
                     const words = h.wordsDestroyed ?? h.correct ?? 0;
                     return (
                       <li key={h.id} className="flex items-center justify-between gap-3 py-2">
-                        <span className="min-w-0 truncate text-muted-foreground flex items-center gap-2">
+                        <span className="flex min-w-0 items-center gap-2 truncate text-muted-foreground">
                           <span>
                             {new Date(h.date).toLocaleString(undefined, {
                               month: "short",
@@ -979,19 +799,19 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
                               minute: "2-digit",
                             })}
                           </span>
-                          <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] uppercase font-mono tracking-wider text-foreground">
+                          <span className="rounded bg-secondary px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-foreground">
                             {h.difficulty}
                           </span>
-                          <span className="rounded border border-destructive/40 bg-destructive/15 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-destructive">
+                          <span className="rounded border border-destructive/40 bg-destructive/15 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-destructive">
                             Lvl {lvl}
                           </span>
                         </span>
-                        <span className="shrink-0 font-mono tabular-nums text-xs sm:text-sm">
-                          <strong className="text-amber-500 font-semibold">
+                        <span className="shrink-0 font-mono text-xs tabular-nums sm:text-sm">
+                          <strong className="font-semibold text-amber-500">
                             {score.toLocaleString()}
                           </strong>{" "}
                           pts · <span className="text-foreground">{words} words</span> ·{" "}
-                          <span className="text-muted-foreground text-xs">
+                          <span className="text-xs text-muted-foreground">
                             {h.accuracy.toFixed(0)}% acc
                           </span>
                         </span>
@@ -1004,6 +824,42 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
           )}
         </div>
       )}
+
+      {/* Paste JSON Import Dialog */}
+      <Dialog open={pasteOpen} onOpenChange={setPasteOpen}>
+        <DialogContent className="border-border bg-card text-foreground sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-mono text-lg font-bold">Import History JSON</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Paste exported history JSON text below to merge runs into your local history.
+            </DialogDescription>
+          </DialogHeader>
+          <textarea
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            placeholder='{"entries": [...]}'
+            rows={6}
+            className="w-full rounded-lg border border-border bg-secondary/50 p-3 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setPasteOpen(false)}
+              className="cursor-pointer rounded-lg border border-border px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handlePasteImport}
+              disabled={!pasteText.trim()}
+              className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+            >
+              Merge History
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

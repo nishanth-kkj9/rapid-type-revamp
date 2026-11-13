@@ -1,16 +1,7 @@
-import { useState, useMemo, useEffect } from "react";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import { Activity, Zap, Target, Award, Maximize2, Minimize2, X, Clock, Flame } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useMemo } from "react";
+import { Activity, Zap, Target, Award, Clock, Flame } from "lucide-react";
+import { ExpandableChartCard } from "@/components/charts/ExpandableChartCard";
+import { SvgLineChart, type LineSeriesConfig } from "@/components/charts/LineChart";
 
 interface Props {
   /** Cumulative correct-character counts sampled once per second. */
@@ -21,11 +12,12 @@ interface Props {
   defaultOpen?: boolean | undefined;
 }
 
-/**
- * Timed Drill Progress component using Framer Motion's layout prop.
- * Features an onClick handler that toggles `isExpanded` state and updates CSS classes
- * to animate the chart from its current size to expanded/full dimensions with a smooth spring transition.
- */
+interface WpmPoint extends Record<string, unknown> {
+  second: number;
+  wpm: number;
+  ghostWpm?: number;
+}
+
 export function WpmChart({
   samples,
   ghost,
@@ -33,24 +25,10 @@ export function WpmChart({
   className = "",
   defaultOpen = false,
 }: Props) {
-  const [isExpanded, setIsExpanded] = useState(defaultOpen);
-
-  // Close on Escape key when expanded
-  useEffect(() => {
-    if (!isExpanded) return undefined;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setIsExpanded(false);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isExpanded]);
-
   const hasGhost = Boolean(ghost && ghost.length >= 2);
   const len = hasGhost ? Math.min(samples.length, ghost!.length) : samples.length;
 
-  const data = useMemo(() => {
+  const data: WpmPoint[] = useMemo(() => {
     if (samples.length < 2) return [];
     return Array.from({ length: len }, (_, i) => {
       const curVal = samples[i] ?? 0;
@@ -94,113 +72,50 @@ export function WpmChart({
     return { peakWpm, peakSec, minWpm, minSec, avgWpm, ghostAvg };
   }, [data, hasGhost]);
 
+  const series: LineSeriesConfig<WpmPoint>[] = useMemo(() => {
+    const list: LineSeriesConfig<WpmPoint>[] = [
+      {
+        key: "wpm",
+        label: "Current Run",
+        color: "var(--color-primary)",
+        showDots: true,
+        fillArea: true,
+        formatValue: (v) => `${v} WPM`,
+      },
+    ];
+    if (hasGhost) {
+      list.push({
+        key: "ghostWpm",
+        label: "Personal Best",
+        color: "var(--color-muted-foreground)",
+        dashed: true,
+        strokeWidth: 2,
+        formatValue: (v) => `${v} WPM`,
+      });
+    }
+    return list;
+  }, [hasGhost]);
+
   if (samples.length < 2) return null;
 
   return (
-    <>
-      {/* Backdrop when expanded full-screen */}
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            key="wpm-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={() => setIsExpanded(false)}
-            className="fixed inset-0 z-40 bg-background/80 backdrop-blur-md"
-            aria-hidden="true"
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Main Animated Chart Container */}
-      <motion.div
-        layout
-        transition={{
-          type: "spring",
-          stiffness: 300,
-          damping: 28,
-        }}
-        onClick={(e) => {
-          const target = e.target as HTMLElement;
-          if (target.closest("button") || target.closest("a")) return;
-          setIsExpanded((prev) => !prev);
-        }}
-        className={
-          isExpanded
-            ? "fixed inset-3 sm:inset-6 md:inset-10 lg:inset-16 z-50 flex flex-col justify-between overflow-y-auto rounded-2xl border border-primary/50 bg-card/98 p-4 sm:p-6 md:p-8 shadow-2xl backdrop-blur-xl ring-1 ring-primary/20"
-            : `panel p-3 text-sm transition-colors hover:border-primary/40 cursor-pointer ${className}`
-        }
-      >
-        {/* Header / Interactive Toggle Bar */}
-        <div className="flex select-none items-center justify-between gap-2 border-b border-border/60 pb-3">
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsExpanded((prev) => !prev);
-            }}
-            className="flex flex-1 cursor-pointer items-center gap-2.5 truncate"
-          >
-            <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Activity className="size-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-foreground">
-                  Timed Drill Progress
-                </span>
-                <span className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-primary">
-                  {stats.avgWpm} WPM Avg
-                </span>
-              </div>
-              <p className="text-[11px] text-muted-foreground truncate">
-                {isExpanded
-                  ? "Full Analytics & Real-Time Velocity Graph"
-                  : "Click anywhere on chart to expand full dimensions"}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2">
-            <div className="hidden sm:flex items-center gap-1.5 font-mono text-xs">
-              <span className="text-muted-foreground">Peak:</span>
-              <span className="font-bold text-accent">{stats.peakWpm} WPM</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsExpanded((prev) => !prev);
-              }}
-              aria-label={isExpanded ? "Collapse progress chart" : "Expand progress chart"}
-              className="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border bg-secondary/60 text-muted-foreground transition-all hover:bg-secondary hover:text-foreground active:scale-95"
-            >
-              {isExpanded ? (
-                <Minimize2 className="size-4 text-primary" />
-              ) : (
-                <Maximize2 className="size-4" />
-              )}
-            </button>
-
-            {isExpanded ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsExpanded(false);
-                }}
-                aria-label="Close expanded view"
-                className="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border bg-secondary/60 text-muted-foreground transition-all hover:bg-destructive/20 hover:text-destructive active:scale-95"
-              >
-                <X className="size-4" />
-              </button>
-            ) : null}
-          </div>
+    <ExpandableChartCard
+      title="Timed Drill Progress"
+      badge={`${stats.avgWpm} WPM Avg`}
+      className={className}
+      defaultOpen={defaultOpen}
+      icon={
+        <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Activity className="size-4" />
         </div>
-
-        {/* Stats Badges Grid */}
+      }
+      headerRight={
+        <div className="hidden items-center gap-1.5 font-mono text-xs sm:flex">
+          <span className="text-muted-foreground">Peak:</span>
+          <span className="font-bold text-accent">{stats.peakWpm} WPM</span>
+        </div>
+      }
+      statsGrid={(isExpanded) => (
         <div
           className={`grid gap-2 pt-3 ${
             isExpanded ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-6" : "grid-cols-2 sm:grid-cols-4"
@@ -284,100 +199,8 @@ export function WpmChart({
             </>
           ) : null}
         </div>
-
-        {/* Dynamic Responsive Chart Area */}
-        <div
-          onClick={() => {
-            if (!isExpanded) setIsExpanded(true);
-          }}
-          className={`mt-3 rounded-xl border border-border/80 bg-background/60 p-2 sm:p-4 transition-all ${
-            isExpanded
-              ? "h-[340px] sm:h-[440px] md:h-[500px]"
-              : "h-44 sm:h-52 cursor-pointer hover:border-primary/50"
-          }`}
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 12, right: 16, bottom: 6, left: -4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.4} />
-              <XAxis
-                dataKey="second"
-                tick={{ fontSize: isExpanded ? 12 : 10 }}
-                stroke="var(--color-muted-foreground)"
-                tickLine={false}
-                axisLine={{ stroke: "var(--color-border)" }}
-                label={{
-                  value: "Time (seconds)",
-                  position: "insideBottomRight",
-                  offset: -4,
-                  fontSize: isExpanded ? 12 : 10,
-                  fill: "var(--color-muted-foreground)",
-                }}
-              />
-              <YAxis
-                width={isExpanded ? 40 : 34}
-                tick={{ fontSize: isExpanded ? 12 : 10 }}
-                stroke="var(--color-muted-foreground)"
-                tickLine={false}
-                axisLine={{ stroke: "var(--color-border)" }}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: "var(--color-card)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 10,
-                  fontSize: 12,
-                  padding: "8px 12px",
-                  boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
-                }}
-                formatter={(v: number, name: string) => [
-                  `${v} WPM`,
-                  name === "ghostWpm" ? "Personal Best" : "Current Run",
-                ]}
-                labelFormatter={(l) => `Time: ${l}s`}
-              />
-              <Line
-                type="monotone"
-                dataKey="wpm"
-                stroke="var(--color-primary)"
-                strokeWidth={isExpanded ? 3 : 2}
-                dot={{ r: isExpanded ? 3.5 : 2, fill: "var(--color-primary)" }}
-                activeDot={{
-                  r: isExpanded ? 7 : 5,
-                  stroke: "var(--color-background)",
-                  strokeWidth: 2,
-                }}
-                isAnimationActive={false}
-              />
-              {hasGhost && (
-                <Line
-                  type="monotone"
-                  dataKey="ghostWpm"
-                  stroke="var(--color-muted-foreground)"
-                  strokeWidth={2}
-                  strokeDasharray="6 4"
-                  dot={false}
-                  isAnimationActive={false}
-                />
-              )}
-              {typeof targetWpm === "number" && targetWpm > 0 ? (
-                <ReferenceLine
-                  y={targetWpm}
-                  stroke="var(--color-primary)"
-                  strokeDasharray="4 4"
-                  ifOverflow="extendDomain"
-                  label={{
-                    value: `Target ${targetWpm} WPM`,
-                    position: "insideTopRight",
-                    fontSize: isExpanded ? 11 : 10,
-                    fill: "var(--color-muted-foreground)",
-                  }}
-                />
-              ) : null}
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Legend & Footer Info */}
+      )}
+      footer={(isExpanded) => (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5">
@@ -400,13 +223,34 @@ export function WpmChart({
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs text-muted-foreground">{data.length}s duration</span>
             {!isExpanded ? (
-              <span className="hidden sm:inline-block text-[10px] text-primary">
+              <span className="hidden text-[10px] text-primary sm:inline-block">
                 (Click to expand)
               </span>
             ) : null}
           </div>
         </div>
-      </motion.div>
-    </>
+      )}
+    >
+      {(isExpanded) => (
+        <SvgLineChart
+          data={data}
+          xKey="second"
+          xLabel="Time (seconds)"
+          series={series}
+          expanded={isExpanded}
+          formatXTick={(v) => `${v}s`}
+          formatTooltipTitle={(row) => `Time: ${row.second}s`}
+          referenceLine={
+            typeof targetWpm === "number" && targetWpm > 0
+              ? {
+                  value: targetWpm,
+                  label: `Target ${targetWpm} WPM`,
+                  color: "var(--color-primary)",
+                }
+              : undefined
+          }
+        />
+      )}
+    </ExpandableChartCard>
   );
 }

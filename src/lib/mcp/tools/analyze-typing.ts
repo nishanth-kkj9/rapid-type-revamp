@@ -18,6 +18,10 @@ export default defineTool({
     perSecondCorrect: z
       .array(z.number().int().min(0))
       .max(3600)
+      .refine(
+        (arr) => arr.every((v, i) => i === 0 || v >= arr[i - 1]!),
+        "perSecondCorrect must be cumulative and non-decreasing",
+      )
       .optional()
       .describe("Optional cumulative correct-character counts sampled once per second."),
   },

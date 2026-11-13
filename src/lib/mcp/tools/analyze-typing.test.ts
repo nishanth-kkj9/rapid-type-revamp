@@ -52,4 +52,14 @@ describe("analyze_typing tool", () => {
     const empty = run("abc", "", 0.001);
     expect(empty.structuredContent.typed).toBe(0);
   });
+
+  it("rejects non-monotonic perSecondCorrect samples in inputSchema", () => {
+    expect(analyzeTyping.inputSchema).toBeDefined();
+    const schema = analyzeTyping.inputSchema!;
+    const valid = schema.perSecondCorrect.safeParse([0, 4, 4, 9]);
+    expect(valid.success).toBe(true);
+
+    const decreasing = schema.perSecondCorrect.safeParse([0, 8, 5, 10]);
+    expect(decreasing.success).toBe(false);
+  });
 });

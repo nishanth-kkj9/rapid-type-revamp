@@ -490,6 +490,29 @@ export function DrillSettingsDialog({ open, onOpenChange, settings, onSaveSettin
               {draft.focusWeakKeys ? "Focused" : "Balanced"}
             </button>
           </div>
+
+          {/* Tab Key Quick Restart Toggle */}
+          <div className="flex items-center justify-between rounded-xl border border-border bg-secondary/40 p-3">
+            <div>
+              <div className="text-xs font-semibold">Tab Key Quick Restart</div>
+              <div className="text-[11px] text-muted-foreground">
+                Allow pressing Tab to restart the drill immediately (Esc always restarts; off by
+                default for standard keyboard focus)
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => update("tabToRestart", !(draft.tabToRestart ?? false))}
+              aria-pressed={draft.tabToRestart ?? false}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+                (draft.tabToRestart ?? false)
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border bg-secondary text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {(draft.tabToRestart ?? false) ? "Enabled" : "Disabled"}
+            </button>
+          </div>
         </div>
 
         {/* Footer controls */}

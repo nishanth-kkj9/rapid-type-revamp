@@ -74,9 +74,14 @@ describe("history storage", () => {
     expect(window.localStorage.getItem("ttp:history")).toBeNull();
   });
 
-  it("rejects malformed and invalid imports", () => {
+  it("rejects malformed, out-of-bounds, and invalid imports", () => {
     expect(importHistory("not json")).toBeNull();
     expect(importHistory(JSON.stringify([{ id: "x", date: 1 }]))).toBeNull();
+    expect(importHistory(JSON.stringify([entry({ wpm: 9999 })]))).toBeNull();
+    expect(importHistory(JSON.stringify([entry({ accuracy: 120 })]))).toBeNull();
+    expect(importHistory(JSON.stringify([entry({ accuracy: -5 })]))).toBeNull();
+    expect(importHistory(JSON.stringify([entry({ date: -1 })]))).toBeNull();
+    expect(importHistory(JSON.stringify([entry({ correct: 1.5 })]))).toBeNull();
   });
 
   it("merges imports by id without duplicating", () => {

@@ -1,27 +1,8 @@
-import { useState, useMemo, useEffect } from "react";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import {
-  Crosshair,
-  Zap,
-  Award,
-  Maximize2,
-  Minimize2,
-  X,
-  Clock,
-  Shield,
-  Target,
-  Trophy,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useMemo } from "react";
+import { Crosshair, Zap, Award, Clock, Shield, Target, Trophy } from "lucide-react";
 import type { ShooterRunSummary } from "@/lib/typingStats";
+import { ExpandableChartCard } from "@/components/charts/ExpandableChartCard";
+import { SvgLineChart, type LineSeriesConfig } from "@/components/charts/LineChart";
 
 interface Props {
   summary: ShooterRunSummary | null;
@@ -31,11 +12,13 @@ interface Props {
   defaultOpen?: boolean | undefined;
 }
 
-/**
- * Word Shooter Progress component using Framer Motion's layout prop.
- * Features an onClick handler that toggles `isExpanded` state and updates CSS classes
- * to animate the arcade velocity chart from current size to expanded/full dimensions with a smooth spring transition.
- */
+interface ShooterPoint extends Record<string, unknown> {
+  second: number;
+  rateWpm: number;
+  cumulativeWords: number;
+  score: number;
+}
+
 export function WordShooterProgress({
   summary,
   samples,
@@ -43,22 +26,7 @@ export function WordShooterProgress({
   className = "",
   defaultOpen = false,
 }: Props) {
-  const [isExpanded, setIsExpanded] = useState(defaultOpen);
-
-  // Close on Escape key when expanded
-  useEffect(() => {
-    if (!isExpanded) return undefined;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setIsExpanded(false);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isExpanded]);
-
-  // Construct second-by-second velocity / destruction data
-  const data = useMemo(() => {
+  const data: ShooterPoint[] = useMemo(() => {
     if (!summary) return [];
 
     const effectiveSamples =
@@ -87,7 +55,6 @@ export function WordShooterProgress({
       });
     }
 
-    // When raw per-second samples were unavailable, do not synthesize fake data
     return [];
   }, [summary, samples]);
 
@@ -103,113 +70,50 @@ export function WordShooterProgress({
     return { peakWpm, peakSec, avgWpm };
   }, [summary, data]);
 
+  const series: LineSeriesConfig<ShooterPoint>[] = useMemo(
+    () => [
+      {
+        key: "rateWpm",
+        label: "Fire Velocity",
+        color: "var(--color-accent)",
+        showDots: true,
+        fillArea: true,
+        formatValue: (v, row) => `${v} WPM (${row.cumulativeWords}w)`,
+      },
+    ],
+    [],
+  );
+
   if (!summary && data.length === 0) return null;
 
   return (
-    <>
-      {/* Backdrop when expanded full-screen */}
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            key="shooter-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={() => setIsExpanded(false)}
-            className="fixed inset-0 z-40 bg-background/80 backdrop-blur-md"
-            aria-hidden="true"
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Main Animated Chart Container */}
-      <motion.div
-        layout
-        transition={{
-          type: "spring",
-          stiffness: 300,
-          damping: 28,
-        }}
-        onClick={(e) => {
-          const target = e.target as HTMLElement;
-          if (target.closest("button") || target.closest("a")) return;
-          setIsExpanded((prev) => !prev);
-        }}
-        className={
-          isExpanded
-            ? "fixed inset-3 sm:inset-6 md:inset-10 lg:inset-16 z-50 flex flex-col justify-between overflow-y-auto rounded-2xl border border-accent/50 bg-card/98 p-4 sm:p-6 md:p-8 shadow-2xl backdrop-blur-xl ring-1 ring-accent/20"
-            : `panel p-3 text-sm transition-colors hover:border-accent/40 cursor-pointer ${className}`
-        }
-      >
-        {/* Header / Interactive Toggle Bar */}
-        <div className="flex select-none items-center justify-between gap-2 border-b border-border/60 pb-3">
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsExpanded((prev) => !prev);
-            }}
-            className="flex flex-1 cursor-pointer items-center gap-2.5 truncate"
-          >
-            <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent">
-              <Crosshair className="size-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-foreground">
-                  Word Shooter Progress
-                </span>
-                <span className="rounded bg-accent/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-accent">
-                  {summary?.score ?? 0} pts
-                </span>
-              </div>
-              <p className="text-[11px] text-muted-foreground truncate">
-                {isExpanded
-                  ? "Full Combat Analytics & Wave Destruction Velocity"
-                  : "Click anywhere on chart to expand full dimensions"}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2">
-            <div className="hidden sm:flex items-center gap-1.5 font-mono text-xs">
-              <span className="text-muted-foreground">Destroyed:</span>
-              <span className="font-bold text-primary">{summary?.wordsDestroyed ?? 0} words</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsExpanded((prev) => !prev);
-              }}
-              aria-label={isExpanded ? "Collapse shooter chart" : "Expand shooter chart"}
-              className="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border bg-secondary/60 text-muted-foreground transition-all hover:bg-secondary hover:text-foreground active:scale-95"
-            >
-              {isExpanded ? (
-                <Minimize2 className="size-4 text-primary" />
-              ) : (
-                <Maximize2 className="size-4" />
-              )}
-            </button>
-
-            {isExpanded ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsExpanded(false);
-                }}
-                aria-label="Close expanded view"
-                className="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border bg-secondary/60 text-muted-foreground transition-all hover:bg-destructive/20 hover:text-destructive active:scale-95"
-              >
-                <X className="size-4" />
-              </button>
-            ) : null}
-          </div>
+    <ExpandableChartCard
+      title="Word Shooter Progress"
+      expandedSubtitle="Full Combat Analytics & Wave Destruction Velocity"
+      badge={`${summary?.score ?? 0} pts`}
+      accent="accent"
+      className={className}
+      defaultOpen={defaultOpen}
+      isEmpty={data.length === 0}
+      expandAriaLabel="Expand shooter chart"
+      collapseAriaLabel="Collapse shooter chart"
+      icon={
+        <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent">
+          <Crosshair className="size-4" />
         </div>
-
-        {/* Stats Badges Grid */}
+      }
+      headerRight={
+        <div className="hidden items-center gap-1.5 font-mono text-xs sm:flex">
+          <span className="text-muted-foreground">Destroyed:</span>
+          <span className="font-bold text-primary">{summary?.wordsDestroyed ?? 0} words</span>
+        </div>
+      }
+      emptyState={
+        <p className="text-center text-xs text-muted-foreground">
+          Per-second firing velocity telemetry unavailable for this run.
+        </p>
+      }
+      statsGrid={(isExpanded) => (
         <div
           className={`grid gap-2 pt-3 ${
             isExpanded ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-6" : "grid-cols-2 sm:grid-cols-4"
@@ -278,83 +182,8 @@ export function WordShooterProgress({
             </>
           ) : null}
         </div>
-
-        {/* Dynamic Responsive Chart Area */}
-        <div
-          onClick={() => {
-            if (!isExpanded && data.length > 0) setIsExpanded(true);
-          }}
-          className={`mt-3 rounded-xl border border-border/80 bg-background/60 p-2 sm:p-4 transition-all ${
-            isExpanded
-              ? "h-[340px] sm:h-[440px] md:h-[500px]"
-              : data.length > 0
-                ? "h-44 sm:h-52 cursor-pointer hover:border-primary/50"
-                : "h-32 flex items-center justify-center"
-          }`}
-        >
-          {data.length === 0 ? (
-            <p className="text-center text-xs text-muted-foreground">
-              Per-second firing velocity telemetry unavailable for this run.
-            </p>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data} margin={{ top: 12, right: 16, bottom: 6, left: -4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.4} />
-                <XAxis
-                  dataKey="second"
-                  tick={{ fontSize: isExpanded ? 12 : 10 }}
-                  stroke="var(--color-muted-foreground)"
-                  tickLine={false}
-                  axisLine={{ stroke: "var(--color-border)" }}
-                  label={{
-                    value: "Combat Time (seconds)",
-                    position: "insideBottomRight",
-                    offset: -4,
-                    fontSize: isExpanded ? 12 : 10,
-                    fill: "var(--color-muted-foreground)",
-                  }}
-                />
-                <YAxis
-                  width={isExpanded ? 40 : 34}
-                  tick={{ fontSize: isExpanded ? 12 : 10 }}
-                  stroke="var(--color-muted-foreground)"
-                  tickLine={false}
-                  axisLine={{ stroke: "var(--color-border)" }}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--color-card)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 10,
-                    fontSize: 12,
-                    padding: "8px 12px",
-                    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
-                  }}
-                  formatter={(v: number, name: string) => [
-                    name === "rateWpm" ? `${v} WPM` : `${v} words`,
-                    name === "rateWpm" ? "Fire Velocity" : "Words Destroyed",
-                  ]}
-                  labelFormatter={(l) => `Combat Time: ${l}s`}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="rateWpm"
-                  stroke="var(--color-accent)"
-                  strokeWidth={isExpanded ? 3 : 2}
-                  dot={{ r: isExpanded ? 3.5 : 2, fill: "var(--color-accent)" }}
-                  activeDot={{
-                    r: isExpanded ? 7 : 5,
-                    stroke: "var(--color-background)",
-                    strokeWidth: 2,
-                  }}
-                  isAnimationActive={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        {/* Legend & Footer Info */}
+      )}
+      footer={(isExpanded) => (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5">
@@ -373,14 +202,26 @@ export function WordShooterProgress({
               {summary?.difficulty ? `${summary.difficulty.toUpperCase()} MODE` : "ARCADE"} ·{" "}
               {data.length}s
             </span>
-            {!isExpanded ? (
-              <span className="hidden sm:inline-block text-[10px] text-accent">
+            {!isExpanded && data.length > 0 ? (
+              <span className="hidden text-[10px] text-accent sm:inline-block">
                 (Click to expand)
               </span>
             ) : null}
           </div>
         </div>
-      </motion.div>
-    </>
+      )}
+    >
+      {(isExpanded) => (
+        <SvgLineChart
+          data={data}
+          xKey="second"
+          xLabel="Combat Time (seconds)"
+          series={series}
+          expanded={isExpanded}
+          formatXTick={(v) => `${v}s`}
+          formatTooltipTitle={(row) => `Combat Time: ${row.second}s`}
+        />
+      )}
+    </ExpandableChartCard>
   );
 }

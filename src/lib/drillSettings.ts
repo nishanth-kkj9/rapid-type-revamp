@@ -18,6 +18,7 @@ export interface DrillSettings {
   drillMode?: DrillMode;
   wordCount?: WordCountOption;
   quoteLength?: QuoteLengthOption;
+  tabToRestart?: boolean;
 }
 
 export const DEFAULT_DRILL_SETTINGS: DrillSettings = {
@@ -44,6 +45,10 @@ export function getWordCount(settings: DrillSettings): WordCountOption {
 
 export function getQuoteLength(settings: DrillSettings): QuoteLengthOption {
   return settings.quoteLength ?? "medium";
+}
+
+export function getTabToRestart(settings: DrillSettings): boolean {
+  return settings.tabToRestart ?? false;
 }
 
 export function loadDrillSettings(): DrillSettings {
@@ -120,6 +125,10 @@ export function loadDrillSettings(): DrillSettings {
       parsed.quoteLength === "long"
     ) {
       result.quoteLength = parsed.quoteLength;
+    }
+
+    if (typeof parsed.tabToRestart === "boolean") {
+      result.tabToRestart = parsed.tabToRestart;
     }
 
     return result;

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
-import { Moon, Sun, Crosshair, Timer, Sliders, Target, BookOpen, Quote } from "lucide-react";
+import { Moon, Sun, Crosshair, Timer, Sliders, BookOpen, Quote } from "lucide-react";
 import { toast } from "sonner";
 import {
   generatePassage,
@@ -36,6 +36,7 @@ import {
   getDrillMode,
   getWordCount,
   getQuoteLength,
+  getTabToRestart,
   type DrillSettings,
   type DrillMode,
   type WordCountOption,
@@ -61,7 +62,8 @@ import { loadKeyStats, pickWeakKeyPassage, recordKeyMistakes, topWeakKeys } from
 import { loadKeySpeed, recordKeySpeed, PAUSE_CAP_MS, type KeySpeedMap } from "@/lib/keySpeed";
 import { buildInsight } from "@/lib/insights";
 import { loadMissedWords, saveMissedWords, mergeMissedWords } from "@/lib/missedWords";
-import { ChartSkeleton, PanelSkeleton } from "@/components/Skeletons";
+import { PanelSkeleton } from "@/components/Skeletons";
+import { ResultsSection } from "@/components/ResultsSection";
 import { ThemeAccentPicker } from "@/components/ThemeAccentPicker";
 import { applyThemeAccent, loadUiPrefs } from "@/lib/uiPrefs";
 import {
@@ -75,9 +77,6 @@ import {
 
 const LazyHistoryPanel = lazy(() =>
   import("@/components/HistoryPanel").then((m) => ({ default: m.HistoryPanel })),
-);
-const LazyWpmChart = lazy(() =>
-  import("@/components/WpmChart").then((m) => ({ default: m.WpmChart })),
 );
 const LazyWordShooter = lazy(() =>
   import("@/components/WordShooter").then((m) => ({ default: m.WordShooter })),
@@ -200,6 +199,7 @@ function Index() {
   const dailyRef = useRef<DailyState | null>(null);
   const [daily, setDaily] = useState<DailyState | null>(null);
   const [storedMissedWords, setStoredMissedWords] = useState<string[]>([]);
+  const [historyReady, setHistoryReady] = useState(false);
 
   useEffect(() => {
     setStoredMissedWords(loadMissedWords());
@@ -235,6 +235,18 @@ function Index() {
     const speed = loadKeySpeed();
     allTimeSpeedRef.current = speed;
     setAllTimeSpeed(speed);
+
+    // Defer HistoryPanel chunk load/mount until browser is idle after first paint.
+    const win = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (typeof win.requestIdleCallback === "function") {
+      const idleId = win.requestIdleCallback(() => setHistoryReady(true), { timeout: 600 });
+      return () => win.cancelIdleCallback?.(idleId);
+    }
+    const timer = globalThis.setTimeout(() => setHistoryReady(true), 150);
+    return () => globalThis.clearTimeout(timer);
   }, []);
 
   const handleSaveDrillSettings = useCallback((newSettings: DrillSettings) => {
@@ -715,12 +727,13 @@ function Index() {
     if (drillMode === "time" && running && !finished && remaining <= 0) finish();
   }, [drillMode, remaining, running, finished, finish]);
 
-  // Tab or Esc restarts quickly.
+  // Esc always restarts; Tab restarts when opt-in drillSettings.tabToRestart is enabled.
+  const tabToRestart = getTabToRestart(drillSettings);
   useEffect(() => {
     if (mode !== "drill") return;
     const onKey = (e: KeyboardEvent) => {
       if (document.querySelector('[role="dialog"]')) return;
-      if (e.key === "Tab" && !e.shiftKey) {
+      if (tabToRestart && e.key === "Tab" && !e.shiftKey) {
         const active = document.activeElement;
         if (active === inputRef.current || active === againRef.current) {
           e.preventDefault();
@@ -753,7 +766,7 @@ function Index() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [restart, finished, mode]);
+  }, [restart, finished, mode, tabToRestart]);
 
   const handleChange = (raw: string) => {
     if (finished || !text) return;
@@ -1317,180 +1330,30 @@ function Index() {
           </section>
 
           {finished ? (
-            <section
-              ref={resultsRef}
-              tabIndex={-1}
-              aria-label="Run results"
-              className="panel relative mt-4 flex flex-col items-center justify-start gap-4 p-6 text-center focus-visible:outline-none sm:p-8"
-            >
-              {isRecord ? (
-                <span className="animate-in fade-in zoom-in-95 rounded-full bg-accent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent-foreground shadow-sm duration-300">
-                  New personal best
-                  {recordDelta != null && recordDelta > 0 ? ` (+${recordDelta} wpm)` : ""}
-                </span>
-              ) : null}
-              {shown.wpm >= drillSettings.targetWpm ? (
-                <span className="success-ping rounded-full bg-primary/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
-                  Target met
-                </span>
-              ) : null}
-              <div
-                className={`font-mono text-4xl font-bold transition-all sm:text-5xl ${
-                  isRecord ? "text-primary record-glow" : "text-primary"
-                }`}
-              >
-                {shown.wpm.toFixed(0)}
-                <span className="ml-2 text-base font-normal text-muted-foreground">wpm</span>
-              </div>
-
-              {insight ? (
-                <div className="insight-banner panel-raised flex w-full max-w-xl flex-col items-center gap-2 px-4 py-3">
-                  <p className="text-sm leading-relaxed text-foreground sm:text-base">
-                    {insight.headline}
-                  </p>
-                  {insight.action === "practice-weak-keys" ? (
-                    <button
-                      type="button"
-                      onClick={handlePracticeWeakKeys}
-                      className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                    >
-                      Fix it now — targeted drill
-                    </button>
-                  ) : insight.action === "practice-missed-words" ? (
-                    <button
-                      type="button"
-                      onClick={handlePracticeMissedWords}
-                      className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                    >
-                      Fix it now — practice missed words
-                    </button>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {/* Primary Actions directly underneath headline & diagnosis */}
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <button
-                  type="button"
-                  ref={againRef}
-                  onClick={restart}
-                  className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 cursor-pointer"
-                >
-                  Go again <span className="ml-1 text-xs opacity-75 font-mono">(Tab)</span>
-                </button>
-                {effectiveMissedWordsCount > 0 ? (
-                  <button
-                    type="button"
-                    onClick={handlePracticeMissedWords}
-                    className="flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/25 cursor-pointer"
-                  >
-                    <Target className="size-4 text-accent" />
-                    Practice Missed Words ({effectiveMissedWordsCount})
-                  </button>
-                ) : weakKeys3.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={handlePracticeWeakKeys}
-                    className="flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/25 cursor-pointer"
-                  >
-                    <Target className="size-4 text-accent" />
-                    Target Weak Keys ({weakKeys3.join(", ")})
-                  </button>
-                ) : null}
-              </div>
-
-              <p className="text-xs text-muted-foreground">
-                Too tense?{" "}
-                <button
-                  type="button"
-                  onClick={() => setMode("shooter")}
-                  className="font-semibold text-primary underline-offset-2 hover:underline cursor-pointer"
-                >
-                  Loosen up in Arcade
-                </button>{" "}
-                — your weak keys show up there too.
-              </p>
-
-              <details className="w-full max-w-xl" open={false}>
-                <summary className="cursor-pointer text-xs uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground">
-                  Full stats
-                </summary>
-                <div className="mt-2 grid w-full grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5">
-                  <div className="panel flex flex-col items-center justify-center p-2 text-center">
-                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                      Accuracy
-                    </span>
-                    <span className="font-mono text-base font-semibold tabular-nums text-foreground sm:text-lg">
-                      {shown.accuracy.toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="panel flex flex-col items-center justify-center p-2 text-center">
-                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                      Correct
-                    </span>
-                    <span className="font-mono text-base font-semibold tabular-nums text-success sm:text-lg">
-                      {shown.correct}
-                    </span>
-                  </div>
-                  <div className="panel flex flex-col items-center justify-center p-2 text-center">
-                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                      Errors
-                    </span>
-                    <span
-                      className={`font-mono text-base font-semibold tabular-nums sm:text-lg ${
-                        shown.incorrect > 0 ? "text-destructive" : "text-foreground"
-                      }`}
-                    >
-                      {shown.incorrect}
-                    </span>
-                  </div>
-                  <div className="panel flex flex-col items-center justify-center p-2 text-center">
-                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                      Raw WPM
-                    </span>
-                    <span className="font-mono text-base font-semibold tabular-nums text-foreground sm:text-lg">
-                      {shown.rawWpm.toFixed(0)}
-                    </span>
-                  </div>
-                  <div className="panel flex flex-col items-center justify-center p-2 text-center">
-                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                      Net WPM
-                    </span>
-                    <span className="font-mono text-base font-semibold tabular-nums text-primary sm:text-lg">
-                      {shown.adjustedWpm.toFixed(0)}
-                    </span>
-                  </div>
-                  <div className="panel flex flex-col items-center justify-center p-2 text-center">
-                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                      Consistency
-                    </span>
-                    <span className="font-mono text-base font-semibold tabular-nums text-foreground sm:text-lg">
-                      {shown.consistency.toFixed(0)}%
-                    </span>
-                  </div>
-                </div>
-              </details>
-
-              <Suspense fallback={<ChartSkeleton />}>
-                <LazyWpmChart
-                  samples={samples}
-                  ghost={ghostSamples}
-                  targetWpm={drillSettings.targetWpm}
-                  className="mt-3 w-full"
-                />
-              </Suspense>
-              <ProblemKeys mistakes={mistakes} />
-              {Object.keys(allTimeKeys).length > 0 ? (
-                <ProblemKeys mistakes={allTimeKeys} limit={8} label="All-time problem keys" />
-              ) : null}
-              {Object.keys(allTimeKeys).length > 0 || Object.keys(allTimeSpeed).length > 0 ? (
-                <KeyHeatmap mistakes={allTimeKeys} speed={allTimeSpeed} className="mt-3" />
-              ) : null}
-              <AchievementsStrip unlocked={achState.unlocked} className="mt-3" />
-              {drillMode === "quote" && quoteAuthor ? (
-                <p className="text-xs italic text-muted-foreground sm:text-sm">— {quoteAuthor}</p>
-              ) : null}
-            </section>
+            <ResultsSection
+              resultsRef={resultsRef}
+              againRef={againRef}
+              shown={shown}
+              isRecord={isRecord}
+              recordDelta={recordDelta}
+              targetWpm={drillSettings.targetWpm}
+              insight={insight}
+              effectiveMissedWordsCount={effectiveMissedWordsCount}
+              weakKeys3={weakKeys3}
+              tabToRestart={tabToRestart}
+              samples={samples}
+              ghostSamples={ghostSamples}
+              mistakes={mistakes}
+              allTimeKeys={allTimeKeys}
+              allTimeSpeed={allTimeSpeed}
+              unlockedAchievements={achState.unlocked}
+              drillMode={drillMode}
+              quoteAuthor={quoteAuthor}
+              onRestart={restart}
+              onPracticeWeakKeys={handlePracticeWeakKeys}
+              onPracticeMissedWords={handlePracticeMissedWords}
+              onSwitchToShooter={() => setMode("shooter")}
+            />
           ) : null}
 
           {drillSettings.showKeyboard && !coarsePointer ? (
@@ -1548,18 +1411,22 @@ function Index() {
       )}
 
       <div className="mt-4">
-        <Suspense fallback={<PanelSkeleton lines={5} />}>
-          <LazyHistoryPanel
-            history={history}
-            mode={mode}
-            onClear={handleClearHistory}
-            onImport={handleImportHistory}
-            onStartRun={() => {
-              setMode("drill");
-              inputRef.current?.focus();
-            }}
-          />
-        </Suspense>
+        {historyReady ? (
+          <Suspense fallback={<PanelSkeleton lines={5} />}>
+            <LazyHistoryPanel
+              history={history}
+              mode={mode}
+              onClear={handleClearHistory}
+              onImport={handleImportHistory}
+              onStartRun={() => {
+                setMode("drill");
+                inputRef.current?.focus();
+              }}
+            />
+          </Suspense>
+        ) : (
+          <PanelSkeleton lines={5} />
+        )}
       </div>
 
       <footer className="mt-10 text-center text-xs text-muted-foreground">

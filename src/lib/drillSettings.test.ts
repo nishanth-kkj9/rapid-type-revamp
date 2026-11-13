@@ -78,6 +78,18 @@ describe("drillSettings", () => {
     expect(loadDrillSettings().focusWeakKeys).toBe(false);
   });
 
+  it("persists the tabToRestart toggle and defaults to false", () => {
+    expect(loadDrillSettings().tabToRestart).toBeUndefined();
+    saveDrillSettings({ ...DEFAULT_DRILL_SETTINGS, tabToRestart: true });
+    expect(loadDrillSettings().tabToRestart).toBe(true);
+
+    localStorage.setItem(
+      DRILL_SETTINGS_KEY,
+      JSON.stringify({ ...DEFAULT_DRILL_SETTINGS, tabToRestart: "yes" }),
+    );
+    expect(loadDrillSettings().tabToRestart).toBeUndefined();
+  });
+
   it("falls back to legacy difficulty key if new key not present", () => {
     localStorage.setItem("ttp:drill:diff:v1", "hard");
     const loaded = loadDrillSettings();

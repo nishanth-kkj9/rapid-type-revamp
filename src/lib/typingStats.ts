@@ -140,23 +140,23 @@ function migrateLegacy(): void {
 
 export const HistoryEntrySchema = z.object({
   id: z.union([z.string(), z.number()]).transform(String),
-  date: z.number(),
+  date: z.number().finite().min(0),
   difficulty: z.string(),
   /** Legacy (pre-shooter) entries have no mode; they were standard 30s drills. */
   mode: z.string().default("30"),
-  wpm: z.number(),
-  rawWpm: z.number().default(0),
-  adjustedWpm: z.number().default(0),
-  accuracy: z.number(),
-  correct: z.number().default(0),
-  incorrect: z.number().default(0),
-  typed: z.number().default(0),
-  elapsed: z.number().default(0),
-  consistency: z.number().default(100),
-  score: z.number().optional(),
-  wordsDestroyed: z.number().optional(),
-  level: z.number().optional(),
-  samples: z.array(z.number()).optional(),
+  wpm: z.number().finite().min(0).max(400),
+  rawWpm: z.number().finite().min(0).max(500).default(0),
+  adjustedWpm: z.number().finite().min(0).max(400).default(0),
+  accuracy: z.number().finite().min(0).max(100),
+  correct: z.number().int().min(0).max(100000).default(0),
+  incorrect: z.number().int().min(0).max(100000).default(0),
+  typed: z.number().int().min(0).max(200000).default(0),
+  elapsed: z.number().finite().min(0).max(86400).default(0),
+  consistency: z.number().finite().min(0).max(100).default(100),
+  score: z.number().finite().min(0).optional(),
+  wordsDestroyed: z.number().int().min(0).optional(),
+  level: z.number().int().min(1).optional(),
+  samples: z.array(z.number().finite().min(0)).max(3600).optional(),
 });
 
 export function loadHistory(): HistoryEntry[] {
