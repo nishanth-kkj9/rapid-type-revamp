@@ -1412,7 +1412,7 @@ function Index() {
 
       <div className="mt-4">
         {historyReady ? (
-          <Suspense fallback={<PanelSkeleton lines={5} />}>
+          <Suspense fallback={<PanelSkeleton lines={mode === "drill" ? 1 : 5} />}>
             <LazyHistoryPanel
               history={history}
               mode={mode}
@@ -1425,7 +1425,7 @@ function Index() {
             />
           </Suspense>
         ) : (
-          <PanelSkeleton lines={5} />
+          <PanelSkeleton lines={mode === "drill" ? 1 : 5} />
         )}
       </div>
 
