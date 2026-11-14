@@ -1,6 +1,5 @@
-import { useState, type ReactNode } from "react";
-import { Maximize2, Minimize2 } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { useId, useState, type ReactNode } from "react";
+import { ChevronDown } from "lucide-react";
 
 interface ExpandableChartCardProps {
   title: string;
@@ -23,8 +22,8 @@ interface ExpandableChartCardProps {
 
 export function ExpandableChartCard({
   title,
-  subtitle = "Click anywhere on chart to expand full dimensions",
-  expandedSubtitle = "Full Analytics & Real-Time Velocity Graph",
+  subtitle = "Click to expand chart downward",
+  expandedSubtitle = "Expanded Analytics & Velocity Graph",
   badge,
   headerRight,
   icon,
@@ -40,6 +39,7 @@ export function ExpandableChartCard({
   collapseAriaLabel = "Collapse progress chart",
 }: ExpandableChartCardProps) {
   const [isExpanded, setIsExpanded] = useState(defaultOpen);
+  const regionId = useId();
 
   const badgeClass =
     accent === "accent" ? "bg-accent/20 text-accent" : "bg-primary/15 text-primary";
@@ -47,24 +47,21 @@ export function ExpandableChartCard({
   const hoverBorderClass =
     accent === "accent" ? "hover:border-accent/40" : "hover:border-primary/40";
 
-  const renderCardBody = (expanded: boolean) => (
-    <>
-      <div
-        className={`flex select-none items-center justify-between gap-2 border-b border-border/60 pb-3 ${
-          expanded ? "pr-8" : ""
-        }`}
+  const toggle = () => setIsExpanded((prev) => !prev);
+
+  return (
+    <div className={`panel p-3 text-sm transition-colors ${hoverBorderClass} ${className}`}>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={isExpanded}
+        aria-controls={regionId}
+        className="group flex w-full cursor-pointer select-none items-center justify-between gap-2 rounded-lg border-b border-border/60 pb-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
       >
-        <div
-          onClick={(e) => {
-            if (isEmpty) return;
-            e.stopPropagation();
-            setIsExpanded((prev) => !prev);
-          }}
-          className={`flex flex-1 items-center gap-2.5 truncate ${isEmpty ? "" : "cursor-pointer"}`}
-        >
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
           {icon}
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-foreground">
                 {title}
               </span>
@@ -77,85 +74,54 @@ export function ExpandableChartCard({
               ) : null}
             </div>
             <p className="truncate text-[11px] text-muted-foreground">
-              {expanded ? expandedSubtitle : subtitle}
+              {isExpanded ? expandedSubtitle : subtitle}
             </p>
           </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
           {headerRight}
-          {!isEmpty ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsExpanded((prev) => !prev);
-              }}
-              aria-label={expanded ? collapseAriaLabel : expandAriaLabel}
-              className="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border bg-secondary/60 text-muted-foreground transition-all hover:bg-secondary hover:text-foreground active:scale-95"
-            >
-              {expanded ? (
-                <Minimize2
-                  className={`size-4 ${accent === "accent" ? "text-accent" : "text-primary"}`}
-                />
-              ) : (
-                <Maximize2 className="size-4" />
-              )}
-            </button>
-          ) : null}
+          <span
+            className={`flex size-8 items-center justify-center rounded-lg border border-border bg-secondary/60 text-muted-foreground transition-colors group-hover:bg-secondary group-hover:text-foreground ${
+              isExpanded
+                ? accent === "accent"
+                  ? "border-accent/40 text-accent"
+                  : "border-primary/40 text-primary"
+                : ""
+            }`}
+          >
+            <span className="sr-only">{isExpanded ? collapseAriaLabel : expandAriaLabel}</span>
+            <ChevronDown
+              aria-hidden="true"
+              className={`chart-expand-transition size-4 transition-transform duration-300 ease-out ${
+                isExpanded ? "rotate-180" : ""
+              }`}
+            />
+          </span>
         </div>
-      </div>
+      </button>
 
-      {statsGrid ? statsGrid(expanded) : null}
+      {statsGrid ? statsGrid(isExpanded) : null}
 
       <div
+        id={regionId}
         onClick={() => {
-          if (!expanded && !isEmpty) setIsExpanded(true);
+          if (!isExpanded) setIsExpanded(true);
         }}
-        className={`mt-3 rounded-xl border border-border/80 bg-background/60 p-2 transition-all sm:p-4 ${
-          expanded
-            ? "h-[340px] sm:h-[440px] md:h-[500px]"
-            : isEmpty
-              ? "flex h-32 items-center justify-center"
-              : "h-44 cursor-pointer hover:border-primary/50 sm:h-52"
+        className={`chart-expand-transition mt-3 overflow-hidden rounded-xl border border-border/80 bg-background/60 p-2 transition-[height,border-color] duration-300 ease-out sm:p-4 ${
+          isEmpty
+            ? isExpanded
+              ? "flex h-52 items-center justify-center sm:h-64"
+              : "flex h-32 cursor-pointer items-center justify-center hover:border-primary/40"
+            : isExpanded
+              ? "h-[340px] sm:h-[440px] md:h-[500px]"
+              : `h-44 cursor-pointer sm:h-52 ${accent === "accent" ? "hover:border-accent/50" : "hover:border-primary/50"}`
         }`}
       >
-        {isEmpty && emptyState ? emptyState : children(expanded)}
+        {isEmpty && emptyState ? emptyState : children(isExpanded)}
       </div>
 
-      {footer ? footer(expanded) : null}
-    </>
-  );
-
-  return (
-    <>
-      <div
-        onClick={(e) => {
-          if (isEmpty) return;
-          const target = e.target as HTMLElement;
-          if (target.closest("button") || target.closest("a")) return;
-          setIsExpanded(true);
-        }}
-        className={`panel p-3 text-sm transition-colors ${
-          isEmpty ? "" : `cursor-pointer ${hoverBorderClass}`
-        } ${className}`}
-      >
-        {renderCardBody(false)}
-      </div>
-
-      <Dialog open={isExpanded} onOpenChange={setIsExpanded}>
-        <DialogContent
-          className={`flex max-h-[90vh] w-[95vw] max-w-5xl flex-col justify-between overflow-y-auto rounded-2xl border bg-card/98 p-4 shadow-2xl backdrop-blur-xl sm:p-6 md:p-8 ${
-            accent === "accent"
-              ? "border-accent/50 ring-1 ring-accent/20"
-              : "border-primary/50 ring-1 ring-primary/20"
-          }`}
-        >
-          <DialogTitle className="sr-only">{title}</DialogTitle>
-          <DialogDescription className="sr-only">{expandedSubtitle}</DialogDescription>
-          {renderCardBody(true)}
-        </DialogContent>
-      </Dialog>
-    </>
+      {footer ? footer(isExpanded) : null}
+    </div>
   );
 }

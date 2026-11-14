@@ -222,11 +222,9 @@ export function WpmChart({
 
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs text-muted-foreground">{data.length}s duration</span>
-            {!isExpanded ? (
-              <span className="hidden text-[10px] text-primary sm:inline-block">
-                (Click to expand)
-              </span>
-            ) : null}
+            <span className="hidden text-[10px] text-primary sm:inline-block">
+              {isExpanded ? "(Click to collapse)" : "(Click to expand)"}
+            </span>
           </div>
         </div>
       )}

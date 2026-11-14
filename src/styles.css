@@ -401,7 +401,8 @@
   .level-banner,
   .skeleton,
   .digit-pop,
-  .success-ping {
+  .success-ping,
+  .chart-expand-transition {
     animation: none !important;
     transition: none !important;
   }

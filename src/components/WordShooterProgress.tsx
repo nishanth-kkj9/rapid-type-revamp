@@ -202,9 +202,9 @@ export function WordShooterProgress({
               {summary?.difficulty ? `${summary.difficulty.toUpperCase()} MODE` : "ARCADE"} ·{" "}
               {data.length}s
             </span>
-            {!isExpanded && data.length > 0 ? (
+            {data.length > 0 ? (
               <span className="hidden text-[10px] text-accent sm:inline-block">
-                (Click to expand)
+                {isExpanded ? "(Click to collapse)" : "(Click to expand)"}
               </span>
             ) : null}
           </div>
