@@ -56,7 +56,7 @@ export function ExpandableChartCard({
         onClick={toggle}
         aria-expanded={isExpanded}
         aria-controls={regionId}
-        className="group flex w-full cursor-pointer select-none items-center justify-between gap-2 rounded-lg border-b border-border/60 pb-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+        className="group flex w-full cursor-pointer select-none items-center justify-between gap-2 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
       >
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
           {icon}
@@ -101,27 +101,39 @@ export function ExpandableChartCard({
         </div>
       </button>
 
-      {statsGrid ? statsGrid(isExpanded) : null}
-
       <div
         id={regionId}
-        onClick={() => {
-          if (!isExpanded) setIsExpanded(true);
-        }}
-        className={`chart-expand-transition mt-3 overflow-hidden rounded-xl border border-border/80 bg-background/60 p-2 transition-[height,border-color] duration-300 ease-out sm:p-4 ${
-          isEmpty
-            ? isExpanded
-              ? "flex h-52 items-center justify-center sm:h-64"
-              : "flex h-32 cursor-pointer items-center justify-center hover:border-primary/40"
-            : isExpanded
-              ? "h-[340px] sm:h-[440px] md:h-[500px]"
-              : `h-44 cursor-pointer sm:h-52 ${accent === "accent" ? "hover:border-accent/50" : "hover:border-primary/50"}`
+        role="region"
+        aria-hidden={!isExpanded}
+        inert={!isExpanded ? true : undefined}
+        className={`chart-expand-transition grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
+          isExpanded
+            ? "grid-rows-[1fr] opacity-100"
+            : "pointer-events-none grid-rows-[0fr] opacity-0"
         }`}
       >
-        {isEmpty && emptyState ? emptyState : children(isExpanded)}
-      </div>
+        <div className="overflow-hidden">
+          <div className="mt-3 border-t border-border/60 pt-3">
+            {statsGrid ? statsGrid(isExpanded) : null}
 
-      {footer ? footer(isExpanded) : null}
+            <div
+              className={`chart-expand-transition mt-3 overflow-hidden rounded-xl border border-border/80 bg-background/60 transition-[height,opacity,border-color] duration-300 ease-out ${
+                isEmpty
+                  ? isExpanded
+                    ? "flex h-52 items-center justify-center p-2 opacity-100 sm:h-64 sm:p-4"
+                    : "flex h-0 items-center justify-center border-transparent p-0 opacity-0"
+                  : isExpanded
+                    ? "h-[340px] p-2 opacity-100 sm:h-[440px] sm:p-4 md:h-[500px]"
+                    : "h-0 border-transparent p-0 opacity-0"
+              }`}
+            >
+              {isEmpty && emptyState ? emptyState : children(isExpanded)}
+            </div>
+
+            {footer ? footer(isExpanded) : null}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

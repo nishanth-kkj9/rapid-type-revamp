@@ -1,8 +1,9 @@
-import { useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import { importHistoryResult, type HistoryEntry } from "@/lib/typingStats";
 import { toast } from "sonner";
 import {
   AlertCircle,
+  ChevronDown,
   Trash2,
   Timer,
   Crosshair,
@@ -44,7 +45,13 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
   const [confirmClear, setConfirmClear] = useState<boolean>(false);
   const [pasteOpen, setPasteOpen] = useState<boolean>(false);
   const [pasteText, setPasteText] = useState<string>("");
+  const [expandedByMode, setExpandedByMode] = useState<{ drill: boolean; shooter: boolean }>({
+    drill: false,
+    shooter: false,
+  });
   const fileRef = useRef<HTMLInputElement>(null);
+  const headingId = useId();
+  const contentId = useId();
 
   // Split history by mode
   const drillAll = useMemo(() => history.filter((h) => h.mode !== "shooter"), [history]);
@@ -205,448 +212,513 @@ export function HistoryPanel({ history, mode, onClear, onImport, onStartRun }: P
   };
 
   const currentModeRunsCount = mode === "drill" ? drillAll.length : shooterAll.length;
+  const isExpanded = expandedByMode[mode];
+  const sectionTitle = mode === "drill" ? "Drill History" : "Shooter History";
+  const toggleExpanded = () =>
+    setExpandedByMode((prev) => ({
+      ...prev,
+      [mode]: !prev[mode],
+    }));
 
   return (
-    <section className="panel p-5">
-      {/* Header: Mode Title & Action Tools */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {mode === "drill" ? (
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-8 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary">
-              <Timer className="size-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-semibold tracking-tight text-foreground">
-                  Drill History
-                </h2>
-                <span className="rounded-full bg-secondary px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
-                  {drillAll.length} {drillAll.length === 1 ? "run" : "runs"}
-                </span>
+    <section
+      className={`panel p-5 transition-colors ${
+        mode === "shooter" ? "hover:border-accent/40" : "hover:border-primary/40"
+      }`}
+    >
+      {/* Header: Clickable Accordion Trigger */}
+      <button
+        type="button"
+        onClick={toggleExpanded}
+        aria-expanded={isExpanded}
+        aria-controls={contentId}
+        aria-labelledby={headingId}
+        className="group flex w-full cursor-pointer select-none items-center justify-between gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+      >
+        <div id={headingId} className="flex min-w-0 flex-1 items-center gap-2.5">
+          {mode === "drill" ? (
+            <>
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary">
+                <Timer className="size-4" />
               </div>
-              <p className="text-xs text-muted-foreground">
-                Speed and accuracy tracked over timed test sessions
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-8 items-center justify-center rounded-lg border border-accent/25 bg-accent/10 text-accent">
-              <Crosshair className="size-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-semibold tracking-tight text-foreground">
-                  Shooter History
-                </h2>
-                <span className="rounded-full bg-secondary px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
-                  {shooterAll.length} {shooterAll.length === 1 ? "game" : "games"}
-                </span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-sm font-semibold tracking-tight text-foreground">
+                    Drill History
+                  </h2>
+                  <span className="rounded-full bg-secondary px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
+                    {drillAll.length} {drillAll.length === 1 ? "run" : "runs"}
+                  </span>
+                </div>
+                <p className="truncate text-xs text-muted-foreground">
+                  Speed and accuracy tracked over timed test sessions
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                High scores, levels reached, and accuracy from arcade battles
-              </p>
-            </div>
-          </div>
-        )}
+            </>
+          ) : (
+            <>
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-accent/25 bg-accent/10 text-accent">
+                <Crosshair className="size-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-sm font-semibold tracking-tight text-foreground">
+                    Shooter History
+                  </h2>
+                  <span className="rounded-full bg-secondary px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
+                    {shooterAll.length} {shooterAll.length === 1 ? "game" : "games"}
+                  </span>
+                </div>
+                <p className="truncate text-xs text-muted-foreground">
+                  High scores, levels reached, and accuracy from arcade battles
+                </p>
+              </div>
+            </>
+          )}
+        </div>
 
-        {/* Global actions: Export, Import, Paste JSON, Clear */}
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={currentModeRunsCount === 0}
-            title={`Export ${mode === "drill" ? "Drill" : "Shooter"} history`}
-            className="flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
-          >
-            <Download className="size-3" />
-            Export
-          </button>
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <Upload className="size-3" />
-            Import
-          </button>
-          <button
-            type="button"
-            onClick={() => setPasteOpen(true)}
-            title="Paste exported JSON text"
-            className="flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ClipboardPaste className="size-3" />
-            Paste
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json"
-            data-lpignore="true"
-            data-protonpass-ignore="true"
-            data-1p-ignore="true"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleImport(file);
-              e.target.value = "";
-            }}
+        <span
+          className={`flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary/60 text-muted-foreground transition-colors group-hover:bg-secondary group-hover:text-foreground ${
+            isExpanded
+              ? mode === "shooter"
+                ? "border-accent/40 text-accent"
+                : "border-primary/40 text-primary"
+              : ""
+          }`}
+        >
+          <span className="sr-only">
+            {isExpanded ? `Collapse ${sectionTitle}` : `Expand ${sectionTitle}`}
+          </span>
+          <ChevronDown
+            aria-hidden="true"
+            className={`chart-expand-transition size-4 transition-transform duration-300 ease-out ${
+              isExpanded ? "rotate-180" : ""
+            }`}
           />
+        </span>
+      </button>
 
-          {currentModeRunsCount > 0 ? (
-            confirmClear ? (
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={handleClearCurrentMode}
-                  className="flex cursor-pointer items-center gap-1 rounded-md bg-destructive px-2.5 py-1 text-xs font-semibold text-destructive-foreground transition-opacity hover:opacity-90"
-                >
-                  <Trash2 className="size-3" />
-                  Clear {mode === "drill" ? "Drill Runs" : "Shooter Games"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmClear(false)}
-                  className="cursor-pointer rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
+      {/* Hidden file input kept outside inert region */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json"
+        data-lpignore="true"
+        data-protonpass-ignore="true"
+        data-1p-ignore="true"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleImport(file);
+          e.target.value = "";
+        }}
+      />
+
+      {/* Downward-expanding Accordion Body */}
+      <div
+        id={contentId}
+        role="region"
+        aria-labelledby={headingId}
+        aria-hidden={!isExpanded}
+        inert={!isExpanded ? true : undefined}
+        className={`chart-expand-transition grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
+          isExpanded
+            ? "grid-rows-[1fr] opacity-100"
+            : "pointer-events-none grid-rows-[0fr] opacity-0"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="mt-4 border-t border-border/50 pt-4">
+            {/* Global actions: Export, Import, Paste JSON, Clear */}
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setConfirmClear(true)}
-                className="cursor-pointer rounded-md px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
+                onClick={handleExport}
+                disabled={currentModeRunsCount === 0}
+                title={`Export ${mode === "drill" ? "Drill" : "Shooter"} history`}
+                className="flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
               >
-                Clear
+                <Download className="size-3" />
+                Export
               </button>
-            )
-          ) : null}
-        </div>
-      </div>
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <Upload className="size-3" />
+                Import
+              </button>
+              <button
+                type="button"
+                onClick={() => setPasteOpen(true)}
+                title="Paste exported JSON text"
+                className="flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <ClipboardPaste className="size-3" />
+                Paste
+              </button>
 
-      {importError ? (
-        <div className="mt-3 flex items-center gap-2 rounded-lg bg-destructive/15 p-2.5 text-xs text-destructive">
-          <AlertCircle className="size-4 shrink-0" />
-          <span>{importError}</span>
-        </div>
-      ) : null}
-
-      {currentModeRunsCount >= 75 ? (
-        <div className="mt-3 flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-          <span>
-            Storage notice: You have {currentModeRunsCount}/100 saved runs. Oldest runs will cycle
-            out when full.
-          </span>
-          <button
-            type="button"
-            onClick={handleExport}
-            className="cursor-pointer font-semibold underline hover:no-underline"
-          >
-            Export backup
-          </button>
-        </div>
-      ) : null}
-
-      {/* ========================================================= */}
-      {/* DRILL HISTORY VIEW                                        */}
-      {/* ========================================================= */}
-      {mode === "drill" && (
-        <div className="mt-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-3">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Duration:
-              </span>
-              {DRILL_DURATIONS.map((d) => {
-                const active = drillDuration === d;
-                return (
+              {currentModeRunsCount > 0 ? (
+                confirmClear ? (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleClearCurrentMode}
+                      className="flex cursor-pointer items-center gap-1 rounded-md bg-destructive px-2.5 py-1 text-xs font-semibold text-destructive-foreground transition-opacity hover:opacity-90"
+                    >
+                      <Trash2 className="size-3" />
+                      Clear {mode === "drill" ? "Drill Runs" : "Shooter Games"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmClear(false)}
+                      className="cursor-pointer rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
                   <button
-                    key={d}
                     type="button"
-                    aria-pressed={active}
-                    onClick={() => setDrillDuration(d)}
-                    className={`cursor-pointer rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
-                      active
-                        ? "bg-primary font-semibold text-primary-foreground"
-                        : "bg-secondary text-muted-foreground hover:text-foreground"
-                    }`}
+                    onClick={() => setConfirmClear(true)}
+                    className="cursor-pointer rounded-md px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
                   >
-                    {d === "all" ? "All Durations" : d}
+                    Clear
                   </button>
-                );
-              })}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Diff:
-              </span>
-              {DIFFICULTIES.map((diff) => {
-                const active = drillDifficulty === diff;
-                return (
-                  <button
-                    key={diff}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => setDrillDifficulty(diff)}
-                    className={`cursor-pointer rounded-md px-2 py-0.5 text-xs font-medium capitalize transition-colors ${
-                      active
-                        ? "bg-foreground font-semibold text-background"
-                        : "bg-secondary text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {diff}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {drillAll.length === 0 ? (
-            <div className="panel mt-6 flex flex-col items-center gap-3 px-6 py-10 text-center">
-              <Trophy className="size-8 text-muted-foreground/50" />
-              <p className="text-sm text-muted-foreground">
-                No runs yet. Your first result starts the log.
-              </p>
-              {onStartRun ? (
-                <button
-                  type="button"
-                  onClick={onStartRun}
-                  className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  Start your first run
-                </button>
+                )
               ) : null}
             </div>
-          ) : filteredDrillHistory.length === 0 ? (
-            <p className="mt-6 text-sm text-muted-foreground">
-              No runs recorded matching the selected filter criteria.
-            </p>
-          ) : (
-            <>
-              <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-5">
-                <div className="rounded-xl border border-border/70 bg-card p-3">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                    Best WPM
-                  </div>
-                  <div className="font-mono text-2xl font-bold tabular-nums text-primary">
-                    {drillBestWpm.toFixed(0)}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-border/70 bg-card p-3">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                    Average WPM
-                  </div>
-                  <div className="font-mono text-2xl font-bold tabular-nums">
-                    {drillAvgWpm.toFixed(0)}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-border/70 bg-card p-3">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                    Accuracy
-                  </div>
-                  <div className="font-mono text-2xl font-bold tabular-nums text-accent-foreground">
-                    {drillAvgAccuracy.toFixed(0)}%
-                  </div>
-                </div>
-                <div className="rounded-xl border border-border/70 bg-card p-3">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                    Drill Runs
-                  </div>
-                  <div className="font-mono text-2xl font-bold tabular-nums">
-                    {filteredDrillHistory.length}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-border/70 bg-card p-3">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                    Trend
-                  </div>
-                  <div
-                    className={`font-mono text-2xl font-bold tabular-nums ${
-                      drillImprovement >= 0 ? "text-primary" : "text-destructive"
-                    }`}
-                  >
-                    {drillImprovement > 0 ? "+" : ""}
-                    {drillImprovement.toFixed(0)}%
-                  </div>
-                </div>
-              </div>
 
-              <div className="mt-5">
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Recent Drill Runs
-                </div>
-                <ul className="divide-y divide-border/70 text-sm">
-                  {filteredDrillHistory.slice(0, 6).map((h) => (
-                    <li key={h.id} className="flex items-center justify-between gap-3 py-2">
-                      <span className="flex min-w-0 items-center gap-2 truncate text-muted-foreground">
-                        <span>
-                          {new Date(h.date).toLocaleString(undefined, {
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                        <span className="rounded bg-secondary px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-foreground">
-                          {h.difficulty}
-                        </span>
-                        <span className="rounded border border-border bg-secondary/70 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-primary">
-                          {h.mode ? (h.mode.endsWith("s") ? h.mode : `${h.mode}s`) : "30s"}
-                        </span>
-                      </span>
-                      <span className="shrink-0 font-mono text-xs tabular-nums sm:text-sm">
-                        <strong className="font-semibold text-primary">{h.wpm.toFixed(0)}</strong>{" "}
-                        wpm · <span className="text-foreground">{h.accuracy.toFixed(0)}% acc</span>{" "}
-                        ·{" "}
-                        <span className="text-xs text-muted-foreground">
-                          {h.consistency.toFixed(0)}% sync
-                        </span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+            {importError ? (
+              <div className="mt-3 flex items-center gap-2 rounded-lg bg-destructive/15 p-2.5 text-xs text-destructive">
+                <AlertCircle className="size-4 shrink-0" />
+                <span>{importError}</span>
               </div>
-            </>
-          )}
-        </div>
-      )}
+            ) : null}
 
-      {/* ========================================================= */}
-      {/* SHOOTER HISTORY VIEW                                      */}
-      {/* ========================================================= */}
-      {mode === "shooter" && (
-        <div className="mt-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-3">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Difficulty:
-              </span>
-              {DIFFICULTIES.map((diff) => {
-                const active = shooterDifficulty === diff;
-                return (
-                  <button
-                    key={diff}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => setShooterDifficulty(diff)}
-                    className={`cursor-pointer rounded-md px-2 py-0.5 text-xs font-medium capitalize transition-colors ${
-                      active
-                        ? "bg-accent font-semibold text-accent-foreground"
-                        : "bg-secondary text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {diff}
-                  </button>
-                );
-              })}
-            </div>
-            <span className="font-mono text-xs text-muted-foreground">Arcade Mode Tracker</span>
+            {currentModeRunsCount >= 75 ? (
+              <div className="mt-3 flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                <span>
+                  Storage notice: You have {currentModeRunsCount}/100 saved runs. Oldest runs will
+                  cycle out when full.
+                </span>
+                <button
+                  type="button"
+                  onClick={handleExport}
+                  className="cursor-pointer font-semibold underline hover:no-underline"
+                >
+                  Export backup
+                </button>
+              </div>
+            ) : null}
+
+            {/* ========================================================= */}
+            {/* DRILL HISTORY VIEW                                        */}
+            {/* ========================================================= */}
+            {mode === "drill" && (
+              <div className="mt-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-3">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="mr-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Duration:
+                    </span>
+                    {DRILL_DURATIONS.map((d) => {
+                      const active = drillDuration === d;
+                      return (
+                        <button
+                          key={d}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => setDrillDuration(d)}
+                          className={`cursor-pointer rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
+                            active
+                              ? "bg-primary font-semibold text-primary-foreground"
+                              : "bg-secondary text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {d === "all" ? "All Durations" : d}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="mr-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Diff:
+                    </span>
+                    {DIFFICULTIES.map((diff) => {
+                      const active = drillDifficulty === diff;
+                      return (
+                        <button
+                          key={diff}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => setDrillDifficulty(diff)}
+                          className={`cursor-pointer rounded-md px-2 py-0.5 text-xs font-medium capitalize transition-colors ${
+                            active
+                              ? "bg-foreground font-semibold text-background"
+                              : "bg-secondary text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {diff}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {drillAll.length === 0 ? (
+                  <div className="panel mt-6 flex flex-col items-center gap-3 px-6 py-10 text-center">
+                    <Trophy className="size-8 text-muted-foreground/50" />
+                    <p className="text-sm text-muted-foreground">
+                      No runs yet. Your first result starts the log.
+                    </p>
+                    {onStartRun ? (
+                      <button
+                        type="button"
+                        onClick={onStartRun}
+                        className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                      >
+                        Start your first run
+                      </button>
+                    ) : null}
+                  </div>
+                ) : filteredDrillHistory.length === 0 ? (
+                  <p className="mt-6 text-sm text-muted-foreground">
+                    No runs recorded matching the selected filter criteria.
+                  </p>
+                ) : (
+                  <>
+                    <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-5">
+                      <div className="rounded-xl border border-border/70 bg-card p-3">
+                        <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                          Best WPM
+                        </div>
+                        <div className="font-mono text-2xl font-bold tabular-nums text-primary">
+                          {drillBestWpm.toFixed(0)}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-border/70 bg-card p-3">
+                        <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                          Average WPM
+                        </div>
+                        <div className="font-mono text-2xl font-bold tabular-nums">
+                          {drillAvgWpm.toFixed(0)}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-border/70 bg-card p-3">
+                        <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                          Accuracy
+                        </div>
+                        <div className="font-mono text-2xl font-bold tabular-nums text-accent-foreground">
+                          {drillAvgAccuracy.toFixed(0)}%
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-border/70 bg-card p-3">
+                        <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                          Drill Runs
+                        </div>
+                        <div className="font-mono text-2xl font-bold tabular-nums">
+                          {filteredDrillHistory.length}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-border/70 bg-card p-3">
+                        <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                          Trend
+                        </div>
+                        <div
+                          className={`font-mono text-2xl font-bold tabular-nums ${
+                            drillImprovement >= 0 ? "text-primary" : "text-destructive"
+                          }`}
+                        >
+                          {drillImprovement > 0 ? "+" : ""}
+                          {drillImprovement.toFixed(0)}%
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-5">
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Recent Drill Runs
+                      </div>
+                      <ul className="divide-y divide-border/70 text-sm">
+                        {filteredDrillHistory.slice(0, 6).map((h) => (
+                          <li key={h.id} className="flex items-center justify-between gap-3 py-2">
+                            <span className="flex min-w-0 items-center gap-2 truncate text-muted-foreground">
+                              <span>
+                                {new Date(h.date).toLocaleString(undefined, {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                              <span className="rounded bg-secondary px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-foreground">
+                                {h.difficulty}
+                              </span>
+                              <span className="rounded border border-border bg-secondary/70 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-primary">
+                                {h.mode ? (h.mode.endsWith("s") ? h.mode : `${h.mode}s`) : "30s"}
+                              </span>
+                            </span>
+                            <span className="shrink-0 font-mono text-xs tabular-nums sm:text-sm">
+                              <strong className="font-semibold text-primary">
+                                {h.wpm.toFixed(0)}
+                              </strong>{" "}
+                              wpm ·{" "}
+                              <span className="text-foreground">{h.accuracy.toFixed(0)}% acc</span>{" "}
+                              ·{" "}
+                              <span className="text-xs text-muted-foreground">
+                                {h.consistency.toFixed(0)}% sync
+                              </span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* ========================================================= */}
+            {/* SHOOTER HISTORY VIEW                                      */}
+            {/* ========================================================= */}
+            {mode === "shooter" && (
+              <div className="mt-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-3">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="mr-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Difficulty:
+                    </span>
+                    {DIFFICULTIES.map((diff) => {
+                      const active = shooterDifficulty === diff;
+                      return (
+                        <button
+                          key={diff}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => setShooterDifficulty(diff)}
+                          className={`cursor-pointer rounded-md px-2 py-0.5 text-xs font-medium capitalize transition-colors ${
+                            active
+                              ? "bg-accent font-semibold text-accent-foreground"
+                              : "bg-secondary text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {diff}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    Arcade Mode Tracker
+                  </span>
+                </div>
+
+                {shooterAll.length === 0 ? (
+                  <p className="mt-6 text-sm text-muted-foreground">
+                    No Word Shooter games recorded yet. Launch Word Shooter to battle falling words!
+                  </p>
+                ) : filteredShooterHistory.length === 0 ? (
+                  <p className="mt-6 text-sm text-muted-foreground">
+                    No games found matching the selected difficulty filter.
+                  </p>
+                ) : (
+                  <>
+                    <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-5">
+                      <div className="rounded-xl border border-border/70 bg-card p-3">
+                        <div className="flex items-center gap-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                          <Trophy className="size-3 text-amber-500" />
+                          High Score
+                        </div>
+                        <div className="font-mono text-2xl font-bold tabular-nums text-amber-500">
+                          {shooterHighScore.toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-border/70 bg-card p-3">
+                        <div className="flex items-center gap-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                          <Zap className="size-3 text-accent" />
+                          Best Level
+                        </div>
+                        <div className="font-mono text-2xl font-bold tabular-nums text-accent-foreground">
+                          Lvl {shooterBestLevel}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-border/70 bg-card p-3">
+                        <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                          Average Score
+                        </div>
+                        <div className="font-mono text-2xl font-bold tabular-nums">
+                          {Math.round(shooterAvgScore).toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-border/70 bg-card p-3">
+                        <div className="flex items-center gap-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                          <Target className="size-3 text-primary" />
+                          Accuracy
+                        </div>
+                        <div className="font-mono text-2xl font-bold tabular-nums text-primary">
+                          {shooterAvgAccuracy.toFixed(0)}%
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-border/70 bg-card p-3">
+                        <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                          Games Played
+                        </div>
+                        <div className="font-mono text-2xl font-bold tabular-nums">
+                          {filteredShooterHistory.length}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-5">
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Recent Shooter Battles
+                      </div>
+                      <ul className="divide-y divide-border/70 text-sm">
+                        {filteredShooterHistory.slice(0, 6).map((h) => {
+                          const score = h.score ?? Math.round(h.wpm * 10);
+                          const lvl = h.level ?? 1;
+                          const words = h.wordsDestroyed ?? h.correct ?? 0;
+                          return (
+                            <li key={h.id} className="flex items-center justify-between gap-3 py-2">
+                              <span className="flex min-w-0 items-center gap-2 truncate text-muted-foreground">
+                                <span>
+                                  {new Date(h.date).toLocaleString(undefined, {
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                                <span className="rounded bg-secondary px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-foreground">
+                                  {h.difficulty}
+                                </span>
+                                <span className="rounded border border-destructive/40 bg-destructive/15 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-destructive">
+                                  Lvl {lvl}
+                                </span>
+                              </span>
+                              <span className="shrink-0 font-mono text-xs tabular-nums sm:text-sm">
+                                <strong className="font-semibold text-amber-500">
+                                  {score.toLocaleString()}
+                                </strong>{" "}
+                                pts · <span className="text-foreground">{words} words</span> ·{" "}
+                                <span className="text-xs text-muted-foreground">
+                                  {h.accuracy.toFixed(0)}% acc
+                                </span>
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
-
-          {shooterAll.length === 0 ? (
-            <p className="mt-6 text-sm text-muted-foreground">
-              No Word Shooter games recorded yet. Launch Word Shooter to battle falling words!
-            </p>
-          ) : filteredShooterHistory.length === 0 ? (
-            <p className="mt-6 text-sm text-muted-foreground">
-              No games found matching the selected difficulty filter.
-            </p>
-          ) : (
-            <>
-              <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-5">
-                <div className="rounded-xl border border-border/70 bg-card p-3">
-                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                    <Trophy className="size-3 text-amber-500" />
-                    High Score
-                  </div>
-                  <div className="font-mono text-2xl font-bold tabular-nums text-amber-500">
-                    {shooterHighScore.toLocaleString()}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-border/70 bg-card p-3">
-                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                    <Zap className="size-3 text-accent" />
-                    Best Level
-                  </div>
-                  <div className="font-mono text-2xl font-bold tabular-nums text-accent-foreground">
-                    Lvl {shooterBestLevel}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-border/70 bg-card p-3">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                    Average Score
-                  </div>
-                  <div className="font-mono text-2xl font-bold tabular-nums">
-                    {Math.round(shooterAvgScore).toLocaleString()}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-border/70 bg-card p-3">
-                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                    <Target className="size-3 text-primary" />
-                    Accuracy
-                  </div>
-                  <div className="font-mono text-2xl font-bold tabular-nums text-primary">
-                    {shooterAvgAccuracy.toFixed(0)}%
-                  </div>
-                </div>
-                <div className="rounded-xl border border-border/70 bg-card p-3">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                    Games Played
-                  </div>
-                  <div className="font-mono text-2xl font-bold tabular-nums">
-                    {filteredShooterHistory.length}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-5">
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Recent Shooter Battles
-                </div>
-                <ul className="divide-y divide-border/70 text-sm">
-                  {filteredShooterHistory.slice(0, 6).map((h) => {
-                    const score = h.score ?? Math.round(h.wpm * 10);
-                    const lvl = h.level ?? 1;
-                    const words = h.wordsDestroyed ?? h.correct ?? 0;
-                    return (
-                      <li key={h.id} className="flex items-center justify-between gap-3 py-2">
-                        <span className="flex min-w-0 items-center gap-2 truncate text-muted-foreground">
-                          <span>
-                            {new Date(h.date).toLocaleString(undefined, {
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                          <span className="rounded bg-secondary px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-foreground">
-                            {h.difficulty}
-                          </span>
-                          <span className="rounded border border-destructive/40 bg-destructive/15 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-destructive">
-                            Lvl {lvl}
-                          </span>
-                        </span>
-                        <span className="shrink-0 font-mono text-xs tabular-nums sm:text-sm">
-                          <strong className="font-semibold text-amber-500">
-                            {score.toLocaleString()}
-                          </strong>{" "}
-                          pts · <span className="text-foreground">{words} words</span> ·{" "}
-                          <span className="text-xs text-muted-foreground">
-                            {h.accuracy.toFixed(0)}% acc
-                          </span>
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            </>
-          )}
         </div>
-      )}
+      </div>
 
       {/* Paste JSON Import Dialog */}
       <Dialog open={pasteOpen} onOpenChange={setPasteOpen}>

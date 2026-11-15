@@ -113,103 +113,99 @@ export function WordShooterProgress({
           Per-second firing velocity telemetry unavailable for this run.
         </p>
       }
-      statsGrid={(isExpanded) => (
-        <div
-          className={`grid gap-2 pt-3 ${
-            isExpanded ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-6" : "grid-cols-2 sm:grid-cols-4"
-          }`}
-        >
-          <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-            <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              <Trophy className="size-3 text-accent" /> Score
-            </span>
-            <span className="mt-1 font-mono text-base font-bold text-accent">
-              {summary?.score ?? 0}{" "}
-              <span className="text-[11px] font-normal text-muted-foreground">pts</span>
-            </span>
-          </div>
-
-          <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-            <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              <Target className="size-3 text-primary" /> Destroyed
-            </span>
-            <span className="mt-1 font-mono text-base font-bold text-primary">
-              {summary?.wordsDestroyed ?? 0}{" "}
-              <span className="text-[11px] font-normal text-muted-foreground">words</span>
-            </span>
-          </div>
-
-          <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-            <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              <Zap className="size-3 text-primary" /> Peak Fire Rate
-            </span>
-            <span className="mt-1 font-mono text-base font-bold text-foreground">
-              {stats.peakWpm}{" "}
-              <span className="text-[11px] font-normal text-muted-foreground">
-                WPM at {stats.peakSec}s
+      statsGrid={(isExpanded) =>
+        isExpanded ? (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
+            <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
+              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                <Trophy className="size-3 text-accent" /> Score
               </span>
-            </span>
-          </div>
-
-          <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-            <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              <Award className="size-3 text-primary" /> Accuracy
-            </span>
-            <span className="mt-1 font-mono text-base font-bold text-foreground">
-              {summary?.accuracy ? summary.accuracy.toFixed(0) : "100"}%
-            </span>
-          </div>
-
-          {isExpanded ? (
-            <>
-              <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-                <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  <Shield className="size-3 text-primary" /> Wave Level
-                </span>
-                <span className="mt-1 font-mono text-base font-bold text-foreground">
-                  Level {summary?.level ?? 1}
-                </span>
-              </div>
-
-              <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-                <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  <Clock className="size-3 text-primary" /> Survival Time
-                </span>
-                <span className="mt-1 font-mono text-base font-bold text-foreground">
-                  {summary?.durationSec ?? data.length}s
-                </span>
-              </div>
-            </>
-          ) : null}
-        </div>
-      )}
-      footer={(isExpanded) => (
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-1 w-3.5 rounded-full bg-accent" /> Word Elimination
-              Velocity (WPM)
-            </span>
-            {highScore && highScore > 0 ? (
-              <span className="flex items-center gap-1.5 text-muted-foreground">
-                <Trophy className="size-3 text-accent" /> High Score: {highScore} pts
+              <span className="mt-1 font-mono text-base font-bold text-accent">
+                {summary?.score ?? 0}{" "}
+                <span className="text-[11px] font-normal text-muted-foreground">pts</span>
               </span>
-            ) : null}
-          </div>
+            </div>
 
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-muted-foreground">
-              {summary?.difficulty ? `${summary.difficulty.toUpperCase()} MODE` : "ARCADE"} ·{" "}
-              {data.length}s
-            </span>
-            {data.length > 0 ? (
-              <span className="hidden text-[10px] text-accent sm:inline-block">
-                {isExpanded ? "(Click to collapse)" : "(Click to expand)"}
+            <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
+              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                <Target className="size-3 text-primary" /> Destroyed
               </span>
-            ) : null}
+              <span className="mt-1 font-mono text-base font-bold text-primary">
+                {summary?.wordsDestroyed ?? 0}{" "}
+                <span className="text-[11px] font-normal text-muted-foreground">words</span>
+              </span>
+            </div>
+
+            <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
+              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                <Zap className="size-3 text-primary" /> Peak Fire Rate
+              </span>
+              <span className="mt-1 font-mono text-base font-bold text-foreground">
+                {stats.peakWpm}{" "}
+                <span className="text-[11px] font-normal text-muted-foreground">
+                  WPM at {stats.peakSec}s
+                </span>
+              </span>
+            </div>
+
+            <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
+              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                <Award className="size-3 text-primary" /> Accuracy
+              </span>
+              <span className="mt-1 font-mono text-base font-bold text-foreground">
+                {summary?.accuracy ? summary.accuracy.toFixed(0) : "100"}%
+              </span>
+            </div>
+
+            <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
+              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                <Shield className="size-3 text-primary" /> Wave Level
+              </span>
+              <span className="mt-1 font-mono text-base font-bold text-foreground">
+                Level {summary?.level ?? 1}
+              </span>
+            </div>
+
+            <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
+              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                <Clock className="size-3 text-primary" /> Survival Time
+              </span>
+              <span className="mt-1 font-mono text-base font-bold text-foreground">
+                {summary?.durationSec ?? data.length}s
+              </span>
+            </div>
           </div>
-        </div>
-      )}
+        ) : null
+      }
+      footer={(isExpanded) =>
+        isExpanded ? (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-1 w-3.5 rounded-full bg-accent" /> Word Elimination
+                Velocity (WPM)
+              </span>
+              {highScore && highScore > 0 ? (
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <Trophy className="size-3 text-accent" /> High Score: {highScore} pts
+                </span>
+              ) : null}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs text-muted-foreground">
+                {summary?.difficulty ? `${summary.difficulty.toUpperCase()} MODE` : "ARCADE"} ·{" "}
+                {data.length}s
+              </span>
+              {data.length > 0 ? (
+                <span className="hidden text-[10px] text-accent sm:inline-block">
+                  (Click to collapse)
+                </span>
+              ) : null}
+            </div>
+          </div>
+        ) : null
+      }
     >
       {(isExpanded) => (
         <SvgLineChart

@@ -115,119 +115,117 @@ export function WpmChart({
           <span className="font-bold text-accent">{stats.peakWpm} WPM</span>
         </div>
       }
-      statsGrid={(isExpanded) => (
-        <div
-          className={`grid gap-2 pt-3 ${
-            isExpanded ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-6" : "grid-cols-2 sm:grid-cols-4"
-          }`}
-        >
-          <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-            <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              <Activity className="size-3 text-primary" /> Average Pace
-            </span>
-            <span className="mt-1 font-mono text-base font-bold text-foreground">
-              {stats.avgWpm}{" "}
-              <span className="text-[11px] font-normal text-muted-foreground">WPM</span>
-            </span>
-          </div>
-
-          <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-            <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              <Zap className="size-3 text-accent" /> Peak Burst
-            </span>
-            <span className="mt-1 font-mono text-base font-bold text-accent">
-              {stats.peakWpm}{" "}
-              <span className="text-[11px] font-normal text-muted-foreground">
-                at {stats.peakSec}s
+      statsGrid={(isExpanded) =>
+        isExpanded ? (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
+            <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
+              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                <Activity className="size-3 text-primary" /> Average Pace
               </span>
-            </span>
-          </div>
+              <span className="mt-1 font-mono text-base font-bold text-foreground">
+                {stats.avgWpm}{" "}
+                <span className="text-[11px] font-normal text-muted-foreground">WPM</span>
+              </span>
+            </div>
 
-          <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-            <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              <Target className="size-3 text-primary" /> Target
-            </span>
-            <span className="mt-1 font-mono text-base font-bold text-foreground">
-              {targetWpm ? (
-                <>
-                  {stats.avgWpm >= targetWpm ? (
-                    <span className="text-emerald-500">+{stats.avgWpm - targetWpm}</span>
-                  ) : (
-                    <span className="text-amber-500">-{targetWpm - stats.avgWpm}</span>
-                  )}{" "}
-                  <span className="text-[11px] font-normal text-muted-foreground">
-                    vs {targetWpm}
-                  </span>
-                </>
-              ) : (
-                <span className="text-xs font-normal text-muted-foreground">None</span>
+            <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
+              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                <Zap className="size-3 text-accent" /> Peak Burst
+              </span>
+              <span className="mt-1 font-mono text-base font-bold text-accent">
+                {stats.peakWpm}{" "}
+                <span className="text-[11px] font-normal text-muted-foreground">
+                  at {stats.peakSec}s
+                </span>
+              </span>
+            </div>
+
+            <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
+              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                <Target className="size-3 text-primary" /> Target
+              </span>
+              <span className="mt-1 font-mono text-base font-bold text-foreground">
+                {targetWpm ? (
+                  <>
+                    {stats.avgWpm >= targetWpm ? (
+                      <span className="text-emerald-500">+{stats.avgWpm - targetWpm}</span>
+                    ) : (
+                      <span className="text-amber-500">-{targetWpm - stats.avgWpm}</span>
+                    )}{" "}
+                    <span className="text-[11px] font-normal text-muted-foreground">
+                      vs {targetWpm}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-xs font-normal text-muted-foreground">None</span>
+                )}
+              </span>
+            </div>
+
+            <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
+              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                <Award className="size-3 text-muted-foreground" /> Lowest Dip
+              </span>
+              <span className="mt-1 font-mono text-base font-bold text-muted-foreground">
+                {stats.minWpm}{" "}
+                <span className="text-[11px] font-normal text-muted-foreground">
+                  at {stats.minSec}s
+                </span>
+              </span>
+            </div>
+
+            <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
+              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                <Clock className="size-3 text-primary" /> Total Time
+              </span>
+              <span className="mt-1 font-mono text-base font-bold text-foreground">
+                {data.length}s
+              </span>
+            </div>
+
+            <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
+              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                <Flame className="size-3 text-primary" /> Ghost Avg (Best)
+              </span>
+              <span className="mt-1 font-mono text-base font-bold text-foreground">
+                {stats.ghostAvg !== undefined ? `${stats.ghostAvg} WPM` : "None"}
+              </span>
+            </div>
+          </div>
+        ) : null
+      }
+      footer={(isExpanded) =>
+        isExpanded ? (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-1 w-3.5 rounded-full bg-primary" /> Current Run
+              </span>
+              {hasGhost && (
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block h-1 w-3.5 border-b-2 border-dashed border-muted-foreground" />{" "}
+                  Personal Best
+                </span>
               )}
-            </span>
-          </div>
+              {typeof targetWpm === "number" && targetWpm > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block h-1 w-3.5 border-b-2 border-dotted border-primary/70" />{" "}
+                  Target ({targetWpm} WPM)
+                </span>
+              )}
+            </div>
 
-          <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-            <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              <Award className="size-3 text-muted-foreground" /> Lowest Dip
-            </span>
-            <span className="mt-1 font-mono text-base font-bold text-muted-foreground">
-              {stats.minWpm}{" "}
-              <span className="text-[11px] font-normal text-muted-foreground">
-                at {stats.minSec}s
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs text-muted-foreground">
+                {data.length}s duration
               </span>
-            </span>
-          </div>
-
-          {isExpanded ? (
-            <>
-              <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-                <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  <Clock className="size-3 text-primary" /> Total Time
-                </span>
-                <span className="mt-1 font-mono text-base font-bold text-foreground">
-                  {data.length}s
-                </span>
-              </div>
-
-              <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-                <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  <Flame className="size-3 text-primary" /> Ghost Avg (Best)
-                </span>
-                <span className="mt-1 font-mono text-base font-bold text-foreground">
-                  {stats.ghostAvg !== undefined ? `${stats.ghostAvg} WPM` : "None"}
-                </span>
-              </div>
-            </>
-          ) : null}
-        </div>
-      )}
-      footer={(isExpanded) => (
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-1 w-3.5 rounded-full bg-primary" /> Current Run
-            </span>
-            {hasGhost && (
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-1 w-3.5 border-b-2 border-dashed border-muted-foreground" />{" "}
-                Personal Best
+              <span className="hidden text-[10px] text-primary sm:inline-block">
+                (Click to collapse)
               </span>
-            )}
-            {typeof targetWpm === "number" && targetWpm > 0 && (
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-1 w-3.5 border-b-2 border-dotted border-primary/70" />{" "}
-                Target ({targetWpm} WPM)
-              </span>
-            )}
+            </div>
           </div>
-
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-muted-foreground">{data.length}s duration</span>
-            <span className="hidden text-[10px] text-primary sm:inline-block">
-              {isExpanded ? "(Click to collapse)" : "(Click to expand)"}
-            </span>
-          </div>
-        </div>
-      )}
+        ) : null
+      }
     >
       {(isExpanded) => (
         <SvgLineChart
