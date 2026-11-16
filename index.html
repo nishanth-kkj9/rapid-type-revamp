@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Typing Trainer Pro — Local-First Typing Speed &amp; Accuracy Drills</title>
+    <meta
+      name="description"
+      content="Practice typing speed and accuracy offline with timed drills, word quotas, real quotes, Word Shooter arcade mode, per-key heatmaps, and live stats."
+    />
+    <link rel="canonical" />
+    <meta
+      property="og:title"
+      content="Typing Trainer Pro — Local-First Typing Speed &amp; Accuracy Drills"
+    />
+    <meta
+      property="og:description"
+      content="Practice typing speed and accuracy offline with timed drills, word quotas, real quotes, Word Shooter arcade mode, per-key heatmaps, and live stats."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="/" />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="Typing Trainer Pro — Local-First Typing Speed &amp; Accuracy Drills"
+    />
+    <meta
+      name="twitter:description"
+      content="Practice typing speed and accuracy offline with timed drills, word quotas, real quotes, Word Shooter arcade mode, per-key heatmaps, and live stats."
+    />
+    <meta name="twitter:image" content="/og-image.png" />
+    <meta name="theme-color" content="#1c1917" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="TypeTrainer" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Typing Trainer Pro",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Any",
+        "browserRequirements": "Requires JavaScript and HTML5 IndexedDB/LocalStorage",
+        "description": "Local-first typing trainer with timed drills, word quotas, literary quotes, Word Shooter arcade mode, per-key speed and accuracy heatmaps, and offline PWA support.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "featureList": [
+          "Timed, Word Quota, Quote, and Custom Text typing drills",
+          "Keystroke-level accuracy and rolling WPM analytics",
+          "Word Shooter arcade typing game",
+          "QWERTY, Dvorak, Colemak, QWERTZ, and AZERTY layouts",
+          "Per-key accuracy and latency heatmap",
+          "100% browser-local storage with offline PWA support"
+        ]
+      }
+    </script>
+    <script>
+      try {
+        var root = document.documentElement;
+        var theme = localStorage.getItem("ttp:theme:v1");
+        if (theme !== "dark" && theme !== "light" && theme !== "high-contrast") {
+          if (window.matchMedia && window.matchMedia("(prefers-contrast: more)").matches) {
+            theme = "high-contrast";
+          } else if (
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: light)").matches
+          ) {
+            theme = "light";
+          } else {
+            theme = "dark";
+          }
+        }
+        root.classList.toggle("light", theme === "light");
+        root.classList.toggle("high-contrast", theme === "high-contrast");
+        root.dataset.theme = theme;
+        var themeMeta = document.querySelector('meta[name="theme-color"]');
+        if (themeMeta) {
+          themeMeta.setAttribute(
+            "content",
+            theme === "light" ? "#f8f7f4" : theme === "high-contrast" ? "#000000" : "#1c1917",
+          );
+        }
+
+        var prefsRaw = localStorage.getItem("ttp:uiprefs:v1");
+        if (prefsRaw) {
+          var prefs = JSON.parse(prefsRaw);
+          if (prefs && prefs.themeAccent) root.dataset.accent = prefs.themeAccent;
+          if (prefs && prefs.dyslexiaFont) root.dataset.font = "opendyslexic";
+        }
+
+        var origin = window.location.origin;
+        var canonical = document.querySelector('link[rel="canonical"]');
+        if (canonical) canonical.setAttribute("href", origin + window.location.pathname);
+        var ogUrl = document.querySelector('meta[property="og:url"]');
+        if (ogUrl) ogUrl.setAttribute("content", origin + window.location.pathname);
+        var ogImg = document.querySelector('meta[property="og:image"]');
+        if (ogImg) ogImg.setAttribute("content", origin + "/og-image.png");
+        var twImg = document.querySelector('meta[name="twitter:image"]');
+        if (twImg) twImg.setAttribute("content", origin + "/og-image.png");
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -8,8 +8,19 @@ import {
   importHistory,
   clearHistory,
   HistoryEntrySchema,
+  formatModeLabel,
+  clampMonotonicSamples,
+  computeRollingWpmSeries,
+  getPersonalBestWpm,
+  getModeHistory,
+  computeHistoryProgressSeries,
+  computePersonalBestsTable,
+  computeSameTypeTrend,
+  deleteRunFromStorage,
+  getShooterBestScore,
   type HistoryEntry,
 } from "./typingStats";
+import { MemoryStorage } from "./storage";
 
 const entry = (over: Partial<HistoryEntry> = {}): HistoryEntry => ({
   id: "a",
@@ -35,6 +46,19 @@ describe("computeStats", () => {
     expect(s.accuracy).toBe(Math.round((50 / 55) * 1000) / 10);
   });
 
+  it("computes keystroke-level accuracy and exposes uncorrected errors separately", () => {
+    const s = computeStats(100, 0, 60000, [], {
+      keystrokesCorrect: 100,
+      keystrokesIncorrect: 25,
+      uncorrectedErrors: 0,
+    });
+    expect(s.wpm).toBe(20);
+    expect(s.accuracy).toBe(80);
+    expect(s.incorrect).toBe(25);
+    expect(s.uncorrectedErrors).toBe(0);
+    expect(s.adjustedWpm).toBe(20);
+  });
+
   it("clamps sub-second elapsed time", () => {
     const s = computeStats(0, 0, 500, []);
     expect(s.wpm).toBe(0);
@@ -48,11 +72,41 @@ describe("computeStats", () => {
   });
 });
 
-describe("toDeltas", () => {
+describe("toDeltas & rolling WPM", () => {
   it("converts cumulative counts to deltas", () => {
     expect(toDeltas([])).toEqual([]);
     expect(toDeltas([3])).toEqual([3]);
     expect(toDeltas([3, 7, 12])).toEqual([3, 4, 5]);
+  });
+
+  it("clamps monotonic samples and computes rolling 5s WPM series", () => {
+    expect(clampMonotonicSamples([5, 3, 8, 6])).toEqual([5, 5, 8, 8]);
+    // Steady 5 chars/sec = 60 WPM across a partial 2.5s final tail
+    expect(computeRollingWpmSeries([5, 10, 12.5], 2.5)).toEqual([60, 60, 60]);
+  });
+});
+
+describe("formatModeLabel & scoped PB", () => {
+  it("formats drill and shooter labels consistently", () => {
+    expect(formatModeLabel("30")).toBe("30s");
+    expect(formatModeLabel("30s")).toBe("30s");
+    expect(formatModeLabel("25w")).toBe("25 words");
+    expect(formatModeLabel("quote")).toBe("Quote");
+    expect(formatModeLabel("shooter")).toBe("Shooter");
+  });
+
+  it("scopes personal bests by test type and difficulty (ignoring difficulty for quote)", () => {
+    const history = [
+      entry({ id: "1", mode: "30s", difficulty: "easy", wpm: 95 }),
+      entry({ id: "2", mode: "30s", difficulty: "hard", wpm: 62 }),
+      entry({ id: "3", mode: "25w", difficulty: "hard", wpm: 80 }),
+      entry({ id: "4", mode: "quote", difficulty: "easy", wpm: 77 }),
+      entry({ id: "5", mode: "shooter", difficulty: "hard", wpm: 130 }),
+    ];
+    expect(getPersonalBestWpm(history, "30s", "hard")).toBe(62);
+    expect(getPersonalBestWpm(history, "30s", "easy")).toBe(95);
+    expect(getPersonalBestWpm(history, "25w", "hard")).toBe(80);
+    expect(getPersonalBestWpm(history, "quote", "hard")).toBe(77);
   });
 });
 
@@ -174,3 +228,95 @@ describe("history storage", () => {
     expect(loadHistory()).toEqual([]);
   });
 });
+
+describe("History v2 analytics & single-run deletion", () => {
+  it("computes chronological progress series with 7-run moving average", () => {
+    const runs = [10, 20, 30, 40, 50, 60, 70, 80].map((wpm, i) =>
+      entry({ id: `p-${i}`, date: 1000 + i * 1000, wpm, mode: "30s" }),
+    );
+    const series = computeHistoryProgressSeries([...runs].reverse(), 7);
+    expect(series).toHaveLength(8);
+    expect(series[0]?.wpm).toBe(10);
+    expect(series[0]?.movingAvgWpm).toBe(10);
+    // 7th run moving avg of [10,20,30,40,50,60,70] = 40
+    expect(series[6]?.movingAvgWpm).toBe(40);
+    // 8th run moving avg of [20,30,40,50,60,70,80] = 50
+    expect(series[7]?.movingAvgWpm).toBe(50);
+  });
+
+  it("never mixes test types or difficulties when computing trend", () => {
+    const mixed = [
+      ...Array.from({ length: 5 }, (_, i) =>
+        entry({ id: `e-${i}`, date: 1000 + i, mode: "15s", difficulty: "easy", wpm: 40 }),
+      ),
+      ...Array.from({ length: 5 }, (_, i) =>
+        entry({ id: `h-${i}`, date: 2000 + i, mode: "30s", difficulty: "hard", wpm: 90 }),
+      ),
+    ];
+
+    expect(computeSameTypeTrend(mixed, "all", "all")).toBeNull();
+
+    const sameTypeAndDiff = [
+      ...Array.from({ length: 5 }, (_, i) =>
+        entry({ id: `a-${i}`, date: 1000 + i, mode: "25w", difficulty: "medium", wpm: 50 }),
+      ),
+      ...Array.from({ length: 5 }, (_, i) =>
+        entry({ id: `b-${i}`, date: 2000 + i, mode: "25w", difficulty: "medium", wpm: 60 }),
+      ),
+      // Add an unrelated higher shooter run that must not affect 25w trend
+      entry({ id: "sh-1", date: 3000, mode: "shooter", difficulty: "medium", wpm: 140 }),
+    ];
+
+    const trend = computeSameTypeTrend(sameTypeAndDiff, "25w", "medium");
+    expect(trend).not.toBeNull();
+    expect(trend!.earlierAvgWpm).toBe(50);
+    expect(trend!.recentAvgWpm).toBe(60);
+    expect(trend!.deltaPercent).toBe(20);
+  });
+
+  it("filters 25 words and Quote runs and computes personal best table per test type", () => {
+    const history = [
+      entry({ id: "w1", mode: "25w", difficulty: "medium", wpm: 71, accuracy: 96 }),
+      entry({ id: "w2", mode: "25w", difficulty: "medium", wpm: 79, accuracy: 98 }),
+      entry({ id: "q1", mode: "quote", difficulty: "hard", wpm: 64, accuracy: 99 }),
+      entry({ id: "s1", mode: "shooter", difficulty: "hard", wpm: 120, accuracy: 95 }),
+    ];
+    expect(getModeHistory(history, "25w")).toHaveLength(2);
+    expect(getModeHistory(history, "quote")).toHaveLength(1);
+
+    const pbTable = computePersonalBestsTable(history);
+    expect(pbTable).toHaveLength(2); // excludes shooter
+    expect(pbTable[0]?.modeLabel).toBe("25 words");
+    expect(pbTable[0]?.bestWpm).toBe(79);
+    expect(pbTable[0]?.runs).toBe(2);
+    expect(pbTable[1]?.modeLabel).toBe("Quote");
+  });
+
+  it("deletes a single run from storage cleanly", async () => {
+    const storage = new MemoryStorage();
+    await importHistoryToTest(storage);
+    const { deleted, list } = await deleteRunFromStorage(storage, "del-1");
+    expect(deleted?.id).toBe("del-1");
+    expect(list.map((r) => r.id)).toEqual(["keep-2"]);
+  });
+
+  it("derives shooter best score strictly from non-practice shooter history and resets on clear", () => {
+    const history = [
+      entry({ id: "d1", mode: "30s", score: 5000 }),
+      entry({ id: "s1", mode: "shooter", score: 1850 }),
+      entry({ id: "s2", mode: "shooter", score: 9999, practiceMode: true }),
+      entry({ id: "s3", mode: "shooter", score: 1200 }),
+    ];
+    expect(getShooterBestScore(history)).toBe(1850);
+    expect(getShooterBestScore(history.filter((h) => h.id !== "s1"))).toBe(1200);
+    expect(getShooterBestScore(history.filter((h) => h.mode !== "shooter"))).toBe(0);
+  });
+});
+
+async function importHistoryToTest(storage: MemoryStorage) {
+  const { restoreHistoryToStorage } = await import("./typingStats");
+  await restoreHistoryToStorage(storage, [
+    entry({ id: "del-1", date: 100 }),
+    entry({ id: "keep-2", date: 200 }),
+  ]);
+}

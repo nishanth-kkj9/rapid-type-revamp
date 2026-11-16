@@ -1,5 +1,5 @@
 /** Pure helpers that turn per-key mistake and speed maps into keyboard-heatmap data. */
-import { keyFor } from "./keyboardLayout";
+import { keyFor, type KeyboardLayoutId, type KeyboardStandard } from "./keyboardLayout";
 import type { KeySpeedMap } from "./keySpeed";
 
 /**
@@ -8,14 +8,18 @@ import type { KeySpeedMap } from "./keySpeed";
  * Characters that exist in the data but not on the layout are kept
  * (the heatmap render simply never shows them).
  */
-export function aggregateKeyMistakes(mistakes: Record<string, number>): Record<string, number> {
+export function aggregateKeyMistakes(
+  mistakes: Record<string, number>,
+  layout: KeyboardLayoutId = "qwerty",
+  standard: KeyboardStandard = "ansi",
+): Record<string, number> {
   const out: Record<string, number> = {};
   for (const [char, count] of Object.entries(mistakes)) {
     if (typeof char !== "string" || char.length !== 1) continue;
     if (!Number.isInteger(count) || count <= 0) continue;
-    const { key } = keyFor(char);
-    if (!key) continue;
-    out[key] = (out[key] ?? 0) + count;
+    const { key } = keyFor(char, layout, standard);
+    const target = key ?? char;
+    out[target] = (out[target] ?? 0) + count;
   }
   return out;
 }
@@ -35,25 +39,33 @@ export function heatLevel(count: number, max: number): 0 | 1 | 2 | 3 | 4 {
  * "?" -> "/", "A" -> "a", " " -> "Space". Sums and sample counts both
  * merge; invalid entries are dropped.
  */
-export function aggregateKeySpeed(speed: KeySpeedMap): KeySpeedMap {
+export function aggregateKeySpeed(
+  speed: KeySpeedMap,
+  layout: KeyboardLayoutId = "qwerty",
+  standard: KeyboardStandard = "ansi",
+): KeySpeedMap {
   const out: KeySpeedMap = {};
   for (const [char, entry] of Object.entries(speed)) {
     if (typeof char !== "string" || char.length !== 1) continue;
     if (!Array.isArray(entry) || entry.length !== 2) continue;
     const [sum, count] = entry;
     if (!Number.isFinite(sum) || !Number.isFinite(count) || count <= 0) continue;
-    const { key } = keyFor(char);
-    if (!key) continue;
-    const prev = out[key] ?? [0, 0];
-    out[key] = [prev[0] + sum, prev[1] + count];
+    const { key } = keyFor(char, layout, standard);
+    const target = key ?? char;
+    const prev = out[target] ?? [0, 0];
+    out[target] = [prev[0] + sum, prev[1] + count];
   }
   return out;
 }
 
 /** Average milliseconds per physical base key. */
-export function averageMsByKey(speed: KeySpeedMap): Record<string, number> {
+export function averageMsByKey(
+  speed: KeySpeedMap,
+  layout: KeyboardLayoutId = "qwerty",
+  standard: KeyboardStandard = "ansi",
+): Record<string, number> {
   const out: Record<string, number> = {};
-  for (const [k, [sum, count]] of Object.entries(aggregateKeySpeed(speed))) {
+  for (const [k, [sum, count]] of Object.entries(aggregateKeySpeed(speed, layout, standard))) {
     if (count > 0) out[k] = sum / count;
   }
   return out;

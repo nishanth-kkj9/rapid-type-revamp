@@ -13,6 +13,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.{ts,tsx}"],
+    exclude: ["e2e/**", "node_modules/**", "dist/**"],
     passWithNoTests: false,
     reporters: process.env["CI"] ? ["default", "github-actions"] : ["default"],
   },

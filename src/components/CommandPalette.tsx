@@ -7,40 +7,80 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import {
+  DRILL_QUOTE_LENGTHS,
+  DRILL_WORD_COUNTS,
+  type DrillMode,
+  type QuoteLengthOption,
+  type WordCountOption,
+} from "@/lib/drillSettings";
+import type { KeyboardLayoutId } from "@/lib/keyboardLayout";
 import type { Difficulty } from "@/lib/sentenceGenerator";
+import type { ThemeAccent } from "@/lib/uiPrefs";
+import type { AppMode, SettingsTabId } from "@/lib/urlState";
+import type { Theme } from "@/lib/useTheme";
+import { CommandPaletteLookAndSettings } from "./CommandPaletteAppearanceGroup";
 
 interface Props {
   difficulty: Difficulty;
   duration: number;
+  drillMode: DrillMode;
+  wordCount: WordCountOption;
+  quoteLength: QuoteLengthOption;
+  keyboardLayout: KeyboardLayoutId;
+  theme: Theme;
+  accent: ThemeAccent;
+  dyslexiaFont: boolean;
   difficulties: Difficulty[];
   durations: readonly number[];
-  mode?: "drill" | "shooter" | undefined;
+  mode?: AppMode | undefined;
   onDifficulty: (d: Difficulty) => void;
   onDuration: (s: number) => void;
+  onWordCount: (count: WordCountOption) => void;
+  onQuoteLength: (len: QuoteLengthOption) => void;
+  onKeyboardLayout: (layout: KeyboardLayoutId) => void;
+  onSelectTheme: (theme: Theme) => void;
+  onSelectAccent: (accent: ThemeAccent) => void;
+  onToggleDyslexiaFont: () => void;
   onRestart: () => void;
-  onModeChange?: ((m: "drill" | "shooter") => void) | undefined;
-  onOpenDrillSettings?: (() => void) | undefined;
-  onOpenShooterSettings?: (() => void) | undefined;
+  onModeChange: (m: AppMode) => void;
+  onOpenSettingsTab: (tab: SettingsTabId) => void;
+  onExportAllData: () => void;
   onPracticeMissedWords?: (() => void) | undefined;
   onPracticeWeakKeys?: (() => void) | undefined;
-  onToggleTheme?: (() => void) | undefined;
+  onPracticeSlowKeys?: (() => void) | undefined;
+  onOpenCustomText?: (() => void) | undefined;
 }
 
 export function CommandPalette({
   difficulty,
   duration,
+  drillMode,
+  wordCount,
+  quoteLength,
+  keyboardLayout,
+  theme,
+  accent,
+  dyslexiaFont,
   difficulties,
   durations,
   mode = "drill",
   onDifficulty,
   onDuration,
+  onWordCount,
+  onQuoteLength,
+  onKeyboardLayout,
+  onSelectTheme,
+  onSelectAccent,
+  onToggleDyslexiaFont,
   onRestart,
   onModeChange,
-  onOpenDrillSettings,
-  onOpenShooterSettings,
+  onOpenSettingsTab,
+  onExportAllData,
   onPracticeMissedWords,
   onPracticeWeakKeys,
-  onToggleTheme,
+  onPracticeSlowKeys,
+  onOpenCustomText,
 }: Props) {
   const [open, setOpen] = useState(false);
 
@@ -62,31 +102,78 @@ export function CommandPalette({
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Set mode, difficulty, length, or open settings…" />
+      <CommandInput placeholder="Search modes, test types, layouts, colors, settings…" />
       <CommandList>
         <CommandEmpty>No matching command.</CommandEmpty>
-        {onModeChange ? (
-          <CommandGroup heading="Game Mode">
+        <CommandGroup heading="Workspace">
+          <CommandItem
+            value="mode timed drill typing test"
+            onSelect={() => run(() => onModeChange("drill"))}
+          >
+            <span>Timed Drill Mode</span>
+            {mode === "drill" ? (
+              <span className="ml-auto text-xs text-muted-foreground">current</span>
+            ) : null}
+          </CommandItem>
+          <CommandItem
+            value="mode word shooter arcade game"
+            onSelect={() => run(() => onModeChange("shooter"))}
+          >
+            <span>Word Shooter Arcade</span>
+            {mode === "shooter" ? (
+              <span className="ml-auto text-xs text-muted-foreground">current</span>
+            ) : null}
+          </CommandItem>
+          <CommandItem
+            value="mode achievements badges milestones"
+            onSelect={() => run(() => onModeChange("achievements"))}
+          >
+            <span>Achievements</span>
+            {mode === "achievements" ? (
+              <span className="ml-auto text-xs text-muted-foreground">current</span>
+            ) : null}
+          </CommandItem>
+        </CommandGroup>
+
+        <CommandGroup heading="Test Types">
+          {durations.map((s) => (
             <CommandItem
-              value="mode timed drill typing test"
-              onSelect={() => run(() => onModeChange("drill"))}
+              key={`time-${s}`}
+              value={`test type time ${s} seconds`}
+              onSelect={() => run(() => onDuration(s))}
             >
-              <span>Timed Drill Mode</span>
-              {mode === "drill" ? (
+              <span>Time Drill · {s}s</span>
+              {drillMode === "time" && duration === s ? (
                 <span className="ml-auto text-xs text-muted-foreground">current</span>
               ) : null}
             </CommandItem>
+          ))}
+          {DRILL_WORD_COUNTS.map((wc) => (
             <CommandItem
-              value="mode word shooter arcade game"
-              onSelect={() => run(() => onModeChange("shooter"))}
+              key={`words-${wc}`}
+              value={`test type words quota ${wc}`}
+              onSelect={() => run(() => onWordCount(wc))}
             >
-              <span>Word Shooter Arcade</span>
-              {mode === "shooter" ? (
+              <span>Word Quota · {wc} words</span>
+              {drillMode === "words" && wordCount === wc ? (
                 <span className="ml-auto text-xs text-muted-foreground">current</span>
               ) : null}
             </CommandItem>
-          </CommandGroup>
-        ) : null}
+          ))}
+          {DRILL_QUOTE_LENGTHS.map((ql) => (
+            <CommandItem
+              key={`quote-${ql}`}
+              value={`test type quote ${ql}`}
+              onSelect={() => run(() => onQuoteLength(ql))}
+            >
+              <span className="capitalize">Quote · {ql}</span>
+              {drillMode === "quote" && quoteLength === ql ? (
+                <span className="ml-auto text-xs text-muted-foreground">current</span>
+              ) : null}
+            </CommandItem>
+          ))}
+        </CommandGroup>
+
         <CommandGroup heading="Difficulty">
           {difficulties.map((d) => (
             <CommandItem
@@ -94,44 +181,30 @@ export function CommandPalette({
               value={`difficulty ${d}`}
               onSelect={() => run(() => onDifficulty(d))}
             >
-              <span className="capitalize">{d}</span>
+              <span className="capitalize">Difficulty: {d}</span>
               {difficulty === d ? (
                 <span className="ml-auto text-xs text-muted-foreground">current</span>
               ) : null}
             </CommandItem>
           ))}
         </CommandGroup>
-        <CommandGroup heading="Test length">
-          {durations.map((s) => (
-            <CommandItem
-              key={s}
-              value={`duration ${s} seconds`}
-              onSelect={() => run(() => onDuration(s))}
-            >
-              <span className="font-mono">{s}s</span>
-              {duration === s ? (
-                <span className="ml-auto text-xs text-muted-foreground">current</span>
-              ) : null}
-            </CommandItem>
-          ))}
-        </CommandGroup>
-        <CommandGroup heading="Settings">
-          <CommandItem
-            value="timed drill settings duration cursor sound target wpm"
-            onSelect={() => run(() => onOpenDrillSettings?.())}
-          >
-            <span>Timed Drill Settings</span>
-          </CommandItem>
-          <CommandItem
-            value="word shooter settings difficulty falling speed lives audio"
-            onSelect={() => run(() => onOpenShooterSettings?.())}
-          >
-            <span>Word Shooter Settings</span>
-          </CommandItem>
-        </CommandGroup>
-        <CommandGroup heading="Actions">
+
+        <CommandPaletteLookAndSettings
+          keyboardLayout={keyboardLayout}
+          theme={theme}
+          accent={accent}
+          dyslexiaFont={dyslexiaFont}
+          onRun={run}
+          onKeyboardLayout={onKeyboardLayout}
+          onSelectTheme={onSelectTheme}
+          onSelectAccent={onSelectAccent}
+          onToggleDyslexiaFont={onToggleDyslexiaFont}
+          onOpenSettingsTab={onOpenSettingsTab}
+        />
+
+        <CommandGroup heading="Actions & Data">
           <CommandItem value="restart test drill" onSelect={() => run(onRestart)}>
-            Restart test
+            Restart current drill
           </CommandItem>
           {onPracticeMissedWords ? (
             <CommandItem
@@ -143,17 +216,37 @@ export function CommandPalette({
           ) : null}
           {onPracticeWeakKeys ? (
             <CommandItem
-              value="practice weak keys targeted drill"
+              value="practice weak keys bigrams"
               onSelect={() => run(onPracticeWeakKeys)}
             >
-              Practice weak keys
+              Practice weak keys &amp; bigrams
             </CommandItem>
           ) : null}
-          {onToggleTheme ? (
-            <CommandItem value="toggle theme switch light dark" onSelect={() => run(onToggleTheme)}>
-              Toggle light / dark theme
+          {onPracticeSlowKeys ? (
+            <CommandItem
+              value="practice slow keys speed drill"
+              onSelect={() => run(onPracticeSlowKeys)}
+            >
+              Practice slow keys
             </CommandItem>
           ) : null}
+          {onOpenCustomText ? (
+            <CommandItem
+              value="custom text lists paste passage"
+              onSelect={() => run(onOpenCustomText)}
+            >
+              Manage custom practice lists
+            </CommandItem>
+          ) : null}
+          <CommandItem value="export full backup json data" onSelect={() => run(onExportAllData)}>
+            Export full backup (JSON)
+          </CommandItem>
+          <CommandItem
+            value="delete all my data privacy clear"
+            onSelect={() => run(() => onOpenSettingsTab("data"))}
+          >
+            Delete all my data…
+          </CommandItem>
         </CommandGroup>
       </CommandList>
     </CommandDialog>

@@ -6,6 +6,7 @@ import {
   clearKeySpeed,
   loadKeySpeed,
   recordKeySpeed,
+  topSlowKeys,
   type KeySpeedMap,
 } from "./keySpeed";
 import { aggregateKeySpeed, averageMsByKey } from "./heatmap";
@@ -99,5 +100,10 @@ describe("keySpeed", () => {
     clearKeySpeed();
     expect(loadKeySpeed()).toEqual({});
     expect(localStorage.getItem(KEY_SPEED_KEY)).toBeNull();
+  });
+
+  it("topSlowKeys orders slowest keys first", () => {
+    const slow = topSlowKeys({ a: [300, 3], q: [1200, 4], z: [900, 3], " ": [500, 5] }, 2);
+    expect(slow).toEqual(["q", "z"]);
   });
 });

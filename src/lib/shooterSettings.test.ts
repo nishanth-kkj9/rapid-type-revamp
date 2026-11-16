@@ -24,6 +24,8 @@ describe("shooterSettings", () => {
       startingLives: 5,
       soundEnabled: false,
       showKeyboard: false,
+      practiceMode: true,
+      dailyChallenge: true,
     };
     saveShooterSettings(custom);
     expect(loadShooterSettings()).toEqual(custom);

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeMissedWords, mergeMissedWords, MAX_MISSED_WORDS } from "./missedWords";
+import {
+  GRADUATION_STREAK,
+  MAX_MISSED_WORDS,
+  getActiveMissedWords,
+  mergeMissedWords,
+  recordMissedWordsRun,
+  sanitizeMissedWords,
+} from "./missedWords";
 
 describe("missedWords", () => {
   it("sanitizes arrays, trimming, deduping, and discarding empty or oversize strings", () => {
@@ -28,5 +35,48 @@ describe("missedWords", () => {
     expect(sanitizeMissedWords(null)).toEqual([]);
     expect(sanitizeMissedWords({})).toEqual([]);
     expect(sanitizeMissedWords("hello")).toEqual([]);
+  });
+
+  it("graduates a missed word after 3 separate clean runs and resets streak if missed again", () => {
+    let records = recordMissedWordsRun([], {
+      missedInRun: ["rhythm"],
+      cleanWordsInRun: ["typing"],
+      nowMs: 100,
+    });
+    expect(getActiveMissedWords(records)).toEqual(["rhythm"]);
+    expect(records[0]?.cleanStreak).toBe(0);
+
+    // Clean run 1 & 2
+    records = recordMissedWordsRun(records, {
+      missedInRun: [],
+      cleanWordsInRun: ["rhythm"],
+      nowMs: 200,
+    });
+    expect(records[0]?.cleanStreak).toBe(1);
+
+    records = recordMissedWordsRun(records, {
+      missedInRun: [],
+      cleanWordsInRun: ["rhythm"],
+      nowMs: 300,
+    });
+    expect(records[0]?.cleanStreak).toBe(2);
+
+    // Missing it resets cleanStreak to 0
+    records = recordMissedWordsRun(records, {
+      missedInRun: ["rhythm"],
+      cleanWordsInRun: [],
+      nowMs: 400,
+    });
+    expect(records[0]?.cleanStreak).toBe(0);
+
+    // 3 consecutive clean runs graduate it out of the queue
+    for (let i = 0; i < GRADUATION_STREAK; i++) {
+      records = recordMissedWordsRun(records, {
+        missedInRun: [],
+        cleanWordsInRun: ["rhythm"],
+        nowMs: 500 + i,
+      });
+    }
+    expect(getActiveMissedWords(records)).toEqual([]);
   });
 });

@@ -5,6 +5,8 @@ import {
   loadKeyStats,
   pickWeakKeyPassage,
   recordKeyMistakes,
+  sanitizeKeyBigrams,
+  topWeakBigrams,
   topWeakKeys,
   KEY_STATS_KEY,
 } from "./keyStats";
@@ -60,6 +62,15 @@ describe("keyStats", () => {
   it("topWeakKeys sorts worst-first and respects the limit", () => {
     recordKeyMistakes({ a: 1, b: 5, c: 3 });
     expect(topWeakKeys(loadKeyStats(), 2)).toEqual(["b", "c"]);
+  });
+
+  it("sanitizes bigrams and picks passages rich in weak bigrams", () => {
+    const clean = sanitizeKeyBigrams({ th: 4, qu: 2, a: 1, TH: 3, "12": 5, io: -1 });
+    expect(clean).toEqual({ th: 4, qu: 2 });
+    expect(topWeakBigrams(clean, 2)).toEqual(["th", "qu"]);
+
+    const cands = ["simple calm line", "quiet thoughtful thread", "plain words"];
+    expect(pickWeakKeyPassage(cands, ["q"], ["th", "qu"])).toBe("quiet thoughtful thread");
   });
 
   it("pickWeakKeyPassage picks the candidate richest in weak keys; ties keep the first", () => {

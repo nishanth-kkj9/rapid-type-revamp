@@ -2,10 +2,13 @@ import { useMemo } from "react";
 import { Activity, Zap, Target, Award, Clock, Flame } from "lucide-react";
 import { ExpandableChartCard } from "@/components/charts/ExpandableChartCard";
 import { SvgLineChart, type LineSeriesConfig } from "@/components/charts/LineChart";
+import { computeRollingWpmSeries } from "@/lib/typingStats";
 
 interface Props {
-  /** Cumulative correct-character counts sampled once per second. */
+  /** Monotonic cumulative net-progress counts sampled once per second (+ optional partial tail). */
   samples: number[];
+  errorSeconds?: number[] | undefined;
+  elapsedSec?: number | undefined;
   ghost?: number[] | undefined;
   targetWpm?: number | undefined;
   className?: string | undefined;
@@ -16,10 +19,13 @@ interface WpmPoint extends Record<string, unknown> {
   second: number;
   wpm: number;
   ghostWpm?: number;
+  errors: number;
 }
 
 export function WpmChart({
   samples,
+  errorSeconds,
+  elapsedSec,
   ghost,
   targetWpm,
   className = "",
@@ -30,31 +36,50 @@ export function WpmChart({
 
   const data: WpmPoint[] = useMemo(() => {
     if (samples.length < 2) return [];
-    return Array.from({ length: len }, (_, i) => {
-      const curVal = samples[i] ?? 0;
-      const curPrev = i === 0 ? 0 : (samples[i - 1] ?? 0);
-      const delta = curVal - curPrev;
-      const wpm = Math.max(0, Math.round((delta / 5) * 60));
+    const currentSeries = computeRollingWpmSeries(samples, elapsedSec);
+    const ghostSeries = hasGhost ? computeRollingWpmSeries(ghost!) : [];
 
-      let ghostWpm: number | undefined;
-      if (hasGhost) {
-        const gVal = ghost![i] ?? 0;
-        const gPrev = i === 0 ? 0 : (ghost![i - 1] ?? 0);
-        const gDelta = gVal - gPrev;
-        ghostWpm = Math.max(0, Math.round((gDelta / 5) * 60));
+    const errorCounts = new Map<number, number>();
+    if (errorSeconds) {
+      for (const sec of errorSeconds) {
+        if (!Number.isFinite(sec)) continue;
+        const bucket = Math.min(len - 1, Math.max(0, Math.floor(sec)));
+        errorCounts.set(bucket, (errorCounts.get(bucket) ?? 0) + 1);
       }
+    }
+
+    return Array.from({ length: len }, (_, i) => {
+      const isLast = i === len - 1;
+      const second =
+        isLast &&
+        typeof elapsedSec === "number" &&
+        Number.isFinite(elapsedSec) &&
+        elapsedSec > len - 1
+          ? Math.round(elapsedSec * 10) / 10
+          : i + 1;
+      const wpm = currentSeries[i] ?? 0;
+      const ghostWpm = hasGhost ? ghostSeries[i] : undefined;
 
       return {
-        second: i + 1,
+        second,
         wpm,
+        errors: errorCounts.get(i) ?? 0,
         ...(ghostWpm !== undefined ? { ghostWpm } : {}),
       };
     });
-  }, [samples, ghost, len, hasGhost]);
+  }, [samples, errorSeconds, elapsedSec, ghost, len, hasGhost]);
 
   const stats = useMemo(() => {
     if (data.length === 0) {
-      return { peakWpm: 0, peakSec: 1, minWpm: 0, minSec: 1, avgWpm: 0, ghostAvg: undefined };
+      return {
+        peakWpm: 0,
+        peakSec: 1,
+        minWpm: 0,
+        minSec: 1,
+        avgWpm: 0,
+        ghostAvg: undefined,
+        totalErrors: 0,
+      };
     }
     const wpms = data.map((d) => d.wpm);
     const peakWpm = Math.max(...wpms);
@@ -62,6 +87,7 @@ export function WpmChart({
     const minWpm = Math.min(...wpms);
     const minSec = data.find((d) => d.wpm === minWpm)?.second ?? 1;
     const avgWpm = Math.round(wpms.reduce((a, b) => a + b, 0) / (wpms.length || 1));
+    const totalErrors = data.reduce((a, b) => a + b.errors, 0);
 
     let ghostAvg: number | undefined;
     if (hasGhost) {
@@ -69,14 +95,14 @@ export function WpmChart({
       ghostAvg = Math.round(gWpms.reduce((a, b) => a + b, 0) / (gWpms.length || 1));
     }
 
-    return { peakWpm, peakSec, minWpm, minSec, avgWpm, ghostAvg };
+    return { peakWpm, peakSec, minWpm, minSec, avgWpm, ghostAvg, totalErrors };
   }, [data, hasGhost]);
 
   const series: LineSeriesConfig<WpmPoint>[] = useMemo(() => {
     const list: LineSeriesConfig<WpmPoint>[] = [
       {
         key: "wpm",
-        label: "Current Run",
+        label: "Rolling WPM",
         color: "var(--color-primary)",
         showDots: true,
         fillArea: true,
@@ -97,6 +123,8 @@ export function WpmChart({
   }, [hasGhost]);
 
   if (samples.length < 2) return null;
+
+  const totalSec = data[data.length - 1]?.second ?? data.length;
 
   return (
     <ExpandableChartCard
@@ -122,7 +150,7 @@ export function WpmChart({
               <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                 <Activity className="size-3 text-primary" /> Average Pace
               </span>
-              <span className="mt-1 font-mono text-base font-bold text-foreground">
+              <span className="mt-1 font-mono text-base font-bold tabular-nums text-foreground">
                 {stats.avgWpm}{" "}
                 <span className="text-[11px] font-normal text-muted-foreground">WPM</span>
               </span>
@@ -132,7 +160,7 @@ export function WpmChart({
               <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                 <Zap className="size-3 text-accent" /> Peak Burst
               </span>
-              <span className="mt-1 font-mono text-base font-bold text-accent">
+              <span className="mt-1 font-mono text-base font-bold tabular-nums text-accent">
                 {stats.peakWpm}{" "}
                 <span className="text-[11px] font-normal text-muted-foreground">
                   at {stats.peakSec}s
@@ -144,7 +172,7 @@ export function WpmChart({
               <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                 <Target className="size-3 text-primary" /> Target
               </span>
-              <span className="mt-1 font-mono text-base font-bold text-foreground">
+              <span className="mt-1 font-mono text-base font-bold tabular-nums text-foreground">
                 {targetWpm ? (
                   <>
                     {stats.avgWpm >= targetWpm ? (
@@ -166,7 +194,7 @@ export function WpmChart({
               <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                 <Award className="size-3 text-muted-foreground" /> Lowest Dip
               </span>
-              <span className="mt-1 font-mono text-base font-bold text-muted-foreground">
+              <span className="mt-1 font-mono text-base font-bold tabular-nums text-muted-foreground">
                 {stats.minWpm}{" "}
                 <span className="text-[11px] font-normal text-muted-foreground">
                   at {stats.minSec}s
@@ -178,8 +206,8 @@ export function WpmChart({
               <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                 <Clock className="size-3 text-primary" /> Total Time
               </span>
-              <span className="mt-1 font-mono text-base font-bold text-foreground">
-                {data.length}s
+              <span className="mt-1 font-mono text-base font-bold tabular-nums text-foreground">
+                {totalSec}s
               </span>
             </div>
 
@@ -187,7 +215,7 @@ export function WpmChart({
               <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                 <Flame className="size-3 text-primary" /> Ghost Avg (Best)
               </span>
-              <span className="mt-1 font-mono text-base font-bold text-foreground">
+              <span className="mt-1 font-mono text-base font-bold tabular-nums text-foreground">
                 {stats.ghostAvg !== undefined ? `${stats.ghostAvg} WPM` : "None"}
               </span>
             </div>
@@ -197,14 +225,20 @@ export function WpmChart({
       footer={(isExpanded) =>
         isExpanded ? (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <span className="flex items-center gap-1.5">
-                <span className="inline-block h-1 w-3.5 rounded-full bg-primary" /> Current Run
+                <span className="inline-block h-1 w-3.5 rounded-full bg-primary" /> Rolling WPM
               </span>
               {hasGhost && (
                 <span className="flex items-center gap-1.5">
                   <span className="inline-block h-1 w-3.5 border-b-2 border-dashed border-muted-foreground" />{" "}
                   Personal Best
+                </span>
+              )}
+              {stats.totalErrors > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block size-2 rounded-full bg-destructive" /> Errors (
+                  {stats.totalErrors})
                 </span>
               )}
               {typeof targetWpm === "number" && targetWpm > 0 && (
@@ -216,9 +250,7 @@ export function WpmChart({
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xs text-muted-foreground">
-                {data.length}s duration
-              </span>
+              <span className="font-mono text-xs text-muted-foreground">{totalSec}s duration</span>
               <span className="hidden text-[10px] text-primary sm:inline-block">
                 (Click to collapse)
               </span>
@@ -233,6 +265,8 @@ export function WpmChart({
           xKey="second"
           xLabel="Time (seconds)"
           series={series}
+          errorKey="errors"
+          ariaCaption="Rolling WPM and error timeline"
           expanded={isExpanded}
           formatXTick={(v) => `${v}s`}
           formatTooltipTitle={(row) => `Time: ${row.second}s`}

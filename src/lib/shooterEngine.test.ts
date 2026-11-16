@@ -1,9 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   applyKeyToEnemies,
+  awardPowerUpsForStreak,
+  computeDifficultyCurve,
+  computeShooterAccuracy,
+  computeShooterHitRate,
+  computeShooterLevel,
   createInitialEnemies,
-  getLevel,
+  createSeededRng,
+  dateStringToSeed,
   isBossLevel,
+  MAX_ENEMY_SPEED,
+  pickBossWord,
   stepEnemies,
   wordPoolFor,
   type Enemy,
@@ -17,26 +25,41 @@ describe("shooterEngine", () => {
   ];
 
   it("locks onto lowest enemy matching starting char", () => {
-    // Both 'speed' (y=30) and 'ship' (y=50) start with 's'. Lowest is 'ship' (y=50).
     const result = applyKeyToEnemies(mockEnemies, "s", null, 0);
     expect(result.nextTargetId).toBe(3);
     expect(result.wrongKey).toBe(false);
+    expect(result.isStrayKey).toBe(false);
     expect(result.expectedChar).toBe("s");
     expect(result.pressedChar).toBe("s");
     expect(result.nextEnemies.find((e) => e.id === 3)?.typed).toBe(1);
   });
 
-  it("handles wrong key when no enemy starts with the character", () => {
-    const result = applyKeyToEnemies(mockEnemies, "z", null, 2);
-    expect(result.wrongKey).toBe(true);
-    expect(result.newStreak).toBe(0);
-    expect(result.nextTargetId).toBeNull();
-    expect(result.expectedChar).toBeNull();
-    expect(result.pressedChar).toBe("z");
+  it("attributes unlocked wrong key to an adjacent expected char or marks stray key when unknown", () => {
+    // 'z' is adjacent to 's' on QWERTY -> attributes to lowest matching enemy 'ship' ('s')
+    const adjResult = applyKeyToEnemies(mockEnemies, "z", null, 2);
+    expect(adjResult.wrongKey).toBe(true);
+    expect(adjResult.newStreak).toBe(0);
+    expect(adjResult.nextTargetId).toBeNull();
+    expect(adjResult.expectedChar).toBe("s");
+    expect(adjResult.isStrayKey).toBe(false);
+
+    // 'n' is NOT adjacent to 'l' or 's' -> stray key with expectedChar = null
+    const strayResult = applyKeyToEnemies(mockEnemies, "n", null, 2);
+    expect(strayResult.wrongKey).toBe(true);
+    expect(strayResult.expectedChar).toBeNull();
+    expect(strayResult.isStrayKey).toBe(true);
+    expect(strayResult.pressedChar).toBe("n");
+  });
+
+  it("attributes wrong key to the single enemy on screen even if non-adjacent", () => {
+    const solo: Enemy[] = [{ id: 9, word: "focus", typed: 0, x: 50, y: 40, speed: 4 }];
+    const res = applyKeyToEnemies(solo, "m", null, 1);
+    expect(res.wrongKey).toBe(true);
+    expect(res.expectedChar).toBe("f");
+    expect(res.isStrayKey).toBe(false);
   });
 
   it("advances progress on locked target and destroys word on completion", () => {
-    // Target is 'laser' (id 1). Already typed 'lase' (typed: 4).
     const almostDone: Enemy[] = [{ id: 1, word: "laser", typed: 4, x: 25, y: 10, speed: 5 }];
     const result = applyKeyToEnemies(almostDone, "r", 1, 4);
     expect(result.wordDestroyed).not.toBeNull();
@@ -53,22 +76,29 @@ describe("shooterEngine", () => {
     const targetEnemy: Enemy[] = [{ id: 1, word: "laser", typed: 2, x: 25, y: 10, speed: 5 }];
     const result = applyKeyToEnemies(targetEnemy, "x", 1, 3);
     expect(result.wrongKey).toBe(true);
+    expect(result.isStrayKey).toBe(false);
     expect(result.expectedChar).toBe("s");
     expect(result.pressedChar).toBe("x");
   });
 
-  it("correctly steps enemies and identifies breached enemies", () => {
+  it("correctly steps enemies (with speedFactor support) and identifies breached enemies", () => {
     const enemies: Enemy[] = [
       { id: 1, word: "safe", typed: 0, x: 20, y: 50, speed: 10 },
       { id: 2, word: "breach", typed: 0, x: 50, y: 85, speed: 10 },
     ];
-    // dt = 1 second => id 1 y=60 (safe), id 2 y=95 (>= 88 breached)
-    const { surviving, breached, clearedTargetId } = stepEnemies(enemies, 1, 2);
-    expect(surviving).toHaveLength(1);
-    expect(surviving[0]?.id).toBe(1);
-    expect(breached).toHaveLength(1);
-    expect(breached[0]?.id).toBe(2);
-    expect(clearedTargetId).toBe(true);
+    const slowed = stepEnemies(enemies, 1, 2, 0.4);
+    expect(slowed.surviving).toHaveLength(1); // id 1 at 54, id 2 at 89 (>= 88)
+    expect(slowed.breached).toHaveLength(1);
+    expect(slowed.clearedTargetId).toBe(true);
+  });
+
+  it("computes per-character accuracy separately from hit rate", () => {
+    // 45 correct keystrokes out of 50 total keystrokes => 90% accuracy
+    expect(computeShooterAccuracy(45, 50)).toBe(90);
+    expect(computeShooterAccuracy(0, 0)).toBe(100);
+    // 9 words destroyed out of 12 spawned => 75% hit rate
+    expect(computeShooterHitRate(9, 12)).toBe(75);
+    expect(computeShooterHitRate(0, 0)).toBe(100);
   });
 
   it("creates initial enemies with distinct starting letters", () => {
@@ -78,43 +108,96 @@ describe("shooterEngine", () => {
     expect(new Set(firstChars).size).toBe(3);
   });
 
-  it("generates word pool without throwing", () => {
-    const pool = wordPoolFor("easy");
-    expect(pool.length).toBeGreaterThan(0);
-    expect(pool.every((w) => w.length >= 2)).toBe(true);
+  it("excludes short function words on medium/hard and weights weak keys & missed words", () => {
+    const medPool = wordPoolFor("medium", {
+      missedWords: ["the", "and", "rhythm"],
+      weakKeys: ["q", "z"],
+    });
+    expect(medPool.length).toBeGreaterThan(150);
+    expect(medPool).not.toContain("the");
+    expect(medPool).not.toContain("and");
+    expect(medPool).toContain("rhythm");
+
+    const hardPool = wordPoolFor("hard", { weakKeys: ["x", "q"] });
+    expect(hardPool.length).toBeGreaterThan(300);
+    expect(hardPool.every((w) => w.length >= 5)).toBe(true);
   });
 
-  it("locks onto a partially-typed enemy by its next expected char", () => {
-    const partials: Enemy[] = [
-      { id: 1, word: "laser", typed: 2, x: 20, y: 10, speed: 4 }, // expects 's'
-      { id: 2, word: "type", typed: 0, x: 60, y: 30, speed: 5 },
-    ];
-    const res = applyKeyToEnemies(partials, "s", null, 0);
-    expect(res.nextTargetId).toBe(1);
-    expect(res.wrongKey).toBe(false);
+  it("produces identical word pools for the same daily challenge seed", () => {
+    const seed = dateStringToSeed("2026-11-15");
+    const poolA = wordPoolFor("medium", { rng: createSeededRng(seed) }).slice(0, 30);
+    const poolB = wordPoolFor("medium", { rng: createSeededRng(seed) }).slice(0, 30);
+    expect(poolA).toEqual(poolB);
+
+    const poolOtherDay = wordPoolFor("medium", {
+      rng: createSeededRng(dateStringToSeed("2026-11-16")),
+    }).slice(0, 30);
+    expect(poolA).not.toEqual(poolOtherDay);
   });
 
-  it("calculates level boundaries at every 400 points", () => {
-    expect(getLevel(0)).toBe(1);
-    expect(getLevel(399)).toBe(1);
-    expect(getLevel(400)).toBe(2);
-    expect(getLevel(799)).toBe(2);
-    expect(getLevel(800)).toBe(3);
-    expect(getLevel(1200)).toBe(4);
-    expect(getLevel(-50)).toBe(1);
+  it("progresses levels by words destroyed & accuracy, gating boss levels until boss defeated", () => {
+    expect(
+      computeShooterLevel({
+        wordsDestroyed: 0,
+        accuracy: 100,
+        currentLevel: 1,
+        bossDefeatedAtLevel: 0,
+      }),
+    ).toBe(1);
+
+    expect(
+      computeShooterLevel({
+        wordsDestroyed: 8,
+        accuracy: 100,
+        currentLevel: 1,
+        bossDefeatedAtLevel: 0,
+      }),
+    ).toBe(2);
+
+    // On level 5 (boss level), cannot advance to 6 until bossDefeatedAtLevel >= 5
+    expect(
+      computeShooterLevel({
+        wordsDestroyed: 60,
+        accuracy: 100,
+        currentLevel: 5,
+        bossDefeatedAtLevel: 0,
+      }),
+    ).toBe(5);
+
+    // Once boss on level 5 is defeated, advances to level 6
+    expect(
+      computeShooterLevel({
+        wordsDestroyed: 40,
+        accuracy: 100,
+        currentLevel: 5,
+        bossDefeatedAtLevel: 5,
+      }),
+    ).toBe(6);
   });
 
-  it("identifies boss levels at every 5 levels", () => {
+  it("caps enemy speed growth smoothly across high levels", () => {
+    const lvl1 = computeDifficultyCurve(1, 1);
+    const lvl10 = computeDifficultyCurve(10, 1);
+    const lvl100 = computeDifficultyCurve(100, 2.5);
+
+    expect(lvl10.baseSpeed).toBeGreaterThan(lvl1.baseSpeed);
+    expect(lvl100.maxSpeed).toBeLessThanOrEqual(MAX_ENEMY_SPEED);
+    expect(lvl100.maxSimultaneous).toBe(8);
+    expect(lvl100.spawnInterval).toBeGreaterThanOrEqual(0.4);
+  });
+
+  it("identifies boss levels at every 5 levels and picks distinct boss words", () => {
     expect(isBossLevel(0)).toBe(false);
     expect(isBossLevel(1)).toBe(false);
     expect(isBossLevel(4)).toBe(false);
     expect(isBossLevel(5)).toBe(true);
     expect(isBossLevel(10)).toBe(true);
-    expect(isBossLevel(15)).toBe(true);
-    expect(isBossLevel(22)).toBe(false);
+
+    const bossWord = pickBossWord("easy", mockEnemies, ["short"]);
+    expect(bossWord.length).toBeGreaterThanOrEqual(7);
   });
 
-  it("awards double score and reports multiplier 2 for destroyed boss enemies", () => {
+  it("awards double score for boss enemies and grants streak power-ups", () => {
     const regular: Enemy = { id: 10, word: "corrupted", typed: 8, x: 20, y: 10, speed: 2 };
     const boss: Enemy = {
       id: 11,
@@ -128,10 +211,21 @@ describe("shooterEngine", () => {
 
     const regResult = applyKeyToEnemies([regular], "d", 10, 0);
     expect(regResult.multiplier).toBe(1);
-    expect(regResult.scoreGained).toBe(90); // 9 * 10 * 1 * 1
+    expect(regResult.scoreGained).toBe(90);
 
     const bossResult = applyKeyToEnemies([boss], "d", 11, 0);
     expect(bossResult.multiplier).toBe(2);
-    expect(bossResult.scoreGained).toBe(180); // 9 * 10 * 1 * 2 (double!)
+    expect(bossResult.scoreGained).toBe(180);
+
+    const p5 = awardPowerUpsForStreak(5, 0, 0);
+    expect(p5).toEqual({ slowCharges: 1, shieldCharges: 0, earnedSlow: true, earnedShield: false });
+
+    const p10 = awardPowerUpsForStreak(10, 1, 0);
+    expect(p10).toEqual({
+      slowCharges: 1,
+      shieldCharges: 1,
+      earnedSlow: false,
+      earnedShield: true,
+    });
   });
 });

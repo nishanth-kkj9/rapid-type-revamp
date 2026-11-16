@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CaretStyle } from "@/lib/drillSettings";
 
 interface Props {
@@ -10,6 +10,13 @@ interface Props {
 interface Word {
   chars: string[];
   start: number;
+}
+
+interface CaretRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
 }
 
 function splitWords(text: string): Word[] {
@@ -29,70 +36,98 @@ function splitWords(text: string): Word[] {
   return words;
 }
 
-/** Words rendered before/after the caret word — keeps renders O(1) on long passages. */
+/** Chunked word window so visible DOM nodes only shift every ~10 words, eliminating per-keystroke layout thrashing. */
+const WINDOW_STEP = 10;
 const WINDOW_BEFORE = 12;
-const WINDOW_AFTER = 40;
+const WINDOW_AFTER = 42;
 
 export const TypingText = memo(function TypingText({ text, typed, caretStyle = "smooth" }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const cursorRef = useRef<HTMLSpanElement>(null);
-  const [caretPos, setCaretPos] = useState<{
-    left: number;
-    top: number;
-    width: number;
-    height: number;
-  } | null>(null);
+  const paragraphRef = useRef<HTMLParagraphElement>(null);
+  const charRectsRef = useRef<Map<number, CaretRect>>(new Map());
+  const containerMetricsRef = useRef<{ height: number }>({ height: 160 });
+  const [caretPos, setCaretPos] = useState<CaretRect | null>(null);
+  const [measureVersion, setMeasureVersion] = useState(0);
 
   const words = useMemo(() => splitWords(text), [text]);
 
-  const caretIndex = useMemo(() => {
+  const caretWordIndex = useMemo(() => {
     const i = words.findIndex(
       (w) => typed.length >= w.start && typed.length < w.start + w.chars.length,
     );
-    return i === -1 ? words.length - 1 : i;
+    return i === -1 ? Math.max(0, words.length - 1) : i;
   }, [words, typed.length]);
 
-  const visible = useMemo(
-    () => words.slice(Math.max(0, caretIndex - WINDOW_BEFORE), caretIndex + WINDOW_AFTER + 1),
-    [words, caretIndex],
-  );
+  const windowAnchor = Math.floor(caretWordIndex / WINDOW_STEP) * WINDOW_STEP;
+  const sliceStart = Math.max(0, windowAnchor - WINDOW_BEFORE);
+  const sliceEnd = Math.min(words.length, windowAnchor + WINDOW_STEP + WINDOW_AFTER);
 
-  useEffect(() => {
-    cursorRef.current?.scrollIntoView({ block: "nearest", behavior: "auto" });
-    const cursor = cursorRef.current;
+  const visible = useMemo(() => words.slice(sliceStart, sliceEnd), [words, sliceStart, sliceEnd]);
+
+  /** Pre-measure all visible character offsets ONLY when window slice or container width/font changes. */
+  const measureVisibleLayout = useCallback(() => {
     const container = containerRef.current;
-    if (cursor && container) {
-      const containerRect = container.getBoundingClientRect();
-      const cursorRect = cursor.getBoundingClientRect();
-      setCaretPos({
-        left: cursorRect.left - containerRect.left + container.scrollLeft,
-        top: cursorRect.top - containerRect.top + container.scrollTop,
-        width: Math.max(2, cursorRect.width),
-        height: Math.max(16, cursorRect.height),
+    const paragraph = paragraphRef.current;
+    if (!container || !paragraph) return;
+
+    const containerRect = container.getBoundingClientRect();
+    containerMetricsRef.current.height = containerRect.height || container.clientHeight || 160;
+
+    const nextMap = new Map<number, CaretRect>();
+    const scrollLeft = container.scrollLeft;
+    const scrollTop = container.scrollTop;
+
+    const charNodes = paragraph.querySelectorAll<HTMLSpanElement>("[data-char-index]");
+    for (const node of charNodes) {
+      const rawIdx = node.dataset["charIndex"];
+      if (rawIdx === undefined) continue;
+      const idx = Number(rawIdx);
+      const rect = node.getBoundingClientRect();
+      nextMap.set(idx, {
+        left: rect.left - containerRect.left + scrollLeft,
+        top: rect.top - containerRect.top + scrollTop,
+        width: Math.max(2, rect.width),
+        height: Math.max(16, rect.height),
       });
-    } else {
-      setCaretPos(null);
     }
-  }, [typed.length, visible]);
+
+    charRectsRef.current = nextMap;
+    setMeasureVersion((v) => v + 1);
+  }, []);
+
+  useLayoutEffect(() => {
+    measureVisibleLayout();
+  }, [measureVisibleLayout, visible, text]);
 
   useEffect(() => {
-    const handleResize = () => {
-      const cursor = cursorRef.current;
-      const container = containerRef.current;
-      if (cursor && container) {
-        const containerRect = container.getBoundingClientRect();
-        const cursorRect = cursor.getBoundingClientRect();
-        setCaretPos({
-          left: cursorRect.left - containerRect.left + container.scrollLeft,
-          top: cursorRect.top - containerRect.top + container.scrollTop,
-          width: Math.max(2, cursorRect.width),
-          height: Math.max(16, cursorRect.height),
-        });
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(() => {
+      measureVisibleLayout();
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [measureVisibleLayout]);
+
+  /** O(1) pure-JS coordinate lookup on every keystroke — zero DOM layout reads! */
+  useEffect(() => {
+    const rect = charRectsRef.current.get(typed.length) ?? null;
+    setCaretPos(rect);
+
+    const container = containerRef.current;
+    if (rect && container) {
+      const viewHeight = containerMetricsRef.current.height;
+      const scrollTop = container.scrollTop;
+      const lineBottom = rect.top + rect.height;
+      const padding = 8;
+
+      if (lineBottom > scrollTop + viewHeight - padding) {
+        container.scrollTop = Math.max(0, lineBottom - viewHeight + padding);
+      } else if (rect.top < scrollTop + padding) {
+        container.scrollTop = Math.max(0, rect.top - padding);
       }
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+    }
+  }, [typed.length, measureVersion]);
 
   const getCaretClass = () => {
     switch (caretStyle) {
@@ -104,7 +139,6 @@ export const TypingText = memo(function TypingText({ text, typed, caretStyle = "
         return "shadow-[inset_0_-3px_0_0_var(--color-primary)] bg-transparent";
       case "smooth":
       default:
-        // When smooth floating caret is active, character cell retains a subtle indicator
         return caretPos != null
           ? "rounded-[2px] bg-primary/10"
           : "caret rounded-[2px] bg-primary/25 shadow-[inset_2px_0_0_0_var(--color-primary)]";
@@ -123,24 +157,27 @@ export const TypingText = memo(function TypingText({ text, typed, caretStyle = "
           }}
         />
       ) : null}
-      <p className="flex flex-wrap font-mono text-xl leading-[2.1rem] tracking-tight sm:text-2xl sm:leading-[2.6rem]">
+      <p
+        ref={paragraphRef}
+        className="flex flex-wrap font-mono text-xl leading-[2.2rem] tracking-tight sm:text-2xl sm:leading-[2.7rem]"
+      >
         {visible.map((word) => (
           <span key={word.start} className="whitespace-pre">
             {word.chars.map((ch, j) => {
               const i = word.start + j;
               const t = typed[i];
               const isCursor = i === typed.length;
-              let cls = "text-muted-foreground/60";
+              let cls = "text-muted-foreground";
               if (t !== undefined) {
                 cls =
                   t === ch
                     ? "text-foreground"
-                    : "text-destructive underline decoration-destructive/70";
+                    : "text-destructive underline decoration-destructive/80";
               }
               return (
                 <span
                   key={i}
-                  ref={isCursor ? cursorRef : undefined}
+                  data-char-index={i}
                   className={`${cls} ${isCursor ? getCaretClass() : ""}`}
                 >
                   {t !== undefined && t !== ch && ch === " " ? "_" : ch}
@@ -150,7 +187,7 @@ export const TypingText = memo(function TypingText({ text, typed, caretStyle = "
           </span>
         ))}
         {typed.length >= text.length ? (
-          <span ref={cursorRef} className="caret text-primary">
+          <span data-char-index={text.length} className="caret text-primary">
             |
           </span>
         ) : null}

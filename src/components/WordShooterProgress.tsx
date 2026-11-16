@@ -153,8 +153,13 @@ export function WordShooterProgress({
                 <Award className="size-3 text-primary" /> Accuracy
               </span>
               <span className="mt-1 font-mono text-base font-bold text-foreground">
-                {summary?.accuracy ? summary.accuracy.toFixed(0) : "100"}%
+                {summary ? summary.accuracy.toFixed(1) : "100"}%
               </span>
+              {summary?.hitRate !== undefined ? (
+                <span className="font-mono text-[10px] text-muted-foreground">
+                  Hit rate: {summary.hitRate.toFixed(0)}%
+                </span>
+              ) : null}
             </div>
 
             <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
@@ -164,6 +169,11 @@ export function WordShooterProgress({
               <span className="mt-1 font-mono text-base font-bold text-foreground">
                 Level {summary?.level ?? 1}
               </span>
+              {summary?.maxStreak !== undefined ? (
+                <span className="font-mono text-[10px] text-muted-foreground">
+                  Best streak: {summary.maxStreak}x
+                </span>
+              ) : null}
             </div>
 
             <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
@@ -173,6 +183,11 @@ export function WordShooterProgress({
               <span className="mt-1 font-mono text-base font-bold text-foreground">
                 {summary?.durationSec ?? data.length}s
               </span>
+              {summary?.strayKeys ? (
+                <span className="font-mono text-[10px] text-muted-foreground">
+                  Stray keys: {summary.strayKeys}
+                </span>
+              ) : null}
             </div>
           </div>
         ) : null

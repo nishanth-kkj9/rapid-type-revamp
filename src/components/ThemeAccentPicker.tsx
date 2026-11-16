@@ -1,11 +1,4 @@
-import { useEffect, useState } from "react";
-import {
-  type ThemeAccent,
-  DEFAULT_UI_PREFS,
-  applyThemeAccent,
-  loadUiPrefs,
-  saveUiPrefs,
-} from "@/lib/uiPrefs";
+import { type ThemeAccent } from "@/lib/uiPrefs";
 import { Palette } from "lucide-react";
 
 const ACCENTS: { id: ThemeAccent; label: string; bg: string }[] = [
@@ -16,30 +9,21 @@ const ACCENTS: { id: ThemeAccent; label: string; bg: string }[] = [
   { id: "rose", label: "Ember Rose", bg: "bg-[#f43f5e]" },
 ];
 
-export function ThemeAccentPicker({ className = "" }: { className?: string }) {
-  const [accent, setAccent] = useState<ThemeAccent>(DEFAULT_UI_PREFS.themeAccent);
+interface Props {
+  accent: ThemeAccent;
+  onSelectAccent: (next: ThemeAccent) => void;
+  className?: string;
+}
 
-  useEffect(() => {
-    const stored = loadUiPrefs().themeAccent;
-    setAccent(stored);
-    applyThemeAccent(stored);
-  }, []);
-
-  const selectAccent = (next: ThemeAccent) => {
-    setAccent(next);
-    applyThemeAccent(next);
-    saveUiPrefs({ themeAccent: next });
-  };
-
+export function ThemeAccentPicker({ accent, onSelectAccent, className = "" }: Props) {
   return (
     <div
       role="radiogroup"
       aria-label="Theme accent color"
-      suppressHydrationWarning
-      className={`flex items-center gap-1.5 rounded-lg border border-border/80 bg-secondary/50 px-2 py-1 ${className}`}
+      className={`flex items-center gap-1 rounded-lg border border-border/80 bg-secondary/50 px-2 py-1 ${className}`}
     >
-      <Palette className="size-3.5 text-muted-foreground" aria-hidden="true" />
-      <div className="flex items-center gap-1" suppressHydrationWarning>
+      <Palette className="mr-0.5 size-3.5 text-muted-foreground" aria-hidden="true" />
+      <div className="flex items-center gap-0.5">
         {ACCENTS.map((item) => {
           const active = accent === item.id;
           return (
@@ -48,17 +32,18 @@ export function ThemeAccentPicker({ className = "" }: { className?: string }) {
               type="button"
               role="radio"
               aria-checked={active}
-              suppressHydrationWarning
+              aria-label={`Accent color ${item.label}`}
               title={`Accent: ${item.label}`}
-              onClick={() => selectAccent(item.id)}
-              className={`size-4 rounded-full transition-transform hover:scale-110 cursor-pointer ${
-                item.bg
-              } ${
-                active
-                  ? "ring-2 ring-primary ring-offset-2 ring-offset-card scale-110"
-                  : "opacity-60 hover:opacity-100"
-              }`}
-            />
+              onClick={() => onSelectAccent(item.id)}
+              className="flex size-7 cursor-pointer items-center justify-center rounded-full transition-transform hover:scale-110"
+            >
+              <span
+                aria-hidden="true"
+                className={`size-4 rounded-full ${item.bg} ${
+                  active ? "ring-2 ring-primary ring-offset-2 ring-offset-card" : "opacity-75"
+                }`}
+              />
+            </button>
           );
         })}
       </div>
