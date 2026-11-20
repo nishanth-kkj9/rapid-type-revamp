@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "./zodSetup";
 import type { Storage } from "./storage";
 
 /**
@@ -35,17 +35,6 @@ export function sanitizeKeySpeed(raw: unknown): KeySpeedMap {
   return out;
 }
 
-export function loadKeySpeed(): KeySpeedMap {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = localStorage.getItem(KEY_SPEED_KEY);
-    if (!raw) return {};
-    return sanitizeKeySpeed(JSON.parse(raw));
-  } catch {
-    return {};
-  }
-}
-
 function mergeAndCapKeySpeed(existing: KeySpeedMap, run: KeySpeedMap): KeySpeedMap {
   const merged: KeySpeedMap = { ...existing };
   for (const [k, entry] of Object.entries(run)) {
@@ -67,28 +56,6 @@ function mergeAndCapKeySpeed(existing: KeySpeedMap, run: KeySpeedMap): KeySpeedM
     .sort((a, b) => b[1][1] - a[1][1])
     .slice(0, MAX_KEYS);
   return Object.fromEntries(entries);
-}
-
-/** Merge one run's [sumMs, count] map into the persisted stats. Returns the new map. */
-export function recordKeySpeed(run: KeySpeedMap): KeySpeedMap {
-  const capped = mergeAndCapKeySpeed(loadKeySpeed(), run);
-  if (typeof window !== "undefined") {
-    try {
-      localStorage.setItem(KEY_SPEED_KEY, JSON.stringify(capped));
-    } catch {
-      // quota-safe: speed stats are non-critical, drop the write
-    }
-  }
-  return capped;
-}
-
-export function clearKeySpeed(): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.removeItem(KEY_SPEED_KEY);
-  } catch {
-    // ignore
-  }
 }
 
 export async function loadKeySpeedFromStorage(storage: Storage): Promise<KeySpeedMap> {

@@ -2,5 +2,5 @@
   "name": "Typing Trainer Pro",
   "description": "Practice typing speed and accuracy with timed drills, Word Shooter arcade mode, problem keys analysis, and live stats.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": []
 }

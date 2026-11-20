@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { SvgLineChart, type LineSeriesConfig } from "@/components/charts/LineChart";
+import { downsampleProgressPoints } from "@/lib/statsAnalytics";
 import {
   computeHistoryProgressSeries,
   formatModeLabel,
@@ -40,7 +41,8 @@ const PROGRESS_SERIES: LineSeriesConfig<HistoryProgressPoint>[] = [
 ];
 
 export function HistoryProgressChart({ entries, className = "" }: HistoryProgressChartProps) {
-  const seriesData = useMemo(() => computeHistoryProgressSeries(entries, 7), [entries]);
+  const fullSeries = useMemo(() => computeHistoryProgressSeries(entries, 7), [entries]);
+  const seriesData = useMemo(() => downsampleProgressPoints(fullSeries, 120), [fullSeries]);
 
   if (seriesData.length < 2) return null;
 
@@ -52,7 +54,8 @@ export function HistoryProgressChart({ entries, className = "" }: HistoryProgres
             Progress Over Time
           </h3>
           <p className="text-[11px] text-muted-foreground">
-            WPM, 7-run moving average, and accuracy across {seriesData.length} runs
+            WPM, 7-run moving average, and accuracy across {fullSeries.length.toLocaleString()} runs
+            {seriesData.length < fullSeries.length ? ` (${seriesData.length} sampled points)` : ""}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">

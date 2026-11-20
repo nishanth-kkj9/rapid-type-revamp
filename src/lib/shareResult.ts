@@ -50,8 +50,33 @@ export async function copyResultText(input: ResultShareInput): Promise<boolean> 
   return false;
 }
 
+const SHARE_FONT_DISPLAY = '"Space Grotesk", ui-sans-serif, system-ui, sans-serif';
+const SHARE_FONT_MONO = '"JetBrains Mono", ui-monospace, SFMono-Regular, monospace';
+
+async function ensureShareCardFontsLoaded(): Promise<void> {
+  if (typeof document === "undefined" || !("fonts" in document)) return;
+  const fontSet = document.fonts;
+  try {
+    if (typeof fontSet.load === "function") {
+      await Promise.allSettled([
+        fontSet.load('600 16px "Space Grotesk"'),
+        fontSet.load('500 28px "Space Grotesk"'),
+        fontSet.load('700 108px "JetBrains Mono"'),
+        fontSet.load('700 32px "JetBrains Mono"'),
+      ]);
+    }
+    if (fontSet.ready) {
+      await fontSet.ready;
+    }
+  } catch {
+    // Fallback to system fonts if Fonts API fails
+  }
+}
+
 export async function renderResultCardPng(input: ResultShareInput): Promise<Blob | null> {
   if (typeof document === "undefined") return null;
+  await ensureShareCardFontsLoaded();
+
   const canvas = document.createElement("canvas");
   canvas.width = 840;
   canvas.height = 440;
@@ -80,35 +105,35 @@ export async function renderResultCardPng(input: ResultShareInput): Promise<Blob
 
   // Header brand
   ctx.fillStyle = "#94a3b8";
-  ctx.font = "600 16px ui-sans-serif, system-ui, sans-serif";
+  ctx.font = `600 16px ${SHARE_FONT_DISPLAY}`;
   ctx.fillText("TYPING TRAINER PRO", 48, 66);
 
   // Date top-right
   ctx.textAlign = "right";
   ctx.fillStyle = "#64748b";
-  ctx.font = "500 15px ui-monospace, SFMono-Regular, monospace";
+  ctx.font = `500 15px ${SHARE_FONT_MONO}`;
   ctx.fillText(dateLabel, canvas.width - 48, 66);
   ctx.textAlign = "left";
 
   // Hero WPM
   ctx.fillStyle = "#f59e0b";
-  ctx.font = "700 108px ui-monospace, SFMono-Regular, monospace";
+  ctx.font = `700 108px ${SHARE_FONT_MONO}`;
   ctx.fillText(`${Math.round(stats.wpm)}`, 46, 200);
 
   const wpmWidth = ctx.measureText(`${Math.round(stats.wpm)}`).width;
   ctx.fillStyle = "#94a3b8";
-  ctx.font = "500 28px ui-sans-serif, system-ui, sans-serif";
+  ctx.font = `500 28px ${SHARE_FONT_DISPLAY}`;
   ctx.fillText("WPM", 56 + wpmWidth, 200);
 
   if (isRecord) {
     ctx.fillStyle = "#34d399";
-    ctx.font = "700 14px ui-monospace, SFMono-Regular, monospace";
+    ctx.font = `700 14px ${SHARE_FONT_MONO}`;
     ctx.fillText("NEW PERSONAL BEST", 56 + wpmWidth, 148);
   }
 
   // Test meta line
   ctx.fillStyle = "#cbd5e1";
-  ctx.font = "500 20px ui-sans-serif, system-ui, sans-serif";
+  ctx.font = `500 20px ${SHARE_FONT_DISPLAY}`;
   const metaLine = modeKey === "quote" ? modeLabel : `${modeLabel} · ${difficulty.toUpperCase()}`;
   ctx.fillText(metaLine, 48, 250);
 
@@ -132,11 +157,11 @@ export async function renderResultCardPng(input: ResultShareInput): Promise<Blob
   metrics.forEach((m, idx) => {
     const x = 48 + idx * colW;
     ctx.fillStyle = "#64748b";
-    ctx.font = "600 12px ui-sans-serif, system-ui, sans-serif";
+    ctx.font = `600 12px ${SHARE_FONT_DISPLAY}`;
     ctx.fillText(m.label, x, 328);
 
     ctx.fillStyle = "#f8fafc";
-    ctx.font = "700 32px ui-monospace, SFMono-Regular, monospace";
+    ctx.font = `700 32px ${SHARE_FONT_MONO}`;
     ctx.fillText(m.value, x, 368);
   });
 

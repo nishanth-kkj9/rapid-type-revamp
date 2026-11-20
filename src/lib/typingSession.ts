@@ -1,4 +1,4 @@
-import type { DrillMode } from "./drillSettings";
+import type { DrillMode, StrictMode } from "./drillSettings";
 import { PAUSE_CAP_MS, type KeySpeedMap } from "./keySpeed";
 import { computeStats, reconcile, type RunSlowWord, type RunStats } from "./typingStats";
 
@@ -16,6 +16,10 @@ export interface TypingSessionState {
   quoteAuthor: string | null;
   drillMode: DrillMode;
   durationSec: number;
+  strictMode: StrictMode;
+  isRepeated: boolean;
+  /** Increments when strict mode blocks input without advancing typed so controlled inputs re-sync DOM value. */
+  strictRejectSeq: number;
   typed: string;
   startedAtMs: number | null;
   elapsedMs: number;
@@ -23,6 +27,8 @@ export interface TypingSessionState {
   keystrokesCorrect: number;
   /** Keystroke-level incorrect character presses (preserved across backspace). */
   keystrokesIncorrect: number;
+  /** Expected character -> total target hits recorded at keystroke time. */
+  keyHits: Record<string, number>;
   /** Expected character -> error count recorded at keystroke time. */
   mistakes: Record<string, number>;
   /** Two-letter expected bigrams where the second character errored. */
@@ -75,6 +81,8 @@ export type TypingSessionAction =
       quoteAuthor?: string | null | undefined;
       drillMode: DrillMode;
       durationSec: number;
+      strictMode?: StrictMode | undefined;
+      isRepeated?: boolean | undefined;
       keepMissedWords?: boolean | undefined;
     };
 
@@ -83,6 +91,8 @@ export interface CreateSessionOptions {
   quoteAuthor?: string | null | undefined;
   drillMode: DrillMode;
   durationSec: number;
+  strictMode?: StrictMode | undefined;
+  isRepeated?: boolean | undefined;
   keepMissedWords?: boolean | undefined;
   missedWords?: string[] | undefined;
 }
@@ -100,11 +110,15 @@ export function createInitialSessionState(opts: CreateSessionOptions): TypingSes
     quoteAuthor: opts.quoteAuthor ?? null,
     drillMode: opts.drillMode,
     durationSec: opts.durationSec,
+    strictMode: opts.strictMode ?? "off",
+    isRepeated: Boolean(opts.isRepeated),
+    strictRejectSeq: 0,
     typed: "",
     startedAtMs: null,
     elapsedMs: 0,
     keystrokesCorrect: 0,
     keystrokesIncorrect: 0,
+    keyHits: {},
     mistakes: {},
     bigramMistakes: {},
     missedWords: opts.keepMissedWords ? [...(opts.missedWords ?? [])] : [],
@@ -205,6 +219,15 @@ function finalizeSession(state: TypingSessionState, nowMs?: number): TypingSessi
   };
 }
 
+function currentWordHasMismatch(text: string, typed: string, pos: number): boolean {
+  if (pos <= 0) return false;
+  const wordStart = text.lastIndexOf(" ", pos - 1) + 1;
+  for (let j = wordStart; j < pos; j++) {
+    if (typed[j] !== text[j]) return true;
+  }
+  return false;
+}
+
 export function typingSessionReducer(
   state: TypingSessionState,
   action: TypingSessionAction,
@@ -241,6 +264,8 @@ export function typingSessionReducer(
       let nextTyped = state.typed;
       let keystrokesCorrect = state.keystrokesCorrect;
       let keystrokesIncorrect = state.keystrokesIncorrect;
+      let keyHits = state.keyHits;
+      let keyHitsCopied = false;
       let mistakes = state.mistakes;
       let mistakesCopied = false;
       let bigramMistakes = state.bigramMistakes;
@@ -260,11 +285,31 @@ export function typingSessionReducer(
       let lastCorrectAtMs = state.lastCorrectAtMs;
       let lastChar = state.lastKeyEvent?.char ?? "";
       let lastIsError = false;
+      let strictRejectSeq = state.strictRejectSeq;
+      let anyAcceptedKeystroke = false;
 
       for (let idx = 0; idx < incoming.length; idx++) {
         const ch = incoming[idx]!;
         const pos = nextTyped.length;
         const expected = state.text[pos];
+
+        if (
+          state.strictMode === "word" &&
+          ch === " " &&
+          currentWordHasMismatch(state.text, nextTyped, pos)
+        ) {
+          strictRejectSeq += 1;
+          continue;
+        }
+
+        anyAcceptedKeystroke = true;
+        if (expected !== undefined) {
+          if (!keyHitsCopied) {
+            keyHits = { ...keyHits };
+            keyHitsCopied = true;
+          }
+          keyHits[expected] = (keyHits[expected] ?? 0) + 1;
+        }
         const isError = expected === undefined || ch !== expected;
         lastChar = ch;
         lastIsError = isError;
@@ -378,7 +423,19 @@ export function typingSessionReducer(
           }
         }
 
-        nextTyped += ch;
+        // In strict "letter" mode, errors are recorded but not inserted so the caret remains on the expected char.
+        if (!isError || state.strictMode !== "letter") {
+          nextTyped += ch;
+        } else {
+          strictRejectSeq += 1;
+        }
+      }
+
+      if (!anyAcceptedKeystroke) {
+        return {
+          ...state,
+          strictRejectSeq,
+        };
       }
 
       const nextText =
@@ -395,12 +452,14 @@ export function typingSessionReducer(
       const nextState: TypingSessionState = {
         ...state,
         status,
+        strictRejectSeq,
         text: nextText,
         typed: nextTyped,
         startedAtMs,
         elapsedMs,
         keystrokesCorrect,
         keystrokesIncorrect,
+        keyHits,
         mistakes,
         bigramMistakes,
         missedWords,
@@ -505,6 +564,8 @@ export function typingSessionReducer(
         quoteAuthor: action.quoteAuthor,
         drillMode: action.drillMode,
         durationSec: action.durationSec,
+        strictMode: action.strictMode ?? state.strictMode,
+        isRepeated: action.isRepeated,
         keepMissedWords: action.keepMissedWords,
         missedWords: action.keepMissedWords ? state.missedWords : [],
       });
@@ -590,4 +651,35 @@ export function extractCompletedCleanWords(
   }
 
   return clean;
+}
+
+/**
+ * Pure interpolation of character index from recorded 1-second cumulative PB ghost samples.
+ * Returns null when no ghost samples are available or elapsedMs < 0.
+ */
+export function interpolatePaceCaretIndex(
+  samples: readonly number[] | undefined,
+  elapsedMs: number,
+  textLength: number,
+): number | null {
+  if (!samples || samples.length === 0 || textLength <= 0 || elapsedMs < 0) return null;
+  const sec = elapsedMs / 1000;
+  if (sec <= 0) return 0;
+
+  let rawChars: number;
+  if (sec < 1) {
+    rawChars = (samples[0] ?? 0) * sec;
+  } else {
+    const idx = Math.floor(sec);
+    if (idx >= samples.length) {
+      rawChars = samples[samples.length - 1] ?? 0;
+    } else {
+      const prev = samples[idx - 1] ?? 0;
+      const next = samples[idx] ?? prev;
+      const frac = sec - idx;
+      rawChars = prev + (next - prev) * frac;
+    }
+  }
+
+  return Math.min(textLength, Math.max(0, Math.round(rawChars)));
 }

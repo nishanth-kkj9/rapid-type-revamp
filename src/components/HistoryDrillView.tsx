@@ -192,6 +192,8 @@ export function HistoryDrillView({
                       })}{" "}
                       · <span className="capitalize text-foreground">{h.difficulty}</span> ·{" "}
                       <span className="font-semibold text-primary">{formatModeLabel(h.mode)}</span>
+                      {h.strict ? ` · strict: ${h.strict}` : ""}
+                      {h.repeated ? " · repeat" : ""}
                     </span>
                     <span className="shrink-0 font-mono text-xs tabular-nums sm:text-sm">
                       <strong className="font-semibold text-primary">{h.wpm.toFixed(0)}</strong> wpm

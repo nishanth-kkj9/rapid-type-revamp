@@ -55,7 +55,7 @@ export function DeleteAllDataDialog({
             placeholder="DELETE"
             autoComplete="off"
             data-lpignore="true"
-            className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 font-mono text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-destructive"
+            className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 font-mono text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-destructive"
           />
         </div>
 

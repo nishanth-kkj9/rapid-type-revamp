@@ -5,6 +5,7 @@ interface Props {
   text: string;
   typed: string;
   caretStyle?: CaretStyle;
+  paceCaretIndex?: number | null;
 }
 
 interface Word {
@@ -41,12 +42,18 @@ const WINDOW_STEP = 10;
 const WINDOW_BEFORE = 12;
 const WINDOW_AFTER = 42;
 
-export const TypingText = memo(function TypingText({ text, typed, caretStyle = "smooth" }: Props) {
+export const TypingText = memo(function TypingText({
+  text,
+  typed,
+  caretStyle = "smooth",
+  paceCaretIndex = null,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const paragraphRef = useRef<HTMLParagraphElement>(null);
   const charRectsRef = useRef<Map<number, CaretRect>>(new Map());
   const containerMetricsRef = useRef<{ height: number }>({ height: 160 });
   const [caretPos, setCaretPos] = useState<CaretRect | null>(null);
+  const [pacePos, setPacePos] = useState<CaretRect | null>(null);
   const [measureVersion, setMeasureVersion] = useState(0);
 
   const words = useMemo(() => splitWords(text), [text]);
@@ -113,6 +120,11 @@ export const TypingText = memo(function TypingText({ text, typed, caretStyle = "
   useEffect(() => {
     const rect = charRectsRef.current.get(typed.length) ?? null;
     setCaretPos(rect);
+    const nextPacePos =
+      paceCaretIndex !== null && paceCaretIndex !== undefined
+        ? (charRectsRef.current.get(paceCaretIndex) ?? null)
+        : null;
+    setPacePos(nextPacePos);
 
     const container = containerRef.current;
     if (rect && container) {
@@ -127,7 +139,7 @@ export const TypingText = memo(function TypingText({ text, typed, caretStyle = "
         container.scrollTop = Math.max(0, rect.top - padding);
       }
     }
-  }, [typed.length, measureVersion]);
+  }, [typed.length, paceCaretIndex, measureVersion]);
 
   const getCaretClass = () => {
     switch (caretStyle) {
@@ -147,6 +159,17 @@ export const TypingText = memo(function TypingText({ text, typed, caretStyle = "
 
   return (
     <div ref={containerRef} className="relative max-h-[9.5rem] overflow-hidden sm:max-h-[11rem]">
+      {pacePos != null ? (
+        <span
+          aria-hidden="true"
+          data-testid="pace-caret"
+          className="pace-caret pointer-events-none absolute left-0 top-0 z-[5] w-[2px] rounded-full bg-accent/70 will-change-transform"
+          style={{
+            height: `${pacePos.height}px`,
+            transform: `translate3d(${pacePos.left}px, ${pacePos.top}px, 0)`,
+          }}
+        />
+      ) : null}
       {caretPos != null && caretStyle === "smooth" ? (
         <span
           aria-hidden="true"

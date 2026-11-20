@@ -111,8 +111,8 @@ export function WordShooter({
               title="Shields auto-absorb a breach"
               className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-mono text-[11px] font-semibold ${
                 game.shieldCharges > 0
-                  ? "border-accent/50 bg-accent/15 text-accent"
-                  : "border-border bg-secondary/40 text-muted-foreground opacity-50"
+                  ? "border-accent/50 bg-accent/15 text-foreground"
+                  : "border-border/70 bg-secondary/40 text-muted-foreground"
               }`}
             >
               <Shield className="size-3" />
@@ -144,17 +144,18 @@ export function WordShooter({
             <button
               type="button"
               onClick={game.togglePause}
-              className="flex cursor-pointer items-center gap-1 rounded-lg border border-border bg-secondary px-2 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted sm:px-2.5"
+              aria-label={game.phase === "paused" ? "Resume game" : "Pause game"}
+              className="flex min-h-9 cursor-pointer items-center gap-1 rounded-lg border border-border bg-secondary px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
             >
               {game.phase === "paused" ? (
                 <>
-                  <Play className="size-3.5" />
+                  <Play className="size-3.5" aria-hidden="true" />
                   <span>Resume</span>
                 </>
               ) : (
                 <>
-                  <Pause className="size-3.5" />
-                  <span className="hidden sm:inline">Pause</span>
+                  <Pause className="size-3.5" aria-hidden="true" />
+                  <span>Pause</span>
                 </>
               )}
             </button>

@@ -1,4 +1,3 @@
-import { StatCard } from "@/components/StatCard";
 import type { DrillMode, WordCountOption } from "@/lib/drillSettings";
 import type { RunStats } from "@/lib/typingStats";
 
@@ -9,14 +8,10 @@ interface StatCardsProps {
   settled: boolean;
   showLiveWpm: boolean;
   drillMode: DrillMode;
-  duration: number;
   remaining: number;
   wordCount: WordCountOption;
   typed: string;
   textLength: number;
-  quoteAuthor: string | null;
-  samplesCount: number;
-  previousBest: number;
   progress: number;
 }
 
@@ -27,83 +22,73 @@ export function StatCards({
   settled,
   showLiveWpm,
   drillMode,
-  duration,
   remaining,
   wordCount,
   typed,
   textLength,
-  quoteAuthor,
-  samplesCount,
-  previousBest,
   progress,
 }: StatCardsProps) {
-  const hideLive = !showLiveWpm && running && !finished;
+  if (!running || finished) return null;
+
+  const hideLive = !showLiveWpm;
+  const wordsDone = Math.min(wordCount, typed.split(/\s+/).filter(Boolean).length);
+  const quotePct = Math.min(100, Math.round((typed.length / (textLength || 1)) * 100));
 
   return (
-    <>
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard
-          label="WPM"
-          value={hideLive ? "•••" : settled || finished ? shown.wpm.toFixed(0) : "—"}
-          emphasis
-          hint={
-            hideLive
-              ? "hidden during test"
-              : settled || finished
-                ? `raw ${shown.rawWpm.toFixed(0)}`
-                : "start typing"
-          }
-        />
-        <StatCard
-          label="Accuracy"
-          value={hideLive ? "•••" : `${shown.accuracy.toFixed(0)}%`}
-          hint={hideLive ? "hidden during test" : `${shown.incorrect} errors`}
-        />
-        <StatCard
-          label={drillMode === "words" ? "Words" : drillMode === "quote" ? "Quote" : "Time left"}
-          value={
-            drillMode === "words"
-              ? `${finished ? wordCount : Math.min(wordCount, typed.split(/\s+/).filter(Boolean).length)} / ${wordCount}`
-              : drillMode === "quote"
-                ? `${finished ? 100 : Math.min(100, Math.round((typed.length / (textLength || 1)) * 100))}%`
-                : `${Math.ceil(finished ? 0 : remaining)}s`
-          }
-          hint={
-            drillMode === "words"
-              ? `${wordCount} words quota`
-              : drillMode === "quote"
-                ? quoteAuthor
-                  ? `by ${quoteAuthor.split(" (")[0]}`
-                  : "quote drill"
-                : `${duration}s run`
-          }
-          warn={drillMode === "time" && running && !finished && remaining <= 5}
-        />
-        <StatCard
-          label="Consistency"
-          value={
-            hideLive
-              ? "•••"
-              : samplesCount >= 3 || finished
-                ? `${shown.consistency.toFixed(0)}%`
-                : "—"
-          }
-          hint={
-            hideLive
-              ? "hidden during test"
-              : previousBest
-                ? `best ${previousBest.toFixed(0)} wpm`
-                : "no record yet"
-          }
-        />
+    <div className="mt-4">
+      <div
+        role="status"
+        aria-label="Live metrics"
+        className="flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-card/75 px-4 py-2 font-mono text-sm tabular-nums"
+      >
+        <div className="flex items-baseline gap-1.5">
+          {drillMode === "words" ? (
+            <>
+              <span className="font-bold text-foreground">
+                {wordsDone} / {wordCount}
+              </span>
+              <span className="text-xs text-muted-foreground">words</span>
+            </>
+          ) : drillMode === "quote" ? (
+            <>
+              <span className="font-bold text-foreground">{quotePct}%</span>
+              <span className="text-xs text-muted-foreground">progress</span>
+            </>
+          ) : (
+            <>
+              <span className={`font-bold ${remaining <= 5 ? "text-destructive" : "text-primary"}`}>
+                {Math.ceil(remaining)}s
+              </span>
+              <span className="text-xs text-muted-foreground">left</span>
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="flex items-baseline gap-1.5">
+            <span className="font-bold text-primary">
+              {hideLive ? "•••" : settled ? shown.wpm.toFixed(0) : "—"}
+            </span>
+            <span className="text-xs text-muted-foreground">WPM</span>
+          </div>
+          <span aria-hidden="true" className="text-border">
+            ·
+          </span>
+          <div className="flex items-baseline gap-1.5">
+            <span className="font-bold text-foreground">
+              {hideLive ? "•••" : `${shown.accuracy.toFixed(0)}%`}
+            </span>
+            <span className="text-xs text-muted-foreground">acc</span>
+          </div>
+        </div>
       </div>
 
-      <div className="mt-4 h-1 overflow-hidden rounded-full bg-secondary">
+      <div className="mt-2 h-1 overflow-hidden rounded-full bg-secondary">
         <div
           className="h-full rounded-full bg-primary transition-[width] duration-100 ease-linear"
           style={{ width: `${progress}%` }}
         />
       </div>
-    </>
+    </div>
   );
 }

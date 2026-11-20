@@ -176,9 +176,9 @@ export function WpmChart({
                 {targetWpm ? (
                   <>
                     {stats.avgWpm >= targetWpm ? (
-                      <span className="text-emerald-500">+{stats.avgWpm - targetWpm}</span>
+                      <span className="text-accent">+{stats.avgWpm - targetWpm}</span>
                     ) : (
-                      <span className="text-amber-500">-{targetWpm - stats.avgWpm}</span>
+                      <span className="text-primary">-{targetWpm - stats.avgWpm}</span>
                     )}{" "}
                     <span className="text-[11px] font-normal text-muted-foreground">
                       vs {targetWpm}

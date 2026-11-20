@@ -170,6 +170,8 @@ export interface HistoryEntry extends RunStats {
   missedWords?: string[] | undefined;
   slowWords?: RunSlowWord[] | undefined;
   wordMistakes?: Record<string, number> | undefined;
+  strict?: "letter" | "word" | undefined;
+  repeated?: boolean | undefined;
 }
 
 export interface ShooterRunSummary {
@@ -208,6 +210,13 @@ export function formatModeLabel(mode: string): string {
   const normalized = normalizeModeKey(mode);
   if (normalized === "shooter") return "Shooter";
   if (normalized === "quote") return "Quote";
+  if (
+    normalized === "learn" ||
+    normalized.startsWith("learn-") ||
+    normalized.startsWith("learn:")
+  ) {
+    return "Learn";
+  }
   const wordsMatch = /^(\d+)w$/.exec(normalized);
   if (wordsMatch) {
     return `${wordsMatch[1]} words`;
@@ -235,13 +244,27 @@ export function getModeHistory(
   });
 }
 
-/** Personal best WPM for a specific test type (mode + length, and difficulty where relevant). */
+function isExcludedFromPb(h: HistoryEntry): boolean {
+  const mode = normalizeModeKey(h.mode);
+  return (
+    Boolean(h.repeated) ||
+    mode === "shooter" ||
+    mode === "learn" ||
+    mode.startsWith("learn-") ||
+    mode.startsWith("learn:")
+  );
+}
+
+/** Personal best WPM for a specific test type (mode + length, and difficulty where relevant). Excludes shooter, learn, and repeated runs. */
 export function getPersonalBestWpm(
   history: readonly HistoryEntry[],
   modeKey: string,
   difficulty?: string,
 ): number {
-  return getModeHistory(history, modeKey, difficulty).reduce((m, h) => Math.max(m, h.wpm), 0);
+  return getModeHistory(history, modeKey, difficulty).reduce(
+    (m, h) => (isExcludedFromPb(h) ? m : Math.max(m, h.wpm)),
+    0,
+  );
 }
 
 /** Single source of truth for Word Shooter best score, derived directly from run history. */
@@ -314,9 +337,10 @@ export interface PersonalBestRow {
 
 /**
  * Aggregate personal bests per test type (never mixing time lengths, word counts, quotes, or difficulties).
+ * Excludes shooter, repeated, and learn runs.
  */
 export function computePersonalBestsTable(history: readonly HistoryEntry[]): PersonalBestRow[] {
-  const drillEntries = history.filter((h) => normalizeModeKey(h.mode) !== "shooter");
+  const drillEntries = history.filter((h) => !isExcludedFromPb(h));
   const groups = new Map<string, PersonalBestRow>();
 
   for (const h of drillEntries) {
@@ -419,24 +443,23 @@ export function bestSamplesKey(modeKey: string, difficulty?: string): string {
 }
 
 export const HISTORY_STORAGE_KEY = "ttp:history:v1";
-const LEGACY_KEY = "ttp:history";
-const LEGACY_LOCAL_LIMIT = 100;
+export const HISTORY_INDEX_KEY = "ttp:history:index:v1";
+export const RUN_KEY_PREFIX = "ttp:run:";
+export const MAX_IMPORT_RUNS = 20000;
 
-const isBrowser = () => typeof window !== "undefined" && !!window.localStorage;
-
-/** Migrate the legacy unversioned key on first load. */
-function migrateLegacy(): void {
-  if (!isBrowser()) return;
-  try {
-    const legacy = window.localStorage.getItem(LEGACY_KEY);
-    if (legacy && !window.localStorage.getItem(HISTORY_STORAGE_KEY)) {
-      window.localStorage.setItem(HISTORY_STORAGE_KEY, legacy);
-      window.localStorage.removeItem(LEGACY_KEY);
-    }
-  } catch {
-    /* storage unavailable */
-  }
+export function runStorageKey(id: string): string {
+  return `${RUN_KEY_PREFIX}${id}`;
 }
+
+export interface HistoryIndexEntry {
+  id: string;
+  date: number;
+}
+
+const HistoryIndexItemSchema = z.object({
+  id: z.union([z.string(), z.number()]).transform(String),
+  date: z.number().finite().min(0),
+});
 
 export const RunSlowWordSchema = z.object({
   word: z.string().min(1).max(128),
@@ -476,6 +499,8 @@ export const HistoryEntrySchema = z.object({
   missedWords: z.array(z.string().min(1).max(128)).max(100).optional(),
   slowWords: z.array(RunSlowWordSchema).max(20).optional(),
   wordMistakes: z.record(z.string().min(1).max(128), z.number().int().min(1).max(1000)).optional(),
+  strict: z.enum(["letter", "word"]).optional(),
+  repeated: z.boolean().optional(),
 });
 
 export const SamplesSchema = z.array(z.number().finite().min(0)).max(3600);
@@ -492,77 +517,14 @@ export function parseHistoryEntries(raw: unknown): HistoryEntry[] {
   return valid;
 }
 
-export function loadHistory(): HistoryEntry[] {
-  if (!isBrowser()) return [];
-  migrateLegacy();
-  try {
-    const raw = window.localStorage.getItem(HISTORY_STORAGE_KEY);
-    if (!raw) return [];
-    return parseHistoryEntries(JSON.parse(raw));
-  } catch {
-    return [];
-  }
-}
-
-/** Persist and return the new list. `ok` is false when storage is unavailable/full. */
-export function saveRun(entry: HistoryEntry): { list: HistoryEntry[]; ok: boolean } {
-  const next = [entry, ...loadHistory()]
-    .sort((a, b) => b.date - a.date)
-    .slice(0, LEGACY_LOCAL_LIMIT);
-  if (!isBrowser()) return { list: next, ok: false };
-  try {
-    window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(next));
-    return { list: next, ok: true };
-  } catch {
-    return { list: next, ok: false };
-  }
-}
-
-export function clearHistory(mode?: "all" | "drill" | "shooter"): HistoryEntry[] {
-  if (!isBrowser()) return [];
-  if (!mode || mode === "all") {
-    try {
-      window.localStorage.removeItem(HISTORY_STORAGE_KEY);
-    } catch {
-      /* noop */
-    }
-    return [];
-  }
-  const current = loadHistory();
-  const retained =
-    mode === "drill"
-      ? current.filter((h) => h.mode === "shooter")
-      : current.filter((h) => h.mode !== "shooter");
-  try {
-    window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(retained));
-  } catch {
-    /* noop */
-  }
-  return retained;
-}
-
-export interface HistoryExportPayload {
-  schemaVersion: number;
-  exportedAt: number;
-  entries: HistoryEntry[];
-}
-
-export function exportHistoryPayload(entries = loadHistory()): HistoryExportPayload {
-  return {
-    schemaVersion: 1,
-    exportedAt: Date.now(),
-    entries,
-  };
-}
-
-export function exportHistory(): string {
-  return JSON.stringify(exportHistoryPayload(), null, 2);
-}
+export type ImportFailureReason = "invalid" | "too-many-runs" | "quota";
 
 export type ImportResult =
-  { ok: true; list: HistoryEntry[] } | { ok: false; reason: "invalid" | "quota" };
+  { ok: true; list: HistoryEntry[] } | { ok: false; reason: ImportFailureReason };
 
-export function parseImportHistoryJson(json: string): HistoryEntry[] | null {
+export function parseImportHistoryResult(
+  json: string,
+): { ok: true; entries: HistoryEntry[] } | { ok: false; reason: "invalid" | "too-many-runs" } {
   try {
     const raw: unknown = JSON.parse(json);
     let itemsToParse = raw;
@@ -575,46 +537,194 @@ export function parseImportHistoryJson(json: string): HistoryEntry[] | null {
     ) {
       itemsToParse = (raw as { entries: unknown }).entries;
     }
-    if (!Array.isArray(itemsToParse) || itemsToParse.length > 5000) return null;
+    if (!Array.isArray(itemsToParse)) {
+      return { ok: false, reason: "invalid" };
+    }
+    if (itemsToParse.length > MAX_IMPORT_RUNS) {
+      return { ok: false, reason: "too-many-runs" };
+    }
     const parsed = z.array(HistoryEntrySchema).safeParse(itemsToParse);
-    if (!parsed.success) return null;
-    return parsed.data as HistoryEntry[];
+    if (!parsed.success) return { ok: false, reason: "invalid" };
+    return { ok: true, entries: parsed.data as HistoryEntry[] };
   } catch {
-    return null;
+    return { ok: false, reason: "invalid" };
   }
 }
 
-/** Merge imported entries with existing history (deduped by id), newest-first with error detail. */
-export function importHistoryResult(json: string): ImportResult {
-  if (!isBrowser()) return { ok: false, reason: "invalid" };
-  const parsedEntries = parseImportHistoryJson(json);
-  if (!parsedEntries) return { ok: false, reason: "invalid" };
+export function parseImportHistoryJson(json: string): HistoryEntry[] | null {
+  const res = parseImportHistoryResult(json);
+  return res.ok ? res.entries : null;
+}
 
-  try {
-    const byId = new Map<string, HistoryEntry>();
-    for (const e of loadHistory()) byId.set(e.id, e);
-    for (const e of parsedEntries) byId.set(e.id, e);
-    const merged = [...byId.values()].sort((a, b) => b.date - a.date).slice(0, LEGACY_LOCAL_LIMIT);
-    window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(merged));
-    return { ok: true, list: merged };
-  } catch {
-    return { ok: false, reason: "quota" };
+const historyCache = new WeakMap<Storage, HistoryEntry[]>();
+
+export function invalidateHistoryCache(storage: Storage): void {
+  historyCache.delete(storage);
+}
+
+async function storageSetMany(
+  storage: Storage,
+  entries: readonly (readonly [string, unknown])[],
+): Promise<void> {
+  if (entries.length === 0) return;
+  if (storage.setMany) {
+    await storage.setMany(entries);
+    return;
   }
+  await Promise.all(entries.map(([k, v]) => storage.set(k, v)));
 }
 
-/** Merge imported entries with existing history (deduped by id), newest-first. */
-export function importHistory(json: string): HistoryEntry[] | null {
-  const res = importHistoryResult(json);
-  return res.ok ? res.list : null;
+async function storageDeleteMany(storage: Storage, keys: readonly string[]): Promise<void> {
+  if (keys.length === 0) return;
+  if (storage.deleteMany) {
+    await storage.deleteMany(keys);
+    return;
+  }
+  await Promise.all(keys.map((k) => storage.delete(k)));
 }
 
-/** Async IndexedDB Storage API (no 100-run cap). */
+async function storageGetAllRunsRaw(storage: Storage): Promise<[string, unknown][]> {
+  if (storage.getAllByPrefix) {
+    return storage.getAllByPrefix<unknown>(RUN_KEY_PREFIX);
+  }
+  const keys = await storage.list(RUN_KEY_PREFIX);
+  if (keys.length === 0) return [];
+  if (storage.getMany) {
+    const vals = await storage.getMany<unknown>(keys);
+    return keys.map((k, i) => [k, vals[i]] as [string, unknown]);
+  }
+  const pairs = await Promise.all(
+    keys.map(async (k) => [k, await storage.get<unknown>(k)] as [string, unknown]),
+  );
+  return pairs;
+}
+
+function buildCompactIndex(entries: readonly HistoryEntry[]): HistoryIndexEntry[] {
+  return entries.map((e) => ({ id: e.id, date: e.date }));
+}
+
+function deduplicateAndSortDesc(entries: readonly HistoryEntry[]): HistoryEntry[] {
+  const byId = new Map<string, HistoryEntry>();
+  for (const e of entries) {
+    byId.set(e.id, e);
+  }
+  return Array.from(byId.values()).sort((a, b) => b.date - a.date);
+}
+
+/** Fast structural check for already-sanitized runs stored under ttp:run:<id>, falling back to Zod on edge shapes. */
+function coerceStoredRun(raw: unknown): HistoryEntry | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (
+    typeof r["id"] === "string" &&
+    r["id"].length > 0 &&
+    typeof r["date"] === "number" &&
+    Number.isFinite(r["date"]) &&
+    typeof r["wpm"] === "number" &&
+    Number.isFinite(r["wpm"]) &&
+    typeof r["accuracy"] === "number" &&
+    Number.isFinite(r["accuracy"]) &&
+    typeof r["difficulty"] === "string" &&
+    typeof r["mode"] === "string"
+  ) {
+    return raw as HistoryEntry;
+  }
+  const parsed = HistoryEntrySchema.safeParse(raw);
+  return parsed.success ? (parsed.data as HistoryEntry) : null;
+}
+
+/**
+ * Load all runs from per-run `ttp:run:<id>` keys (using `ttp:history:index:v1` as compact index).
+ * Automatically migrates legacy monolithic `ttp:history:v1` payloads when present.
+ */
 export async function loadHistoryFromStorage(storage: Storage): Promise<HistoryEntry[]> {
   try {
-    const raw = await storage.get(HISTORY_STORAGE_KEY);
-    if (raw === null) return [];
-    const entries = parseHistoryEntries(raw);
-    return [...entries].sort((a, b) => b.date - a.date);
+    const [rawIndex, rawLegacy] = await Promise.all([
+      storage.get(HISTORY_INDEX_KEY),
+      storage.get(HISTORY_STORAGE_KEY),
+    ]);
+
+    // Automatic one-time migration from legacy ttp:history:v1 array
+    if (rawLegacy !== null) {
+      const legacyEntries = deduplicateAndSortDesc(parseHistoryEntries(rawLegacy));
+      if (rawIndex === null) {
+        if (legacyEntries.length > 0) {
+          const pairs: [string, unknown][] = [
+            [HISTORY_INDEX_KEY, buildCompactIndex(legacyEntries)],
+            ...legacyEntries.map((e) => [runStorageKey(e.id), e] as [string, unknown]),
+          ];
+          await storageSetMany(storage, pairs);
+        }
+        await storage.delete(HISTORY_STORAGE_KEY);
+        historyCache.set(storage, legacyEntries);
+        return legacyEntries;
+      }
+      // Index already present alongside stale legacy key; merge once & remove legacy key
+      const existingPairs = await storageGetAllRunsRaw(storage);
+      const existingEntries: HistoryEntry[] = [];
+      for (const [, val] of existingPairs) {
+        const coerced = coerceStoredRun(val);
+        if (coerced) existingEntries.push(coerced);
+      }
+      const merged = deduplicateAndSortDesc([...legacyEntries, ...existingEntries]);
+      const pairs: [string, unknown][] = [
+        [HISTORY_INDEX_KEY, buildCompactIndex(merged)],
+        ...legacyEntries.map((e) => [runStorageKey(e.id), e] as [string, unknown]),
+      ];
+      await storageSetMany(storage, pairs);
+      await storage.delete(HISTORY_STORAGE_KEY);
+      historyCache.set(storage, merged);
+      return merged;
+    }
+
+    const rawRuns = await storageGetAllRunsRaw(storage);
+    if (rawRuns.length === 0) {
+      if (Array.isArray(rawIndex) && rawIndex.length === 0) {
+        historyCache.set(storage, []);
+      } else {
+        historyCache.delete(storage);
+      }
+      return [];
+    }
+
+    const byId = new Map<string, HistoryEntry>();
+    for (const [, val] of rawRuns) {
+      const coerced = coerceStoredRun(val);
+      if (coerced) {
+        byId.set(coerced.id, coerced);
+      }
+    }
+
+    // Reconcile index if missing or out of sync with stored ttp:run:* records
+    let entries: HistoryEntry[];
+    if (Array.isArray(rawIndex)) {
+      const ordered: HistoryEntry[] = [];
+      const seen = new Set<string>();
+      for (const item of rawIndex) {
+        const parsedIdx = HistoryIndexItemSchema.safeParse(item);
+        if (!parsedIdx.success) continue;
+        const found = byId.get(parsedIdx.data.id);
+        if (found && !seen.has(found.id)) {
+          ordered.push(found);
+          seen.add(found.id);
+        }
+      }
+      if (ordered.length === byId.size) {
+        entries = ordered;
+      } else {
+        for (const [id, entry] of byId.entries()) {
+          if (!seen.has(id)) ordered.push(entry);
+        }
+        entries = ordered.sort((a, b) => b.date - a.date);
+        await storage.set(HISTORY_INDEX_KEY, buildCompactIndex(entries));
+      }
+    } else {
+      entries = Array.from(byId.values()).sort((a, b) => b.date - a.date);
+      await storage.set(HISTORY_INDEX_KEY, buildCompactIndex(entries));
+    }
+
+    historyCache.set(storage, entries);
+    return entries;
   } catch {
     return [];
   }
@@ -623,13 +733,28 @@ export async function loadHistoryFromStorage(storage: Storage): Promise<HistoryE
 export async function saveRunToStorage(
   storage: Storage,
   entry: HistoryEntry,
+  knownHistory?: readonly HistoryEntry[],
 ): Promise<{ list: HistoryEntry[]; ok: boolean }> {
-  const existing = await loadHistoryFromStorage(storage);
-  const next = [entry, ...existing.filter((e) => e.id !== entry.id)].sort(
-    (a, b) => b.date - a.date,
-  );
+  let existing = knownHistory ?? historyCache.get(storage);
+  if (!existing) {
+    existing = await loadHistoryFromStorage(storage);
+  }
+
+  let next: HistoryEntry[];
+  const existingIdx = existing.findIndex((e) => e.id === entry.id);
+  if (existingIdx === -1 && (existing.length === 0 || entry.date >= existing[0]!.date)) {
+    next = [entry, ...existing];
+  } else {
+    const filtered = existingIdx === -1 ? existing : existing.filter((e) => e.id !== entry.id);
+    next = [entry, ...filtered].sort((a, b) => b.date - a.date);
+  }
+
   try {
-    await storage.set(HISTORY_STORAGE_KEY, next);
+    await storageSetMany(storage, [
+      [runStorageKey(entry.id), entry],
+      [HISTORY_INDEX_KEY, buildCompactIndex(next)],
+    ]);
+    historyCache.set(storage, next);
     return { list: next, ok: true };
   } catch {
     return { list: next, ok: false };
@@ -642,19 +767,28 @@ export async function clearHistoryInStorage(
 ): Promise<HistoryEntry[]> {
   if (!mode || mode === "all") {
     try {
-      await storage.delete(HISTORY_STORAGE_KEY);
+      const runKeys = await storage.list(RUN_KEY_PREFIX);
+      await storageDeleteMany(storage, [...runKeys, HISTORY_INDEX_KEY, HISTORY_STORAGE_KEY]);
     } catch {
       /* noop */
     }
+    historyCache.set(storage, []);
     return [];
   }
+
   const current = await loadHistoryFromStorage(storage);
-  const retained =
-    mode === "drill"
-      ? current.filter((h) => h.mode === "shooter")
-      : current.filter((h) => h.mode !== "shooter");
+  const retained: HistoryEntry[] = [];
+  const removedKeys: string[] = [];
+  for (const h of current) {
+    const keep = mode === "drill" ? h.mode === "shooter" : h.mode !== "shooter";
+    if (keep) retained.push(h);
+    else removedKeys.push(runStorageKey(h.id));
+  }
+
   try {
-    await storage.set(HISTORY_STORAGE_KEY, retained);
+    await storageDeleteMany(storage, removedKeys);
+    await storage.set(HISTORY_INDEX_KEY, buildCompactIndex(retained));
+    historyCache.set(storage, retained);
   } catch {
     /* noop */
   }
@@ -665,14 +799,22 @@ export async function importHistoryToStorage(
   storage: Storage,
   json: string,
 ): Promise<ImportResult> {
-  const parsedEntries = parseImportHistoryJson(json);
-  if (!parsedEntries) return { ok: false, reason: "invalid" };
+  const parsed = parseImportHistoryResult(json);
+  if (!parsed.ok) return { ok: false, reason: parsed.reason };
   try {
+    const current = await loadHistoryFromStorage(storage);
     const byId = new Map<string, HistoryEntry>();
-    for (const e of await loadHistoryFromStorage(storage)) byId.set(e.id, e);
-    for (const e of parsedEntries) byId.set(e.id, e);
-    const merged = [...byId.values()].sort((a, b) => b.date - a.date);
-    await storage.set(HISTORY_STORAGE_KEY, merged);
+    for (const e of current) byId.set(e.id, e);
+    for (const e of parsed.entries) byId.set(e.id, e);
+    const merged = Array.from(byId.values()).sort((a, b) => b.date - a.date);
+
+    const pairs: [string, unknown][] = [
+      [HISTORY_INDEX_KEY, buildCompactIndex(merged)],
+      ...parsed.entries.map((e) => [runStorageKey(e.id), e] as [string, unknown]),
+    ];
+    await storageSetMany(storage, pairs);
+    await storage.delete(HISTORY_STORAGE_KEY);
+    historyCache.set(storage, merged);
     return { ok: true, list: merged };
   } catch {
     return { ok: false, reason: "quota" };
@@ -683,8 +825,21 @@ export async function restoreHistoryToStorage(
   storage: Storage,
   entries: HistoryEntry[],
 ): Promise<HistoryEntry[]> {
-  const valid = parseHistoryEntries(entries).sort((a, b) => b.date - a.date);
-  await storage.set(HISTORY_STORAGE_KEY, valid);
+  const valid = deduplicateAndSortDesc(parseHistoryEntries(entries));
+  const validIds = new Set(valid.map((e) => e.id));
+  const existingRunKeys = await storage.list(RUN_KEY_PREFIX);
+  const obsoleteKeys = existingRunKeys.filter((k) => !validIds.has(k.slice(RUN_KEY_PREFIX.length)));
+
+  if (obsoleteKeys.length > 0) {
+    await storageDeleteMany(storage, obsoleteKeys);
+  }
+  const pairs: [string, unknown][] = [
+    [HISTORY_INDEX_KEY, buildCompactIndex(valid)],
+    ...valid.map((e) => [runStorageKey(e.id), e] as [string, unknown]),
+  ];
+  await storageSetMany(storage, pairs);
+  await storage.delete(HISTORY_STORAGE_KEY);
+  historyCache.set(storage, valid);
   return valid;
 }
 
@@ -692,12 +847,14 @@ export async function deleteRunFromStorage(
   storage: Storage,
   id: string,
 ): Promise<{ deleted: HistoryEntry | null; list: HistoryEntry[] }> {
-  const current = await loadHistoryFromStorage(storage);
+  const current = historyCache.get(storage) ?? (await loadHistoryFromStorage(storage));
   const deleted = current.find((e) => e.id === id) ?? null;
   if (!deleted) return { deleted: null, list: current };
   const next = current.filter((e) => e.id !== id);
   try {
-    await storage.set(HISTORY_STORAGE_KEY, next);
+    await storage.delete(runStorageKey(id));
+    await storage.set(HISTORY_INDEX_KEY, buildCompactIndex(next));
+    historyCache.set(storage, next);
   } catch {
     /* non-fatal */
   }

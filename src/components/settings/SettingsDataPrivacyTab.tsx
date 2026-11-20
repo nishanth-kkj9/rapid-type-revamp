@@ -7,18 +7,22 @@ import type { BackupImportResult } from "@/lib/backup";
 import type { CustomTextEntry } from "@/lib/customTexts";
 import { downloadFullBackupJson } from "@/lib/historyExport";
 import { appStorage } from "@/lib/storage";
-import type { HistoryEntry } from "@/lib/typingStats";
+import { MAX_IMPORT_RUNS, type HistoryEntry } from "@/lib/typingStats";
 
 const STORAGE_INVENTORY = [
   {
-    key: "ttp:history:v1 / ttp:best:samples:v1:*",
-    desc: "Drill & Word Shooter run history, per-second speed samples, and ghost curves",
+    key: "ttp:run:* / ttp:history:index:v1 / ttp:best:samples:v1:*",
+    desc: "Per-run Drill, Learn & Arcade records, compact run index, and ghost curves",
   },
   {
     key: "ttp:keystats:v1 / ttp:keybigrams:v1 / ttp:keyspeed:v1",
     desc: "All-time per-key errors, transition bigrams, and inter-key latency (ms)",
   },
   { key: "ttp:missed-words:v1", desc: "Active remediation word list & consecutive clean streaks" },
+  {
+    key: "ttp:learn:v1",
+    desc: "Learn mode unlocked letters, per-key speed EMA, and lesson progress",
+  },
   { key: "ttp:custom-texts:v1", desc: "Your pasted custom practice passages" },
   { key: "ttp:achievements:v1", desc: "Unlocked milestones & progress counters" },
   { key: "ttp:daily:v1", desc: "Daily practice target, active minutes, and streak freeze status" },
@@ -55,7 +59,9 @@ export function SettingsDataPrivacyTab({
       toast.error(
         res.reason === "quota"
           ? "Browser storage is full. Export and free space first."
-          : "Invalid or corrupted backup JSON.",
+          : res.reason === "too-many-runs"
+            ? `Import rejected: backup exceeds the ${MAX_IMPORT_RUNS.toLocaleString()}-run limit.`
+            : "Invalid or corrupted backup JSON.",
       );
       return;
     }

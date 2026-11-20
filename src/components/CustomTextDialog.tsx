@@ -191,20 +191,22 @@ export function CustomTextDialog({
 
           <input
             type="text"
+            aria-label="Custom list name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={80}
             placeholder="List name (e.g. TypeScript Snippets, Study Notes)"
-            className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+            className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
 
           <div>
             <textarea
+              aria-label="Custom practice passage text"
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}
               rows={5}
               placeholder="Paste or type your practice text here..."
-              className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 font-mono text-xs leading-relaxed text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+              className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 font-mono text-xs leading-relaxed text-foreground placeholder:text-muted-foreground focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
               <span>Normalized to typeable ASCII</span>

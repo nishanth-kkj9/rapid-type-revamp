@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "./zodSetup";
 import type { Storage } from "./storage";
 
 export const MISSED_WORDS_KEY = "ttp:missed-words:v1";
@@ -56,27 +56,6 @@ export function sanitizeMissedWords(raw: unknown): string[] {
 
 export function getActiveMissedWords(records: readonly MissedWordRecord[]): string[] {
   return records.filter((r) => r.cleanStreak < GRADUATION_STREAK).map((r) => r.word);
-}
-
-export function loadMissedWords(): string[] {
-  if (typeof window === "undefined" || !window.localStorage) return [];
-  try {
-    const raw = window.localStorage.getItem(MISSED_WORDS_KEY);
-    if (!raw) return [];
-    return sanitizeMissedWords(JSON.parse(raw));
-  } catch {
-    return [];
-  }
-}
-
-export function saveMissedWords(words: string[]): void {
-  if (typeof window === "undefined" || !window.localStorage) return;
-  try {
-    const clean = sanitizeMissedWords(words);
-    window.localStorage.setItem(MISSED_WORDS_KEY, JSON.stringify(clean));
-  } catch {
-    // storage disabled or quota exceeded
-  }
 }
 
 export function mergeMissedWords(existing: string[], fresh: string[]): string[] {
@@ -141,15 +120,6 @@ export function recordMissedWordsRun(
   );
 
   return [...freshRecords, ...remaining].slice(0, MAX_MISSED_WORDS);
-}
-
-export function clearMissedWords(): void {
-  if (typeof window === "undefined" || !window.localStorage) return;
-  try {
-    window.localStorage.removeItem(MISSED_WORDS_KEY);
-  } catch {
-    // storage disabled
-  }
 }
 
 export async function loadMissedWordRecordsFromStorage(

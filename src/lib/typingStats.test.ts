@@ -1,12 +1,7 @@
-// @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   computeStats,
   toDeltas,
-  loadHistory,
-  saveRun,
-  importHistory,
-  clearHistory,
   HistoryEntrySchema,
   formatModeLabel,
   clampMonotonicSamples,
@@ -18,6 +13,15 @@ import {
   computeSameTypeTrend,
   deleteRunFromStorage,
   getShooterBestScore,
+  loadHistoryFromStorage,
+  saveRunToStorage,
+  importHistoryToStorage,
+  clearHistoryInStorage,
+  parseImportHistoryResult,
+  MAX_IMPORT_RUNS,
+  HISTORY_INDEX_KEY,
+  HISTORY_STORAGE_KEY,
+  RUN_KEY_PREFIX,
   type HistoryEntry,
 } from "./typingStats";
 import { MemoryStorage } from "./storage";
@@ -93,6 +97,7 @@ describe("formatModeLabel & scoped PB", () => {
     expect(formatModeLabel("25w")).toBe("25 words");
     expect(formatModeLabel("quote")).toBe("Quote");
     expect(formatModeLabel("shooter")).toBe("Shooter");
+    expect(formatModeLabel("learn")).toBe("Learn");
   });
 
   it("scopes personal bests by test type and difficulty (ignoring difficulty for quote)", () => {
@@ -108,48 +113,115 @@ describe("formatModeLabel & scoped PB", () => {
     expect(getPersonalBestWpm(history, "25w", "hard")).toBe(80);
     expect(getPersonalBestWpm(history, "quote", "hard")).toBe(77);
   });
+
+  it("excludes repeated, shooter, and learn runs from personal bests and persists strict/repeated metadata", async () => {
+    const history = [
+      entry({ id: "1", mode: "30s", difficulty: "medium", wpm: 72 }),
+      entry({ id: "2", mode: "30s", difficulty: "medium", wpm: 125, repeated: true }),
+      entry({ id: "3", mode: "25w", difficulty: "medium", wpm: 110, repeated: true }),
+      entry({ id: "4", mode: "learn", difficulty: "medium", wpm: 140 }),
+      entry({ id: "5", mode: "learn-home-row", difficulty: "easy", wpm: 130 }),
+      entry({ id: "6", mode: "shooter", difficulty: "hard", wpm: 150 }),
+    ];
+    expect(getPersonalBestWpm(history, "30s", "medium")).toBe(72);
+    expect(getPersonalBestWpm(history, "25w", "medium")).toBe(0);
+    expect(getPersonalBestWpm(history, "learn", "medium")).toBe(0);
+
+    const pbTable = computePersonalBestsTable(history);
+    expect(pbTable).toHaveLength(1);
+    expect(pbTable[0]?.bestWpm).toBe(72);
+
+    const storage = new MemoryStorage();
+    await saveRunToStorage(storage, entry({ id: "strict-rep", strict: "word", repeated: true }));
+    const loaded = await loadHistoryFromStorage(storage);
+    expect(loaded[0]?.strict).toBe("word");
+    expect(loaded[0]?.repeated).toBe(true);
+  });
 });
 
 describe("history storage", () => {
-  beforeEach(() => {
-    window.localStorage.clear();
-  });
-
-  it("round-trips a saved run", () => {
-    const { ok } = saveRun(entry());
+  it("round-trips a saved run through Storage", async () => {
+    const storage = new MemoryStorage();
+    const { ok } = await saveRunToStorage(storage, entry());
     expect(ok).toBe(true);
-    expect(loadHistory()).toHaveLength(1);
+    expect(await loadHistoryFromStorage(storage)).toHaveLength(1);
   });
 
-  it("migrates the legacy key", () => {
-    window.localStorage.setItem("ttp:history", JSON.stringify([entry()]));
-    expect(loadHistory()).toHaveLength(1);
-    expect(window.localStorage.getItem("ttp:history:v1")).toBeTruthy();
-    expect(window.localStorage.getItem("ttp:history")).toBeNull();
+  it("rejects malformed, out-of-bounds, and oversized imports with explicit reasons", async () => {
+    const storage = new MemoryStorage();
+    expect(await importHistoryToStorage(storage, "not json")).toEqual({
+      ok: false,
+      reason: "invalid",
+    });
+    expect(await importHistoryToStorage(storage, JSON.stringify([{ id: "x", date: 1 }]))).toEqual({
+      ok: false,
+      reason: "invalid",
+    });
+    expect(await importHistoryToStorage(storage, JSON.stringify([entry({ wpm: 9999 })]))).toEqual({
+      ok: false,
+      reason: "invalid",
+    });
+    expect(
+      await importHistoryToStorage(storage, JSON.stringify([entry({ accuracy: 120 })])),
+    ).toEqual({ ok: false, reason: "invalid" });
+    expect(
+      await importHistoryToStorage(storage, JSON.stringify([entry({ accuracy: -5 })])),
+    ).toEqual({ ok: false, reason: "invalid" });
+    expect(await importHistoryToStorage(storage, JSON.stringify([entry({ date: -1 })]))).toEqual({
+      ok: false,
+      reason: "invalid",
+    });
+    expect(
+      await importHistoryToStorage(storage, JSON.stringify([entry({ correct: 1.5 })])),
+    ).toEqual({ ok: false, reason: "invalid" });
+
+    expect(MAX_IMPORT_RUNS).toBe(20000);
+    const overLimit = Array.from({ length: MAX_IMPORT_RUNS + 1 }, (_, i) =>
+      entry({ id: `over-${i}`, date: 1700000000000 + i }),
+    );
+    expect(parseImportHistoryResult(JSON.stringify(overLimit))).toEqual({
+      ok: false,
+      reason: "too-many-runs",
+    });
+    expect(await importHistoryToStorage(storage, JSON.stringify(overLimit))).toEqual({
+      ok: false,
+      reason: "too-many-runs",
+    });
   });
 
-  it("rejects malformed, out-of-bounds, and invalid imports", () => {
-    expect(importHistory("not json")).toBeNull();
-    expect(importHistory(JSON.stringify([{ id: "x", date: 1 }]))).toBeNull();
-    expect(importHistory(JSON.stringify([entry({ wpm: 9999 })]))).toBeNull();
-    expect(importHistory(JSON.stringify([entry({ accuracy: 120 })]))).toBeNull();
-    expect(importHistory(JSON.stringify([entry({ accuracy: -5 })]))).toBeNull();
-    expect(importHistory(JSON.stringify([entry({ date: -1 })]))).toBeNull();
-    expect(importHistory(JSON.stringify([entry({ correct: 1.5 })]))).toBeNull();
+  it("merges imports by id without duplicating", async () => {
+    const storage = new MemoryStorage();
+    await saveRunToStorage(storage, entry());
+    const merged = await importHistoryToStorage(
+      storage,
+      JSON.stringify([entry({ wpm: 70 }), entry({ id: "b", date: 2 })]),
+    );
+    expect(merged.ok).toBe(true);
+    if (merged.ok) {
+      expect(merged.list).toHaveLength(2);
+      expect(merged.list.find((e) => e.id === "a")!.wpm).toBe(70);
+    }
   });
 
-  it("merges imports by id without duplicating", () => {
-    saveRun(entry());
-    const merged = importHistory(JSON.stringify([entry({ wpm: 70 }), entry({ id: "b", date: 2 })]));
-    expect(merged).not.toBeNull();
-    expect(merged).toHaveLength(2);
-    expect(merged!.find((e) => e.id === "a")!.wpm).toBe(70);
+  it("clears history", async () => {
+    const storage = new MemoryStorage();
+    await saveRunToStorage(storage, entry());
+    expect(await storage.list(RUN_KEY_PREFIX)).toEqual([`${RUN_KEY_PREFIX}a`]);
+    expect(await clearHistoryInStorage(storage)).toEqual([]);
+    expect(await loadHistoryFromStorage(storage)).toEqual([]);
+    expect(await storage.get(HISTORY_STORAGE_KEY)).toBeNull();
+    expect(await storage.get(HISTORY_INDEX_KEY)).toBeNull();
+    expect(await storage.list(RUN_KEY_PREFIX)).toEqual([]);
   });
 
-  it("clears history", () => {
-    saveRun(entry());
-    expect(clearHistory()).toEqual([]);
-    expect(loadHistory()).toEqual([]);
+  it("migrates legacy monolithic ttp:history:v1 into ttp:run:<id> and ttp:history:index:v1", async () => {
+    const storage = new MemoryStorage();
+    await storage.set(HISTORY_STORAGE_KEY, [entry({ id: "leg-1", date: 100 })]);
+    const loaded = await loadHistoryFromStorage(storage);
+    expect(loaded.map((r) => r.id)).toEqual(["leg-1"]);
+    expect(await storage.get(HISTORY_STORAGE_KEY)).toBeNull();
+    expect(await storage.get(`${RUN_KEY_PREFIX}leg-1`)).toMatchObject({ id: "leg-1" });
+    expect(await storage.get(HISTORY_INDEX_KEY)).toEqual([{ id: "leg-1", date: 100 }]);
   });
 
   it("accepts legacy entries without a mode field (defaults to 30s)", () => {
@@ -170,7 +242,8 @@ describe("history storage", () => {
     if (parsed.success) expect(parsed.data.mode).toBe("30");
   });
 
-  it("saves, loads, and filters shooter runs with mode 'shooter'", () => {
+  it("saves, loads, and filters shooter runs with mode 'shooter'", async () => {
+    const storage = new MemoryStorage();
     const shooterRun = entry({
       id: "shooter-1",
       mode: "shooter",
@@ -182,10 +255,10 @@ describe("history storage", () => {
       wordsDestroyed: 24,
       level: 4,
     });
-    const { list } = saveRun(shooterRun);
+    const { list } = await saveRunToStorage(storage, shooterRun);
     expect(list.some((e) => e.id === "shooter-1" && e.mode === "shooter")).toBe(true);
 
-    const loaded = loadHistory();
+    const loaded = await loadHistoryFromStorage(storage);
     const found = loaded.find((e) => e.id === "shooter-1");
     expect(found).toBeDefined();
     expect(found?.mode).toBe("shooter");
@@ -204,28 +277,29 @@ describe("history storage", () => {
     expect(shooterOnly.some((e) => e.id === "shooter-1")).toBe(true);
   });
 
-  it("supports clearing history selectively by mode", () => {
-    const drill = entry({ id: "drill-1", mode: "30" });
-    const shooter = entry({ id: "shooter-1", mode: "shooter", score: 800, level: 2 });
-    saveRun(drill);
-    saveRun(shooter);
+  it("supports clearing history selectively by mode", async () => {
+    const storage = new MemoryStorage();
+    const drill = entry({ id: "drill-1", mode: "30", date: 10 });
+    const shooter = entry({ id: "shooter-1", mode: "shooter", score: 800, level: 2, date: 20 });
+    await saveRunToStorage(storage, drill);
+    await saveRunToStorage(storage, shooter);
 
     // Clear drill only
-    const afterDrillClear = clearHistory("drill");
+    const afterDrillClear = await clearHistoryInStorage(storage, "drill");
     expect(afterDrillClear.length).toBe(1);
     expect(afterDrillClear[0]?.id).toBe("shooter-1");
 
     // Add another drill
-    saveRun(entry({ id: "drill-2", mode: "60" }));
+    await saveRunToStorage(storage, entry({ id: "drill-2", mode: "60", date: 30 }));
     // Clear shooter only
-    const afterShooterClear = clearHistory("shooter");
+    const afterShooterClear = await clearHistoryInStorage(storage, "shooter");
     expect(afterShooterClear.length).toBe(1);
     expect(afterShooterClear[0]?.id).toBe("drill-2");
 
     // Clear all
-    const afterAllClear = clearHistory("all");
+    const afterAllClear = await clearHistoryInStorage(storage, "all");
     expect(afterAllClear).toEqual([]);
-    expect(loadHistory()).toEqual([]);
+    expect(await loadHistoryFromStorage(storage)).toEqual([]);
   });
 });
 

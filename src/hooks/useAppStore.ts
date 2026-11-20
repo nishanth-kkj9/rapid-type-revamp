@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { appStorage } from "@/lib/storage";
 import { hydrateAppFromStorage, type HydratedAppState } from "@/lib/appHydration";
 import { clearAllAppData, importAllAppDataToStorage, type BackupImportResult } from "@/lib/backup";
+import { removeBootPrefs, writeBootPrefs } from "@/lib/bootPrefs";
 import { syncSeoMetadata } from "@/lib/seo";
 import { parseUrlState, syncUrlState, type AppMode, type SettingsTabId } from "@/lib/urlState";
 import { applyTheme, useTheme, type Theme } from "@/lib/useTheme";
@@ -62,7 +63,23 @@ import {
   saveCustomTextsToStorage,
   type CustomTextEntry,
 } from "@/lib/customTexts";
+import {
+  applyLearnLessonUpdate,
+  clampLearnTargetWpm,
+  createInitialLearnState,
+  saveLearnToStorage,
+  type LearnLessonUpdateResult,
+  type LearnState,
+} from "@/lib/learn";
 import type { DrillRunCommitPayload } from "@/components/DrillScreen";
+
+export interface LearnRunCommitPayload {
+  entry: HistoryEntry;
+  keyHits: Record<string, number>;
+  keySpeed: KeySpeedMap;
+  mistakes: Record<string, number>;
+  activeSeconds: number;
+}
 
 function getInitialUrlPatch() {
   if (typeof window === "undefined") return {};
@@ -96,20 +113,40 @@ export function useAppStore() {
   const [missedWordRecords, setMissedWordRecords] = useState<MissedWordRecord[]>([]);
   const [storedMissedWords, setStoredMissedWords] = useState<string[]>([]);
   const [customTexts, setCustomTexts] = useState<CustomTextEntry[]>([]);
+  const [learnState, setLearnState] = useState<LearnState>(() => createInitialLearnState());
   const [achState, setAchState] = useState<AchievementState>({ unlocked: {}, counters: {} });
   const [daily, setDaily] = useState<DailyState | null>(null);
   const [alreadyOnboarded, setAlreadyOnboarded] = useState(true);
   const [historyReady, setHistoryReady] = useState(false);
+  const [liveAnnouncement, setLiveAnnouncement] = useState("");
 
   const shooterBest = useMemo(() => getShooterBestScore(history), [history]);
 
+  const historyRef = useRef<HistoryEntry[]>([]);
   const achStateRef = useRef<AchievementState>({ unlocked: {}, counters: {} });
   const dailyRef = useRef<DailyState | null>(null);
   const missedWordRecordsRef = useRef<MissedWordRecord[]>([]);
   const customTextsRef = useRef<CustomTextEntry[]>([]);
+  const learnStateRef = useRef<LearnState>(learnState);
+
+  const announceQueueRef = useRef<string[]>([]);
+  const announceMicrotaskScheduledRef = useRef(false);
+
+  const announce = useCallback((message: string) => {
+    announceQueueRef.current.push(message);
+    if (!announceMicrotaskScheduledRef.current) {
+      announceMicrotaskScheduledRef.current = true;
+      queueMicrotask(() => {
+        announceQueueRef.current = [];
+        announceMicrotaskScheduledRef.current = false;
+      });
+    }
+    const combined = announceQueueRef.current.join(" ");
+    setLiveAnnouncement((prev) => (prev === combined ? `${combined} ` : combined));
+  }, []);
 
   const applyHydratedState = useCallback(
-    (data: HydratedAppState, urlPatch?: Partial<DrillSettings>) => {
+    (data: HydratedAppState, urlPatch?: Partial<DrillSettings>, skipBootWrite = false) => {
       const mergedDrill = urlPatch
         ? sanitizeDrillSettings({ ...data.drillSettings, ...urlPatch })
         : sanitizeDrillSettings(data.drillSettings);
@@ -122,6 +159,15 @@ export function useAppStore() {
       setHydratedTheme(data.theme);
       applyTheme(data.theme);
 
+      if (!skipBootWrite) {
+        writeBootPrefs({
+          theme: data.theme,
+          accent: data.uiPrefs.themeAccent,
+          dyslexiaFont: data.uiPrefs.dyslexiaFont,
+        });
+      }
+
+      historyRef.current = data.history;
       setHistory(data.history);
       setAllTimeKeys(data.allTimeKeys);
       setAllTimeBigrams(data.allTimeBigrams);
@@ -131,6 +177,8 @@ export function useAppStore() {
       setStoredMissedWords(data.missedWords);
       customTextsRef.current = data.customTexts;
       setCustomTexts(data.customTexts);
+      learnStateRef.current = data.learn;
+      setLearnState(data.learn);
       achStateRef.current = data.achievements;
       setAchState(data.achievements);
       dailyRef.current = data.daily;
@@ -221,12 +269,14 @@ export function useAppStore() {
   const selectAccent = useCallback((accent: ThemeAccent) => {
     setThemeAccent(accent);
     applyThemeAccent(accent);
+    writeBootPrefs({ accent });
     void saveUiPrefsToStorage(appStorage, { themeAccent: accent });
   }, []);
 
   const setDyslexiaFont = useCallback((enabled: boolean) => {
     setDyslexiaFontState(enabled);
     applyDyslexiaFont(enabled);
+    writeBootPrefs({ dyslexiaFont: enabled });
     void saveUiPrefsToStorage(appStorage, { dyslexiaFont: enabled });
   }, []);
 
@@ -269,36 +319,49 @@ export function useAppStore() {
     });
   }, []);
 
-  const commitAchievements = useCallback((ctx: Parameters<typeof evaluateAchievements>[0]) => {
-    const { state, newlyUnlocked } = evaluateAchievements(ctx, achStateRef.current);
-    if (newlyUnlocked.length === 0) return;
-    achStateRef.current = state;
-    setAchState(state);
-    void saveAchievementsToStorage(appStorage, state);
-    for (const a of newlyUnlocked) {
-      toast.success(`Achievement unlocked — ${a.title}`, {
-        description: a.description,
-        action: {
-          label: "View",
-          onClick: () => setMode("achievements"),
-        },
-      });
-    }
-  }, []);
+  const commitAchievements = useCallback(
+    (ctx: Parameters<typeof evaluateAchievements>[0]) => {
+      const { state, newlyUnlocked } = evaluateAchievements(ctx, achStateRef.current);
+      if (newlyUnlocked.length === 0) return;
+      achStateRef.current = state;
+      setAchState(state);
+      void saveAchievementsToStorage(appStorage, state);
+      const titles = newlyUnlocked.map((a) => a.title).join(", ");
+      announce(
+        newlyUnlocked.length === 1
+          ? `Achievement unlocked: ${titles}.`
+          : `${newlyUnlocked.length} achievements unlocked: ${titles}.`,
+      );
+      for (const a of newlyUnlocked) {
+        toast.success(`Achievement unlocked — ${a.title}`, {
+          description: a.description,
+          action: {
+            label: "View",
+            onClick: () => setMode("achievements"),
+          },
+        });
+      }
+    },
+    [announce],
+  );
 
-  const recordDaily = useCallback((activeSeconds: number) => {
-    const today = getLocalDateString();
-    const prevDaily = dailyRef.current;
-    const prevEffective = getEffectiveDaily(prevDaily, today);
-    const nextDaily = recordRunToday(prevDaily, today, activeSeconds);
-    dailyRef.current = nextDaily;
-    setDaily(nextDaily);
-    void saveDailyToStorage(appStorage, nextDaily);
-    if (!prevEffective.goalMetToday && nextDaily.goalMetToday) {
-      toast.success("Daily goal complete!");
-    }
-    return nextDaily;
-  }, []);
+  const recordDaily = useCallback(
+    (activeSeconds: number) => {
+      const today = getLocalDateString();
+      const prevDaily = dailyRef.current;
+      const prevEffective = getEffectiveDaily(prevDaily, today);
+      const nextDaily = recordRunToday(prevDaily, today, activeSeconds);
+      dailyRef.current = nextDaily;
+      setDaily(nextDaily);
+      void saveDailyToStorage(appStorage, nextDaily);
+      if (!prevEffective.goalMetToday && nextDaily.goalMetToday) {
+        toast.success("Daily goal complete!");
+        announce("Daily goal complete!");
+      }
+      return nextDaily;
+    },
+    [announce],
+  );
 
   const updateDailyGoal = useCallback((patch: Partial<DailyGoalConfig>) => {
     const nextDaily = updateDailyGoalConfig(dailyRef.current, patch, getLocalDateString());
@@ -309,7 +372,8 @@ export function useAppStore() {
 
   const commitDrillRun = useCallback(
     (payload: DrillRunCommitPayload) => {
-      void saveRunToStorage(appStorage, payload.entry).then(({ list, ok }) => {
+      void saveRunToStorage(appStorage, payload.entry, historyRef.current).then(({ list, ok }) => {
+        historyRef.current = list;
         setHistory(list);
         if (!ok) toast.error("Couldn't save this run to local storage.");
       });
@@ -358,6 +422,7 @@ export function useAppStore() {
         focused: payload.focused,
         improvedWeakKey: payload.improvedWeakKey,
         wordsGraduated,
+        repeated: payload.repeated,
       });
     },
     [commitAchievements, recordDaily],
@@ -368,26 +433,31 @@ export function useAppStore() {
       const incorrect = s.wrongKeys ?? 0;
       const realChars = s.charsDestroyed ?? s.wordsDestroyed * 5;
       const fs = computeStats(realChars, incorrect, s.durationSec * 1000, s.samples ?? []);
-      void saveRunToStorage(appStorage, {
-        ...fs,
-        accuracy: s.accuracy,
-        id: newRunId(),
-        date: Date.now(),
-        difficulty: s.difficulty,
-        mode: "shooter",
-        score: s.score,
-        wordsDestroyed: s.wordsDestroyed,
-        wordsSpawned: s.wordsSpawned,
-        hitRate: s.hitRate,
-        maxStreak: s.maxStreak,
-        strayKeys: s.strayKeys,
-        bossesDefeated: s.bossesDefeated,
-        practiceMode: s.practiceMode,
-        dailyChallengeDate: s.dailyChallengeDate,
-        level: s.level ?? 1,
-        samples: s.samples,
-        mistakes: Object.keys(mistakes).length > 0 ? mistakes : undefined,
-      }).then(({ list, ok }) => {
+      void saveRunToStorage(
+        appStorage,
+        {
+          ...fs,
+          accuracy: s.accuracy,
+          id: newRunId(),
+          date: Date.now(),
+          difficulty: s.difficulty,
+          mode: "shooter",
+          score: s.score,
+          wordsDestroyed: s.wordsDestroyed,
+          wordsSpawned: s.wordsSpawned,
+          hitRate: s.hitRate,
+          maxStreak: s.maxStreak,
+          strayKeys: s.strayKeys,
+          bossesDefeated: s.bossesDefeated,
+          practiceMode: s.practiceMode,
+          dailyChallengeDate: s.dailyChallengeDate,
+          level: s.level ?? 1,
+          samples: s.samples,
+          mistakes: Object.keys(mistakes).length > 0 ? mistakes : undefined,
+        },
+        historyRef.current,
+      ).then(({ list, ok }) => {
+        historyRef.current = list;
         setHistory(list);
         if (!ok) toast.error("Couldn't save this run to local storage.");
       });
@@ -411,18 +481,86 @@ export function useAppStore() {
     [commitAchievements, recordDaily],
   );
 
+  const updateLearnTargetWpm = useCallback((wpm: number) => {
+    const cleanWpm = clampLearnTargetWpm(wpm);
+    const next: LearnState = {
+      ...learnStateRef.current,
+      targetWpm: cleanWpm,
+      updatedAt: Date.now(),
+    };
+    learnStateRef.current = next;
+    setLearnState(next);
+    void saveLearnToStorage(appStorage, next);
+  }, []);
+
+  const commitLearnRun = useCallback(
+    (payload: LearnRunCommitPayload): LearnLessonUpdateResult => {
+      void saveRunToStorage(appStorage, payload.entry, historyRef.current).then(({ list, ok }) => {
+        historyRef.current = list;
+        setHistory(list);
+        if (!ok) toast.error("Couldn't save this run to local storage.");
+      });
+      if (Object.keys(payload.mistakes).length > 0) {
+        void recordKeyMistakesInStorage(appStorage, payload.mistakes).then(setAllTimeKeys);
+      }
+      if (Object.keys(payload.keySpeed).length > 0) {
+        void recordKeySpeedInStorage(appStorage, payload.keySpeed).then(setAllTimeSpeed);
+      }
+
+      const update = applyLearnLessonUpdate(learnStateRef.current, {
+        keyHits: payload.keyHits,
+        keySpeed: payload.keySpeed,
+        mistakes: payload.mistakes,
+      });
+      learnStateRef.current = update.state;
+      setLearnState(update.state);
+      void saveLearnToStorage(appStorage, update.state);
+
+      if (update.newlyUnlockedKey) {
+        const msg = `Unlocked letter "${update.newlyUnlockedKey.toUpperCase()}"! (${update.state.unlocked.length}/26)`;
+        toast.success(msg);
+        announce(msg);
+      }
+
+      const nextDaily = recordDaily(payload.activeSeconds);
+      commitAchievements({
+        mode: "learn",
+        wpm: payload.entry.wpm,
+        accuracy: payload.entry.accuracy,
+        consistency: payload.entry.consistency,
+        typed: payload.entry.typed,
+        correctChars: payload.entry.correct,
+        streak: nextDaily.streak,
+        learnUnlockedCount: update.state.unlocked.length,
+      });
+
+      return update;
+    },
+    [announce, commitAchievements, recordDaily],
+  );
+
+  const updateHistoryState = useCallback((nextHistory: HistoryEntry[]) => {
+    historyRef.current = nextHistory;
+    setHistory(nextHistory);
+  }, []);
+
   const clearHistory = useCallback((m?: "all" | "drill" | "shooter") => {
-    void clearHistoryInStorage(appStorage, m).then(setHistory);
+    void clearHistoryInStorage(appStorage, m).then((list) => {
+      historyRef.current = list;
+      setHistory(list);
+    });
   }, []);
 
   const deleteHistoryRun = useCallback(async (id: string) => {
     const res = await deleteRunFromStorage(appStorage, id);
+    historyRef.current = res.list;
     setHistory(res.list);
     return res.deleted;
   }, []);
 
   const restoreHistoryRun = useCallback(async (entry: HistoryEntry) => {
-    const { list } = await saveRunToStorage(appStorage, entry);
+    const { list } = await saveRunToStorage(appStorage, entry, historyRef.current);
+    historyRef.current = list;
     setHistory(list);
   }, []);
 
@@ -439,7 +577,8 @@ export function useAppStore() {
 
   const deleteAllData = useCallback(async () => {
     const clean = await clearAllAppData(appStorage);
-    applyHydratedState(clean);
+    removeBootPrefs();
+    applyHydratedState(clean, undefined, true);
   }, [applyHydratedState]);
 
   return {
@@ -459,18 +598,20 @@ export function useAppStore() {
     dyslexiaFont,
     setDyslexiaFont,
     history,
-    setHistory,
+    setHistory: updateHistoryState,
     allTimeKeys,
     allTimeBigrams,
     allTimeSpeed,
     missedWordRecords,
     storedMissedWords,
     customTexts,
+    learnState,
     achState,
     daily,
     shooterBest,
     alreadyOnboarded,
     historyReady,
+    liveAnnouncement,
     updateDrillSettings,
     saveDrillSettings,
     saveShooterSettings,
@@ -479,6 +620,8 @@ export function useAppStore() {
     deleteCustomText,
     commitDrillRun,
     commitShooterRun,
+    updateLearnTargetWpm,
+    commitLearnRun,
     updateDailyGoal,
     clearHistory,
     deleteHistoryRun,

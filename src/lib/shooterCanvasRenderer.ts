@@ -1,82 +1,12 @@
-import type { Enemy } from "./shooterEngine";
-
-export interface CanvasShot {
-  id: number;
-  startX: number;
-  targetX: number;
-  startY: number;
-  targetY: number;
-  age: number;
-  duration: number;
-}
-
-export interface CanvasExplosion {
-  id: number;
-  x: number;
-  y: number;
-  age: number;
-  duration: number;
-  particles: {
-    dx: number;
-    dy: number;
-    colorKey: "primary" | "accent" | "destructive";
-    size: number;
-  }[];
-}
-
-export interface CanvasPopup {
-  id: number;
-  x: number;
-  y: number;
-  text: string;
-  age: number;
-  duration: number;
-  tone: "primary" | "accent" | "destructive";
-}
-
-export interface CanvasFrameSnapshot {
-  enemies: readonly Enemy[];
-  shots: readonly CanvasShot[];
-  explosions: readonly CanvasExplosion[];
-  popups: readonly CanvasPopup[];
-  targetId: number | null;
-  shipX: number;
-  slowTimeRemaining: number;
-  slowTimeDuration: number;
-  shieldCharges: number;
-  shieldFlash: number;
-  practiceMode: boolean;
-}
-
-export interface CanvasThemePalette {
-  card: string;
-  secondary: string;
-  border: string;
-  foreground: string;
-  mutedForeground: string;
-  primary: string;
-  primaryForeground: string;
-  accent: string;
-  destructive: string;
-  fontMono: string;
-}
-
-export function readCanvasThemePalette(el: HTMLElement): CanvasThemePalette {
-  const styles = getComputedStyle(el);
-  const pick = (name: string, fallback: string) => styles.getPropertyValue(name).trim() || fallback;
-  return {
-    card: pick("--color-card", "#1f1d1a"),
-    secondary: pick("--color-secondary", "#2b2824"),
-    border: pick("--color-border", "#3f3b35"),
-    foreground: pick("--color-foreground", "#f3efe6"),
-    mutedForeground: pick("--color-muted-foreground", "#a69f92"),
-    primary: pick("--color-primary", "#f59e0b"),
-    primaryForeground: pick("--color-primary-foreground", "#1c1917"),
-    accent: pick("--color-accent", "#34d399"),
-    destructive: pick("--color-destructive", "#ef4444"),
-    fontMono: pick("--font-mono", "ui-monospace, monospace"),
-  };
-}
+import type { CanvasFrameSnapshot, CanvasThemePalette } from "./shooterSimVisuals";
+export {
+  readCanvasThemePalette,
+  type CanvasExplosion,
+  type CanvasFrameSnapshot,
+  type CanvasPopup,
+  type CanvasShot,
+  type CanvasThemePalette,
+} from "./shooterSimVisuals";
 
 function drawRoundedRect(
   ctx: CanvasRenderingContext2D,

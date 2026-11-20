@@ -1,18 +1,17 @@
-// @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   ACHIEVEMENTS,
   ACHIEVEMENTS_KEY,
-  clearAchievements,
   didImproveWeakKey,
   EMPTY_ACHIEVEMENTS,
   evaluateAchievements,
   getAchievementProgress,
   getNextUpAchievements,
-  loadAchievements,
-  saveAchievements,
+  loadAchievementsFromStorage,
+  saveAchievementsToStorage,
   type RunContext,
 } from "./achievements";
+import { MemoryStorage } from "./storage";
 
 const drillCtx = (over: Partial<RunContext> = {}): RunContext => ({
   mode: "drill",
@@ -27,10 +26,6 @@ const drillCtx = (over: Partial<RunContext> = {}): RunContext => ({
 });
 
 describe("achievements v2", () => {
-  beforeEach(() => {
-    localStorage.clear();
-  });
-
   it("includes 30+ achievements across all mastery categories", () => {
     expect(ACHIEVEMENTS.length).toBeGreaterThanOrEqual(30);
     const categories = new Set(ACHIEVEMENTS.map((a) => a.category));
@@ -39,11 +34,14 @@ describe("achievements v2", () => {
     );
   });
 
-  it("any completed run unlocks first-run and persists via save/load", () => {
+  it("any completed run unlocks first-run and persists via storage", async () => {
+    const storage = new MemoryStorage();
     const { state, newlyUnlocked } = evaluateAchievements(drillCtx(), EMPTY_ACHIEVEMENTS);
     expect(newlyUnlocked.map((a) => a.id)).toEqual(["first-run"]);
-    saveAchievements(state);
-    expect(loadAchievements().unlocked["first-run"]).toEqual(state.unlocked["first-run"]);
+    await saveAchievementsToStorage(storage, state);
+    expect((await loadAchievementsFromStorage(storage)).unlocked["first-run"]).toEqual(
+      state.unlocked["first-run"],
+    );
   });
 
   it("speed milestones unlock cumulatively and per test type", () => {
@@ -71,6 +69,17 @@ describe("achievements v2", () => {
       EMPTY_ACHIEVEMENTS,
     );
     expect(quoteRun.state.unlocked["speed-quote-70"]).toBeTruthy();
+
+    // Repeated-text runs must not unlock speed achievements or update speed counters
+    const repeatedFast = evaluateAchievements(
+      drillCtx({ drillMode: "time", durationSec: 60, wpm: 130, repeated: true }),
+      EMPTY_ACHIEVEMENTS,
+    );
+    expect(repeatedFast.state.unlocked["speed-40"]).toBeUndefined();
+    expect(repeatedFast.state.unlocked["speed-100"]).toBeUndefined();
+    expect(repeatedFast.state.unlocked["speed-time-60"]).toBeUndefined();
+    expect(repeatedFast.state.counters["bestWpmAny"]).toBeUndefined();
+    expect(repeatedFast.state.unlocked["first-run"]).toBeTruthy();
   });
 
   it("unlocks tiered flawless runs by length and shooter flawless runs", () => {
@@ -181,7 +190,8 @@ describe("achievements v2", () => {
     expect(nextUp[0]!.percent).toBeGreaterThanOrEqual(nextUp[1]!.percent);
   });
 
-  it("is idempotent on single-run thresholds and sanitizes corrupted storage", () => {
+  it("is idempotent on single-run thresholds and sanitizes corrupted storage", async () => {
+    const storage = new MemoryStorage();
     const ctx = drillCtx({ wpm: 95, accuracy: 100, streak: 8, focused: true });
     const first = evaluateAchievements(ctx, EMPTY_ACHIEVEMENTS);
     const second = evaluateAchievements(ctx, first.state);
@@ -190,27 +200,50 @@ describe("achievements v2", () => {
       Object.keys(first.state.unlocked).length,
     );
 
-    localStorage.setItem(
-      ACHIEVEMENTS_KEY,
-      JSON.stringify({
-        unlocked: {
-          "speed-60": 123,
-          bogus: "2026-01-01",
-          "streak-7": "2026-09-28T00:00:00.000Z",
-        },
-        counters: { focusRuns: -2, bogus: 3 },
-      }),
-    );
-    const loaded = loadAchievements();
+    await storage.set(ACHIEVEMENTS_KEY, {
+      unlocked: {
+        "speed-60": 123,
+        bogus: "2026-01-01",
+        "streak-7": "2026-09-28T00:00:00.000Z",
+      },
+      counters: { focusRuns: -2, bogus: 3 },
+    });
+    const loaded = await loadAchievementsFromStorage(storage);
     expect(loaded.unlocked).toEqual({ "streak-7": "2026-09-28T00:00:00.000Z" });
     expect(loaded.counters).toEqual({ bogus: 3 });
 
-    localStorage.setItem(ACHIEVEMENTS_KEY, "{broken");
-    expect(loadAchievements()).toEqual(EMPTY_ACHIEVEMENTS);
+    await storage.set(ACHIEVEMENTS_KEY, "{broken");
+    expect(await loadAchievementsFromStorage(storage)).toEqual(EMPTY_ACHIEVEMENTS);
+  });
 
-    saveAchievements(evaluateAchievements(drillCtx(), EMPTY_ACHIEVEMENTS).state);
-    clearAchievements();
-    expect(loadAchievements()).toEqual(EMPTY_ACHIEVEMENTS);
-    expect(localStorage.getItem(ACHIEVEMENTS_KEY)).toBeNull();
+  it("unlocks Learn milestones (7, 13, 26 letters) and excludes Learn runs from speed achievements", () => {
+    const learnFast = evaluateAchievements(
+      {
+        mode: "learn",
+        wpm: 125,
+        accuracy: 100,
+        typed: 180,
+        correctChars: 180,
+        learnUnlockedCount: 7,
+      },
+      EMPTY_ACHIEVEMENTS,
+    );
+    expect(learnFast.state.unlocked["learn-first-unlock"]).toBeTruthy();
+    expect(learnFast.state.unlocked["learn-halfway"]).toBeUndefined();
+    expect(learnFast.state.unlocked["speed-40"]).toBeUndefined();
+    expect(learnFast.state.unlocked["speed-100"]).toBeUndefined();
+    expect(learnFast.state.counters["bestWpmAny"]).toBeUndefined();
+
+    const half = evaluateAchievements(
+      { mode: "learn", wpm: 50, accuracy: 96, typed: 160, learnUnlockedCount: 13 },
+      learnFast.state,
+    );
+    expect(half.state.unlocked["learn-halfway"]).toBeTruthy();
+
+    const all26 = evaluateAchievements(
+      { mode: "learn", wpm: 60, accuracy: 98, typed: 200, learnUnlockedCount: 26 },
+      half.state,
+    );
+    expect(all26.state.unlocked["learn-all-26"]).toBeTruthy();
   });
 });

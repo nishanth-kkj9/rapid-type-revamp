@@ -51,7 +51,7 @@ export function AchievementsStrip({
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}
           aria-expanded={isOpen}
-          className="flex min-w-0 flex-1 cursor-pointer select-none items-center justify-between text-left font-mono text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex min-w-0 flex-1 cursor-pointer select-none items-center justify-between rounded text-left font-mono text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <div className="flex items-center gap-2 truncate">
             <Trophy className="size-3.5 shrink-0 text-primary" />

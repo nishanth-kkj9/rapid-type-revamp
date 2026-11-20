@@ -1,17 +1,48 @@
-import { defineConfig } from "vite";
+import { gzipSync } from "node:zlib";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { VitePWA } from "vite-plugin-pwa";
+
+const CSP_HEADER =
+  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'";
+
+const MAIN_BUNDLE_GZIP_BUDGET_BYTES = 250 * 1024;
+
+function mainChunkSizeBudgetPlugin(): Plugin {
+  return {
+    name: "ttp-main-chunk-budget",
+    generateBundle(_options, bundle) {
+      for (const item of Object.values(bundle)) {
+        if (item.type === "chunk" && item.isEntry) {
+          const gzippedBytes = gzipSync(item.code).byteLength;
+          const gzippedKb = (gzippedBytes / 1024).toFixed(2);
+          if (gzippedBytes > MAIN_BUNDLE_GZIP_BUDGET_BYTES) {
+            this.warn(
+              `Main entry chunk "${item.fileName}" is ${gzippedKb} kB gzipped, exceeding the 250 kB budget.`,
+            );
+          } else {
+            console.log(
+              `[bundle-budget] ${item.fileName}: ${gzippedKb} kB gzipped (budget: 250.00 kB)`,
+            );
+          }
+        }
+      }
+    },
+  };
+}
 
 export default defineConfig({
   plugins: [
     tsconfigPaths(),
     tailwindcss(),
     react(),
+    mainChunkSizeBudgetPlugin(),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: [
+        "boot.js",
         "favicon.ico",
         "icon.svg",
         "apple-touch-icon.png",
@@ -72,7 +103,18 @@ export default defineConfig({
     port: 3000,
     allowedHosts: true,
   },
+  preview: {
+    headers: {
+      "Content-Security-Policy": CSP_HEADER,
+    },
+  },
   build: {
+    assetsInlineLimit(filePath: string): boolean | undefined {
+      if (/\.(woff2?|ttf|otf|eot)(\?.*)?$/i.test(filePath)) {
+        return false;
+      }
+      return undefined;
+    },
     rollupOptions: {
       output: {
         manualChunks(id: string): string | undefined {

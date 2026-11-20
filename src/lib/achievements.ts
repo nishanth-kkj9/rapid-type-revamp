@@ -1,9 +1,9 @@
-import { z } from "zod";
+import { z } from "./zodSetup";
 import type { Storage } from "./storage";
 import type { HistoryEntry } from "./typingStats";
 
 /**
- * Mastery-aligned achievements v2 (37 achievements across 7 categories), persisted across sessions.
+ * Mastery-aligned achievements v2 (40 achievements across 7 categories), persisted across sessions.
  * Pure evaluator: callers load, evaluate, then save.
  */
 export const ACHIEVEMENTS_KEY = "ttp:achievements:v1";
@@ -331,6 +331,33 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     unit: "words",
     counterKey: "wordsGraduated",
   },
+  {
+    id: "learn-first-unlock",
+    title: "Seventh Key",
+    description: "Unlock your first new letter (7/26) in Learn mode.",
+    category: "mastery",
+    target: 7,
+    unit: "keys",
+    counterKey: "maxLearnUnlocked",
+  },
+  {
+    id: "learn-halfway",
+    title: "Halfway Keyboard",
+    description: "Unlock 13 of 26 letters in Learn mode.",
+    category: "mastery",
+    target: 13,
+    unit: "keys",
+    counterKey: "maxLearnUnlocked",
+  },
+  {
+    id: "learn-all-26",
+    title: "Full Alphabet",
+    description: "Unlock all 26 letters in Learn mode.",
+    category: "mastery",
+    target: 26,
+    unit: "keys",
+    counterKey: "maxLearnUnlocked",
+  },
 
   // Word Shooter
   {
@@ -397,15 +424,15 @@ export const AchievementStateSchema = z.object({
 });
 
 export interface RunContext {
-  mode: "drill" | "shooter";
+  mode: "drill" | "shooter" | "learn";
   drillMode?: "time" | "words" | "quote" | undefined;
   durationSec?: number | undefined;
   wpm: number;
   accuracy: number;
   consistency?: number | undefined;
-  /** Drill: total chars typed. */
+  /** Drill/Learn: total chars typed. */
   typed?: number | undefined;
-  /** Drill: correct characters in final text. */
+  /** Drill/Learn: correct characters in final text. */
   correctChars?: number | undefined;
   /** Shooter: words destroyed. */
   wordsDestroyed?: number | undefined;
@@ -423,6 +450,10 @@ export interface RunContext {
   improvedWeakKey?: boolean | undefined;
   /** Drill only: count of missed words that graduated to mastered in this run. */
   wordsGraduated?: number | undefined;
+  /** Drill only: true when user re-ran the exact same passage text; excluded from speed milestones. */
+  repeated?: boolean | undefined;
+  /** Learn only: number of letters unlocked after the lesson. */
+  learnUnlockedCount?: number | undefined;
 }
 
 /**
@@ -482,35 +513,6 @@ export function sanitizeAchievements(raw: unknown): AchievementState {
     }
   }
   return { unlocked, counters };
-}
-
-export function loadAchievements(): AchievementState {
-  if (typeof window === "undefined") return { unlocked: {}, counters: {} };
-  try {
-    const raw = localStorage.getItem(ACHIEVEMENTS_KEY);
-    if (!raw) return { unlocked: {}, counters: {} };
-    return sanitizeAchievements(JSON.parse(raw));
-  } catch {
-    return { unlocked: {}, counters: {} };
-  }
-}
-
-export function saveAchievements(state: AchievementState): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(state));
-  } catch {
-    // quota-safe
-  }
-}
-
-export function clearAchievements(): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.removeItem(ACHIEVEMENTS_KEY);
-  } catch {
-    // ignore
-  }
 }
 
 export async function loadAchievementsFromStorage(storage: Storage): Promise<AchievementState> {
@@ -587,22 +589,27 @@ export function evaluateAchievements(
     counters["totalWords"] = (counters["totalWords"] ?? 0) + runWords;
   }
 
-  maxCounter(counters, "bestWpmAny", wpm);
+  const isLearn = ctx.mode === "learn";
+  if (!ctx.repeated && !isLearn) {
+    maxCounter(counters, "bestWpmAny", wpm);
+  }
   maxCounter(counters, "bestStreak", streak);
 
   if (ctx.mode === "drill") {
-    maxCounter(counters, "bestWpmDrill", wpm);
-    if (ctx.drillMode === "time" && ctx.durationSec === 60) {
-      maxCounter(counters, "bestWpmTime60", wpm);
-    }
-    if (ctx.drillMode === "time" && ctx.durationSec === 120) {
-      maxCounter(counters, "bestWpmTime120", wpm);
-    }
-    if (ctx.drillMode === "words") {
-      maxCounter(counters, "bestWpmWords", wpm);
-    }
-    if (ctx.drillMode === "quote") {
-      maxCounter(counters, "bestWpmQuote", wpm);
+    if (!ctx.repeated) {
+      maxCounter(counters, "bestWpmDrill", wpm);
+      if (ctx.drillMode === "time" && ctx.durationSec === 60) {
+        maxCounter(counters, "bestWpmTime60", wpm);
+      }
+      if (ctx.drillMode === "time" && ctx.durationSec === 120) {
+        maxCounter(counters, "bestWpmTime120", wpm);
+      }
+      if (ctx.drillMode === "words") {
+        maxCounter(counters, "bestWpmWords", wpm);
+      }
+      if (ctx.drillMode === "quote") {
+        maxCounter(counters, "bestWpmQuote", wpm);
+      }
     }
     if (acc >= 100 && typed >= 50) {
       maxCounter(counters, "bestFlawlessChars", typed);
@@ -616,7 +623,7 @@ export function evaluateAchievements(
     if (typed >= 150) {
       maxCounter(counters, "bestConsistency150", consistency);
     }
-  } else {
+  } else if (ctx.mode === "shooter") {
     const wordsDestroyed = Math.max(0, Math.floor(ctx.wordsDestroyed ?? 0));
     if (acc >= 100 && wordsDestroyed >= 10) {
       maxCounter(counters, "bestFlawlessChars", Math.max(50, wordsDestroyed * 5));
@@ -628,6 +635,9 @@ export function evaluateAchievements(
     }
   }
 
+  if (ctx.learnUnlockedCount !== undefined) {
+    maxCounter(counters, "maxLearnUnlocked", ctx.learnUnlockedCount);
+  }
   if (ctx.focused) {
     counters["focusRuns"] = (counters["focusRuns"] ?? 0) + 1;
   }
@@ -638,23 +648,25 @@ export function evaluateAchievements(
     counters["wordsGraduated"] = (counters["wordsGraduated"] ?? 0) + (ctx.wordsGraduated ?? 0);
   }
 
-  // Evaluate Speed
-  if (wpm >= 40) grant("speed-40", unlocked, now, newlyUnlocked);
-  if (wpm >= 60) grant("speed-60", unlocked, now, newlyUnlocked);
-  if (wpm >= 80) grant("speed-80", unlocked, now, newlyUnlocked);
-  if (wpm >= 100) grant("speed-100", unlocked, now, newlyUnlocked);
-  if (ctx.mode === "drill" && wpm >= 120) grant("speed-120", unlocked, now, newlyUnlocked);
-  if (ctx.mode === "drill" && ctx.drillMode === "time" && ctx.durationSec === 60 && wpm >= 70) {
-    grant("speed-time-60", unlocked, now, newlyUnlocked);
-  }
-  if (ctx.mode === "drill" && ctx.drillMode === "time" && ctx.durationSec === 120 && wpm >= 65) {
-    grant("speed-time-120", unlocked, now, newlyUnlocked);
-  }
-  if (ctx.mode === "drill" && ctx.drillMode === "words" && wpm >= 80) {
-    grant("speed-words-80", unlocked, now, newlyUnlocked);
-  }
-  if (ctx.mode === "drill" && ctx.drillMode === "quote" && wpm >= 70) {
-    grant("speed-quote-70", unlocked, now, newlyUnlocked);
+  // Evaluate Speed (excluded for repeated-passage and learn-mode runs)
+  if (!ctx.repeated && !isLearn) {
+    if (wpm >= 40) grant("speed-40", unlocked, now, newlyUnlocked);
+    if (wpm >= 60) grant("speed-60", unlocked, now, newlyUnlocked);
+    if (wpm >= 80) grant("speed-80", unlocked, now, newlyUnlocked);
+    if (wpm >= 100) grant("speed-100", unlocked, now, newlyUnlocked);
+    if (ctx.mode === "drill" && wpm >= 120) grant("speed-120", unlocked, now, newlyUnlocked);
+    if (ctx.mode === "drill" && ctx.drillMode === "time" && ctx.durationSec === 60 && wpm >= 70) {
+      grant("speed-time-60", unlocked, now, newlyUnlocked);
+    }
+    if (ctx.mode === "drill" && ctx.drillMode === "time" && ctx.durationSec === 120 && wpm >= 65) {
+      grant("speed-time-120", unlocked, now, newlyUnlocked);
+    }
+    if (ctx.mode === "drill" && ctx.drillMode === "words" && wpm >= 80) {
+      grant("speed-words-80", unlocked, now, newlyUnlocked);
+    }
+    if (ctx.mode === "drill" && ctx.drillMode === "quote" && wpm >= 70) {
+      grant("speed-quote-70", unlocked, now, newlyUnlocked);
+    }
   }
 
   // Evaluate Accuracy
@@ -698,6 +710,15 @@ export function evaluateAchievements(
   if ((counters["weakKeyImproved"] ?? 0) >= 1) grant("weak-key-1", unlocked, now, newlyUnlocked);
   if ((counters["weakKeyImproved"] ?? 0) >= 5) grant("weak-key-5", unlocked, now, newlyUnlocked);
   if ((counters["wordsGraduated"] ?? 0) >= 1) grant("word-redeemer", unlocked, now, newlyUnlocked);
+  if ((counters["maxLearnUnlocked"] ?? 0) >= 7) {
+    grant("learn-first-unlock", unlocked, now, newlyUnlocked);
+  }
+  if ((counters["maxLearnUnlocked"] ?? 0) >= 13) {
+    grant("learn-halfway", unlocked, now, newlyUnlocked);
+  }
+  if ((counters["maxLearnUnlocked"] ?? 0) >= 26) {
+    grant("learn-all-26", unlocked, now, newlyUnlocked);
+  }
 
   // Evaluate Shooter
   if (ctx.mode === "shooter") {
@@ -733,6 +754,12 @@ export interface AchievementProgress {
 export interface AchievementFallbackContext {
   history?: readonly HistoryEntry[] | undefined;
   longestStreak?: number | undefined;
+  learnUnlockedCount?: number | undefined;
+}
+
+function isLearnHistoryMode(mode: string): boolean {
+  const m = mode.trim().toLowerCase();
+  return m === "learn" || m.startsWith("learn-") || m.startsWith("learn:");
 }
 
 function deriveHistoryCounter(
@@ -751,30 +778,40 @@ function deriveHistoryCounter(
         0,
       );
     case "bestWpmAny":
-      return Math.floor(history.reduce((m, h) => Math.max(m, h.wpm), 0));
+      return Math.floor(
+        history
+          .filter((h) => !h.repeated && !isLearnHistoryMode(h.mode))
+          .reduce((m, h) => Math.max(m, h.wpm), 0),
+      );
     case "bestWpmDrill":
       return Math.floor(
-        history.filter((h) => h.mode !== "shooter").reduce((m, h) => Math.max(m, h.wpm), 0),
+        history
+          .filter((h) => h.mode !== "shooter" && !h.repeated && !isLearnHistoryMode(h.mode))
+          .reduce((m, h) => Math.max(m, h.wpm), 0),
       );
     case "bestWpmTime60":
       return Math.floor(
         history
-          .filter((h) => h.mode === "60s" || h.mode === "60")
+          .filter((h) => !h.repeated && (h.mode === "60s" || h.mode === "60"))
           .reduce((m, h) => Math.max(m, h.wpm), 0),
       );
     case "bestWpmTime120":
       return Math.floor(
         history
-          .filter((h) => h.mode === "120s" || h.mode === "120")
+          .filter((h) => !h.repeated && (h.mode === "120s" || h.mode === "120"))
           .reduce((m, h) => Math.max(m, h.wpm), 0),
       );
     case "bestWpmWords":
       return Math.floor(
-        history.filter((h) => /^\d+w$/.test(h.mode)).reduce((m, h) => Math.max(m, h.wpm), 0),
+        history
+          .filter((h) => !h.repeated && /^\d+w$/.test(h.mode))
+          .reduce((m, h) => Math.max(m, h.wpm), 0),
       );
     case "bestWpmQuote":
       return Math.floor(
-        history.filter((h) => h.mode === "quote").reduce((m, h) => Math.max(m, h.wpm), 0),
+        history
+          .filter((h) => !h.repeated && h.mode === "quote")
+          .reduce((m, h) => Math.max(m, h.wpm), 0),
       );
     case "bestFlawlessChars":
       return history
@@ -813,6 +850,8 @@ function deriveHistoryCounter(
       return history
         .filter((h) => h.mode === "shooter")
         .reduce((m, h) => Math.max(m, h.maxStreak ?? 0), 0);
+    case "maxLearnUnlocked":
+      return ctx.learnUnlockedCount ?? 0;
     default:
       return 0;
   }

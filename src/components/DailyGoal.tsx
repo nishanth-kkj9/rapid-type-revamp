@@ -44,10 +44,10 @@ export const DailyGoal = memo(function DailyGoal({ daily, onOpenGoalSettings }: 
                 ·
               </span>
               <span
-                className="flex items-center gap-1 font-mono font-semibold tabular-nums text-amber-500"
+                className="flex items-center gap-1 font-mono font-semibold tabular-nums text-primary"
                 title={`${eff.streak} day streak`}
               >
-                <Flame className="size-3 fill-amber-500/20 text-amber-500" />
+                <Flame className="size-3 fill-primary/20 text-primary" />
                 <span>{eff.streak}d streak</span>
               </span>
             </>

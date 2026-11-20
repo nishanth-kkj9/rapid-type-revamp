@@ -5,51 +5,51 @@ import {
   UI_PREFS_KEY,
   applyDyslexiaFont,
   applyThemeAccent,
-  clearUiPrefs,
-  loadUiPrefs,
+  loadUiPrefsFromStorage,
   sanitizeUiPrefs,
-  saveUiPrefs,
+  saveUiPrefsToStorage,
 } from "./uiPrefs";
+import { MemoryStorage } from "./storage";
 
 describe("uiPrefs", () => {
   beforeEach(() => {
-    localStorage.clear();
     document.documentElement.removeAttribute("data-accent");
     document.documentElement.removeAttribute("data-font");
   });
 
-  it("returns default prefs when storage is empty and omits removed smoothCaret key", () => {
-    expect(loadUiPrefs()).toEqual(DEFAULT_UI_PREFS);
-    expect("smoothCaret" in loadUiPrefs()).toBe(false);
-    expect(loadUiPrefs().dyslexiaFont).toBe(false);
+  it("returns default prefs when storage is empty and omits removed smoothCaret key", async () => {
+    const storage = new MemoryStorage();
+    const loaded = await loadUiPrefsFromStorage(storage);
+    expect(loaded).toEqual(DEFAULT_UI_PREFS);
+    expect("smoothCaret" in loaded).toBe(false);
+    expect(loaded.dyslexiaFont).toBe(false);
   });
 
-  it("sanitizes invalid or corrupted storage values and strips legacy smoothCaret", () => {
-    localStorage.setItem(
-      UI_PREFS_KEY,
-      JSON.stringify({
-        heatmapMetric: "invalid_metric",
-        smoothCaret: false,
-        themeAccent: "neon-yellow",
-        dyslexiaFont: "yes",
-      }),
-    );
-    const loaded = loadUiPrefs();
+  it("sanitizes invalid or corrupted storage values and strips legacy smoothCaret", async () => {
+    const storage = new MemoryStorage();
+    await storage.set(UI_PREFS_KEY, {
+      heatmapMetric: "invalid_metric",
+      smoothCaret: false,
+      themeAccent: "neon-yellow",
+      dyslexiaFont: "yes",
+    });
+    const loaded = await loadUiPrefsFromStorage(storage);
     expect(loaded).toEqual(DEFAULT_UI_PREFS);
     expect("smoothCaret" in sanitizeUiPrefs({ smoothCaret: true })).toBe(false);
   });
 
-  it("partially updates and merges preferences additively", () => {
-    const saved = saveUiPrefs({ heatmapMetric: "speed" });
+  it("partially updates and merges preferences additively", async () => {
+    const storage = new MemoryStorage();
+    const saved = await saveUiPrefsToStorage(storage, { heatmapMetric: "speed" });
     expect(saved.heatmapMetric).toBe("speed");
     expect(saved.themeAccent).toBe("amber");
     expect(saved.dyslexiaFont).toBe(false);
 
-    const reloaded = loadUiPrefs();
+    const reloaded = await loadUiPrefsFromStorage(storage);
     expect(reloaded.heatmapMetric).toBe("speed");
 
-    saveUiPrefs({ themeAccent: "emerald", dyslexiaFont: true });
-    const finalState = loadUiPrefs();
+    await saveUiPrefsToStorage(storage, { themeAccent: "emerald", dyslexiaFont: true });
+    const finalState = await loadUiPrefsFromStorage(storage);
     expect(finalState.heatmapMetric).toBe("speed");
     expect(finalState.themeAccent).toBe("emerald");
     expect(finalState.dyslexiaFont).toBe(true);
@@ -66,15 +66,9 @@ describe("uiPrefs", () => {
     expect(document.documentElement.dataset["font"]).toBeUndefined();
   });
 
-  it("handles invalid json in storage gracefully", () => {
-    localStorage.setItem(UI_PREFS_KEY, "{broken");
-    expect(loadUiPrefs()).toEqual(DEFAULT_UI_PREFS);
-  });
-
-  it("clears preferences correctly", () => {
-    saveUiPrefs({ heatmapMetric: "speed", themeAccent: "violet", dyslexiaFont: true });
-    clearUiPrefs();
-    expect(loadUiPrefs()).toEqual(DEFAULT_UI_PREFS);
-    expect(localStorage.getItem(UI_PREFS_KEY)).toBeNull();
+  it("handles malformed stored values gracefully", async () => {
+    const storage = new MemoryStorage();
+    await storage.set(UI_PREFS_KEY, "{broken");
+    expect(await loadUiPrefsFromStorage(storage)).toEqual(DEFAULT_UI_PREFS);
   });
 });

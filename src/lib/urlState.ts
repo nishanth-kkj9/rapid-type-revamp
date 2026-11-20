@@ -1,8 +1,15 @@
-import type { DrillMode, DrillSettings, QuoteLengthOption, WordCountOption } from "./drillSettings";
+import {
+  isValidDuration,
+  isValidWordCount,
+  type DrillMode,
+  type DrillSettings,
+  type QuoteLengthOption,
+  type WordCountOption,
+} from "./drillSettings";
 import type { KeyboardLayoutId } from "./keyboardLayout";
 import type { Difficulty } from "./sentenceGenerator";
 
-export type AppMode = "drill" | "shooter" | "achievements" | "settings";
+export type AppMode = "drill" | "learn" | "shooter" | "stats" | "achievements" | "settings";
 
 export type SettingsTabId =
   "typing" | "content" | "keyboard" | "sound" | "game" | "appearance" | "data";
@@ -11,14 +18,21 @@ export interface UrlStatePatch {
   mode?: AppMode;
   settingsTab?: SettingsTabId;
   drillMode?: DrillMode;
-  duration?: 15 | 30 | 60 | 120;
+  duration?: number;
   wordCount?: WordCountOption;
   quoteLength?: QuoteLengthOption;
   difficulty?: Difficulty;
   keyboardLayout?: KeyboardLayoutId;
 }
 
-const VALID_MODES = new Set<AppMode>(["drill", "shooter", "achievements", "settings"]);
+const VALID_MODES = new Set<AppMode>([
+  "drill",
+  "learn",
+  "shooter",
+  "stats",
+  "achievements",
+  "settings",
+]);
 const VALID_SETTINGS_TABS = new Set<SettingsTabId>([
   "typing",
   "content",
@@ -29,8 +43,6 @@ const VALID_SETTINGS_TABS = new Set<SettingsTabId>([
   "data",
 ]);
 const VALID_DRILL_MODES = new Set<DrillMode>(["time", "words", "quote"]);
-const VALID_DURATIONS = new Set<number>([15, 30, 60, 120]);
-const VALID_WORD_COUNTS = new Set<number>([10, 25, 50, 100]);
 const VALID_QUOTE_LENGTHS = new Set<QuoteLengthOption>(["short", "medium", "long"]);
 const VALID_DIFFICULTIES = new Set<Difficulty>(["easy", "medium", "hard"]);
 const VALID_LAYOUTS = new Set<KeyboardLayoutId>([
@@ -60,14 +72,20 @@ export function parseUrlState(search: string): UrlStatePatch {
     patch.drillMode = test as DrillMode;
   }
 
-  const dur = Number(params.get("duration"));
-  if (Number.isInteger(dur) && VALID_DURATIONS.has(dur)) {
-    patch.duration = dur as 15 | 30 | 60 | 120;
+  const rawDur = params.get("duration");
+  if (rawDur !== null) {
+    const dur = Number(rawDur);
+    if (isValidDuration(dur)) {
+      patch.duration = dur;
+    }
   }
 
-  const words = Number(params.get("words"));
-  if (Number.isInteger(words) && VALID_WORD_COUNTS.has(words)) {
-    patch.wordCount = words as WordCountOption;
+  const rawWords = params.get("words");
+  if (rawWords !== null) {
+    const words = Number(rawWords);
+    if (isValidWordCount(words)) {
+      patch.wordCount = words;
+    }
   }
 
   const quote = params.get("quote");

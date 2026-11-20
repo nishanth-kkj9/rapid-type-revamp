@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "./zodSetup";
 import { migrateLegacyLocalStorage, type Storage } from "./storage";
 import { getShooterBestScore, loadHistoryFromStorage, type HistoryEntry } from "./typingStats";
 import { loadDrillSettingsFromStorage, type DrillSettings } from "./drillSettings";
@@ -15,6 +15,7 @@ import {
   type MissedWordRecord,
 } from "./missedWords";
 import { loadCustomTextsFromStorage, type CustomTextEntry } from "./customTexts";
+import { loadLearnFromStorage, type LearnState } from "./learn";
 
 export const SHOOTER_BEST_KEY = "ttp:shooter:best:v1";
 export const ONBOARDED_KEY = "ttp:onboarded:v1";
@@ -72,6 +73,7 @@ export interface HydratedAppState {
   missedWordRecords: MissedWordRecord[];
   missedWords: string[];
   customTexts: CustomTextEntry[];
+  learn: LearnState;
   shooterBest: number;
   onboarded: boolean;
 }
@@ -92,6 +94,7 @@ export async function hydrateAppFromStorage(storage: Storage): Promise<HydratedA
     daily,
     missedWordRecords,
     customTexts,
+    learn,
     onboarded,
   ] = await Promise.all([
     loadHistoryFromStorage(storage),
@@ -106,6 +109,7 @@ export async function hydrateAppFromStorage(storage: Storage): Promise<HydratedA
     loadDailyFromStorage(storage),
     loadMissedWordRecordsFromStorage(storage),
     loadCustomTextsFromStorage(storage),
+    loadLearnFromStorage(storage),
     loadOnboardedFromStorage(storage),
   ]);
 
@@ -123,6 +127,7 @@ export async function hydrateAppFromStorage(storage: Storage): Promise<HydratedA
     missedWordRecords,
     missedWords: getActiveMissedWords(missedWordRecords),
     customTexts,
+    learn,
     shooterBest: getShooterBestScore(history),
     onboarded,
   };

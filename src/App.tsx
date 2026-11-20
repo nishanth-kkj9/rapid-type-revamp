@@ -1,7 +1,6 @@
 import { lazy, Suspense, useMemo, useRef, useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { AppHeader } from "@/components/AppHeader";
-import { DailyGoal } from "@/components/DailyGoal";
 import { DrillScreen, type DrillScreenHandle } from "@/components/DrillScreen";
 import { PanelSkeleton } from "@/components/Skeletons";
 import { useCoarsePointer } from "@/hooks/useCoarsePointer";
@@ -17,17 +16,18 @@ import {
   getShowFingerZones,
   getWordCount,
 } from "@/lib/drillSettings";
-import { downloadFullBackupJson } from "@/lib/historyExport";
 import { topSlowKeys } from "@/lib/keySpeed";
 import { topWeakBigrams, topWeakKeys } from "@/lib/keyStats";
-import { appStorage } from "@/lib/storage";
 import type { ShooterRunSummary } from "@/lib/typingStats";
 
+const LazyLearnScreen = lazy(() =>
+  import("@/components/LearnScreen").then((m) => ({ default: m.LearnScreen })),
+);
 const LazyShooterScreen = lazy(() =>
   import("@/components/ShooterScreen").then((m) => ({ default: m.ShooterScreen })),
 );
-const LazyHistoryPanel = lazy(() =>
-  import("@/components/HistoryPanel").then((m) => ({ default: m.HistoryPanel })),
+const LazyStatsPage = lazy(() =>
+  import("@/components/StatsPage").then((m) => ({ default: m.StatsPage })),
 );
 const LazyAchievementsPage = lazy(() =>
   import("@/components/AchievementsPage").then((m) => ({ default: m.AchievementsPage })),
@@ -92,6 +92,37 @@ export function App() {
 
   return (
     <>
+      <a
+        href="#typing-area"
+        onClick={(e) => {
+          e.preventDefault();
+          if (store.mode === "drill" || store.mode === "learn") {
+            const input = document.getElementById("typing_practice_input");
+            if (input instanceof HTMLElement) {
+              input.focus();
+              input.scrollIntoView({ block: "center" });
+              return;
+            }
+          }
+          const area = document.getElementById("typing-area");
+          if (area instanceof HTMLElement) {
+            area.focus();
+            area.scrollIntoView({ block: "nearest" });
+          }
+        }}
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:border focus:border-primary focus:bg-card focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-foreground focus:shadow-lg"
+      >
+        Skip to typing area
+      </a>
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        data-testid="app-live-announcer"
+        className="sr-only"
+      >
+        {store.liveAnnouncement}
+      </div>
       <main
         className="mx-auto min-h-dvh w-full max-w-5xl px-3 py-6 sm:px-6 sm:py-14"
         data-protonpass-ignore="true"
@@ -105,7 +136,10 @@ export function App() {
           accent={store.themeAccent}
           drillSettings={store.drillSettings}
           shooterSettings={store.shooterSettings}
+          daily={store.daily}
           unlockedAchievementsCount={unlockedCount}
+          learnUnlockedCount={store.learnState.unlocked.length}
+          learnTargetWpm={store.learnState.targetWpm}
           onModeChange={(nextMode) => {
             store.setMode(nextMode);
             if (nextMode !== "drill") setFocusDimmed(false);
@@ -118,22 +152,14 @@ export function App() {
               setFocusDimmed(false);
             }
           }}
+          onOpenDailyGoalSettings={() => {
+            setFocusDimmed(false);
+            store.openSettings("typing");
+          }}
           onToggleTheme={store.toggleTheme}
           onSelectAccent={store.selectAccent}
           onRestartDrill={() => drillRef.current?.restart()}
         />
-
-        {store.mode !== "settings" ? (
-          <div className="mt-4">
-            <DailyGoal
-              daily={store.daily}
-              onOpenGoalSettings={() => {
-                setFocusDimmed(false);
-                store.openSettings("typing");
-              }}
-            />
-          </div>
-        ) : null}
 
         {store.mode === "drill" ? (
           <DrillScreen
@@ -149,98 +175,100 @@ export function App() {
             onUpdateDrillSettings={store.updateDrillSettings}
             onOpenCustomText={() => setCustomTextOpen(true)}
             onCommitRun={store.commitDrillRun}
-            onSwitchToShooter={() => store.setMode("shooter")}
             onOpenAchievements={() => store.setMode("achievements")}
             onFocusDimmedChange={setFocusDimmed}
           />
-        ) : store.mode === "shooter" ? (
+        ) : store.mode === "learn" ? (
           <Suspense fallback={<PanelSkeleton lines={5} />}>
-            <LazyShooterScreen
-              settings={store.shooterSettings}
-              missedWords={store.storedMissedWords}
-              weakKeysAll={weakKeysAll}
-              allTimeKeys={store.allTimeKeys}
-              shooterBest={store.shooterBest}
-              achState={store.achState}
-              effectiveShooterSummary={effectiveShooterSummary}
-              coarsePointer={coarsePointer}
-              layout={layout}
-              standard={standard}
-              showFingerZones={showFingerZones}
-              onOpenSettings={() => store.openSettings("game")}
-              onUpdateSettings={(patch) =>
-                store.saveShooterSettings({ ...store.shooterSettings, ...patch })
-              }
-              onCommitRun={store.commitShooterRun}
-              onSummaryChange={setLastShooterSummary}
+            <LazyLearnScreen
+              learnState={store.learnState}
+              drillSettings={store.drillSettings}
+              onTargetWpmChange={store.updateLearnTargetWpm}
+              onCommitLesson={store.commitLearnRun}
               onOpenAchievements={() => store.setMode("achievements")}
             />
           </Suspense>
-        ) : store.mode === "settings" ? (
-          <Suspense fallback={<PanelSkeleton lines={5} />}>
-            <LazySettingsPage
-              activeTab={store.settingsTab}
-              drillSettings={store.drillSettings}
-              shooterSettings={store.shooterSettings}
-              daily={store.daily}
-              theme={store.theme}
-              accent={store.themeAccent}
-              dyslexiaFont={store.dyslexiaFont}
-              customTexts={store.customTexts}
-              history={store.history}
-              achState={store.achState}
-              storedMissedWordsCount={store.storedMissedWords.length}
-              onSelectTab={store.setSettingsTab}
-              onBack={store.closeSettings}
-              onUpdateDrill={store.updateDrillSettings}
-              onSaveDrill={store.saveDrillSettings}
-              onUpdateShooter={(patch) =>
-                store.saveShooterSettings({ ...store.shooterSettings, ...patch })
-              }
-              onSaveShooter={store.saveShooterSettings}
-              onUpdateDailyGoal={store.updateDailyGoal}
-              onSelectTheme={store.selectTheme}
-              onSelectAccent={store.selectAccent}
-              onToggleDyslexiaFont={store.setDyslexiaFont}
-              onOpenCustomText={() => setCustomTextOpen(true)}
-              onImportBackup={store.importFullBackup}
-              onDeleteAllData={async () => {
-                await store.deleteAllData();
-                setLastShooterSummary(null);
-              }}
-            />
-          </Suspense>
         ) : (
-          <Suspense fallback={<PanelSkeleton lines={4} />}>
-            <LazyAchievementsPage
-              achState={store.achState}
-              history={store.history}
-              longestStreak={effectiveDaily.longestStreak}
-              onBack={() => store.setMode("drill")}
-            />
-          </Suspense>
-        )}
-
-        {store.mode === "drill" || store.mode === "shooter" ? (
-          <div className="mt-4">
-            {store.historyReady ? (
-              <Suspense fallback={<PanelSkeleton lines={1} />}>
-                <LazyHistoryPanel
+          <div id="typing-area" tabIndex={-1}>
+            {store.mode === "shooter" ? (
+              <Suspense fallback={<PanelSkeleton lines={5} />}>
+                <LazyShooterScreen
+                  settings={store.shooterSettings}
+                  missedWords={store.storedMissedWords}
+                  weakKeysAll={weakKeysAll}
+                  allTimeKeys={store.allTimeKeys}
+                  shooterBest={store.shooterBest}
+                  achState={store.achState}
+                  effectiveShooterSummary={effectiveShooterSummary}
+                  coarsePointer={coarsePointer}
+                  layout={layout}
+                  standard={standard}
+                  showFingerZones={showFingerZones}
+                  onOpenSettings={() => store.openSettings("game")}
+                  onUpdateSettings={(patch) =>
+                    store.saveShooterSettings({ ...store.shooterSettings, ...patch })
+                  }
+                  onCommitRun={store.commitShooterRun}
+                  onSummaryChange={setLastShooterSummary}
+                  onOpenAchievements={() => store.setMode("achievements")}
+                />
+              </Suspense>
+            ) : store.mode === "settings" ? (
+              <Suspense fallback={<PanelSkeleton lines={5} />}>
+                <LazySettingsPage
+                  activeTab={store.settingsTab}
+                  drillSettings={store.drillSettings}
+                  shooterSettings={store.shooterSettings}
+                  daily={store.daily}
+                  theme={store.theme}
+                  accent={store.themeAccent}
+                  dyslexiaFont={store.dyslexiaFont}
+                  customTexts={store.customTexts}
                   history={store.history}
-                  mode={store.mode}
-                  onClear={(m) => {
+                  achState={store.achState}
+                  storedMissedWordsCount={store.storedMissedWords.length}
+                  onSelectTab={store.setSettingsTab}
+                  onBack={store.closeSettings}
+                  onUpdateDrill={store.updateDrillSettings}
+                  onSaveDrill={store.saveDrillSettings}
+                  onUpdateShooter={(patch) =>
+                    store.saveShooterSettings({ ...store.shooterSettings, ...patch })
+                  }
+                  onSaveShooter={store.saveShooterSettings}
+                  onUpdateDailyGoal={store.updateDailyGoal}
+                  onSelectTheme={store.selectTheme}
+                  onSelectAccent={store.selectAccent}
+                  onToggleDyslexiaFont={store.setDyslexiaFont}
+                  onOpenCustomText={() => setCustomTextOpen(true)}
+                  onImportBackup={store.importFullBackup}
+                  onDeleteAllData={async () => {
+                    await store.deleteAllData();
+                    setLastShooterSummary(null);
+                  }}
+                />
+              </Suspense>
+            ) : store.mode === "stats" ? (
+              <Suspense fallback={<PanelSkeleton lines={5} />}>
+                <LazyStatsPage
+                  history={store.history}
+                  historyReady={store.historyReady}
+                  daily={store.daily}
+                  allTimeKeys={store.allTimeKeys}
+                  allTimeSpeed={store.allTimeSpeed}
+                  layout={layout}
+                  standard={standard}
+                  onClearHistory={(m) => {
                     store.clearHistory(m);
                     if (!m || m === "all" || m === "shooter") {
                       setLastShooterSummary(null);
                     }
                   }}
                   onImportHistory={store.setHistory}
-                  onImportBackup={store.importFullBackup}
                   onDeleteRun={store.deleteHistoryRun}
                   onRestoreRun={store.restoreHistoryRun}
-                  onDeleteAllData={async () => {
-                    await store.deleteAllData();
-                    setLastShooterSummary(null);
+                  onOpenGoalSettings={() => {
+                    setFocusDimmed(false);
+                    store.openSettings("typing");
                   }}
                   onStartRun={() => {
                     store.setMode("drill");
@@ -249,10 +277,18 @@ export function App() {
                 />
               </Suspense>
             ) : (
-              <PanelSkeleton lines={1} />
+              <Suspense fallback={<PanelSkeleton lines={4} />}>
+                <LazyAchievementsPage
+                  achState={store.achState}
+                  history={store.history}
+                  longestStreak={effectiveDaily.longestStreak}
+                  learnUnlockedCount={store.learnState.unlocked.length}
+                  onBack={() => store.setMode("drill")}
+                />
+              </Suspense>
             )}
           </div>
-        ) : null}
+        )}
 
         <footer className="mt-10 text-center text-xs text-muted-foreground">
           Typing Trainer Pro · Runs stay locally in your browser · Press{" "}
@@ -276,6 +312,10 @@ export function App() {
                 drillMode: "time",
                 duration: choices.runPlacementTest ? 15 : store.drillSettings.duration,
               });
+              if (choices.startMode === "learn") {
+                store.setMode("learn");
+                return;
+              }
               store.setMode("drill");
               requestAnimationFrame(() => {
                 drillRef.current?.restart(next);
@@ -330,6 +370,9 @@ export function App() {
             onSelectAccent={store.selectAccent}
             onToggleDyslexiaFont={() => store.setDyslexiaFont(!store.dyslexiaFont)}
             onRestart={() => drillRef.current?.restart()}
+            onRepeatSameText={
+              store.mode === "drill" ? () => drillRef.current?.repeatSameText() : undefined
+            }
             onModeChange={(nextMode) => {
               store.setMode(nextMode);
               if (nextMode !== "drill") setFocusDimmed(false);
@@ -338,7 +381,6 @@ export function App() {
               setFocusDimmed(false);
               store.openSettings(tab);
             }}
-            onExportAllData={() => void downloadFullBackupJson(appStorage)}
             onOpenCustomText={() => setCustomTextOpen(true)}
             onPracticeMissedWords={
               store.storedMissedWords.length > 0

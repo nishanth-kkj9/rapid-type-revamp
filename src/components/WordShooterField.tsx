@@ -1,4 +1,4 @@
-import { useState, type RefObject } from "react";
+import { useCallback, useEffect, useState, type RefObject } from "react";
 import type { ShooterSettings } from "@/lib/shooterSettings";
 import type { PauseReason, ShooterPhase } from "@/hooks/useWordShooterGame";
 import { WordShooterOverlays } from "@/components/WordShooterOverlays";
@@ -57,6 +57,42 @@ export function WordShooterField({
   onKey,
 }: WordShooterFieldProps) {
   const [inputFocused, setInputFocused] = useState(false);
+  const [viewportMaxHeight, setViewportMaxHeight] = useState<number | null>(null);
+
+  const syncViewportFit = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const fieldEl = fieldRef.current;
+    const vv = window.visualViewport;
+    if (!fieldEl || !vv) {
+      setViewportMaxHeight((prev) => (prev === null ? prev : null));
+      return;
+    }
+
+    const keyboardLikelyOpen = vv.height < window.innerHeight * 0.85;
+    if (keyboardLikelyOpen && (phase === "playing" || phase === "resuming" || inputFocused)) {
+      const nextHeight = Math.max(180, Math.min(440, Math.floor(vv.height - 96)));
+      setViewportMaxHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+      if (typeof fieldEl.scrollIntoView === "function") {
+        fieldEl.scrollIntoView({ block: "nearest" });
+      }
+    } else {
+      setViewportMaxHeight((prev) => (prev === null ? prev : null));
+    }
+  }, [fieldRef, inputFocused, phase]);
+
+  useEffect(() => {
+    syncViewportFit();
+    if (typeof window === "undefined") return undefined;
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", syncViewportFit);
+    vv?.addEventListener("scroll", syncViewportFit);
+    window.addEventListener("resize", syncViewportFit);
+    return () => {
+      vv?.removeEventListener("resize", syncViewportFit);
+      vv?.removeEventListener("scroll", syncViewportFit);
+      window.removeEventListener("resize", syncViewportFit);
+    };
+  }, [syncViewportFit]);
 
   const focusInput = () => {
     const el = inputRef.current;
@@ -65,6 +101,7 @@ export function WordShooterField({
     if (typeof fieldRef.current?.scrollIntoView === "function") {
       fieldRef.current.scrollIntoView({ block: "nearest" });
     }
+    syncViewportFit();
   };
 
   return (
@@ -75,7 +112,8 @@ export function WordShooterField({
       onClick={() => {
         if (phase === "playing" || phase === "resuming") focusInput();
       }}
-      className={`relative h-[clamp(220px,38dvh,320px)] w-full overflow-hidden rounded-2xl border transition-colors sm:h-[440px] ${
+      style={viewportMaxHeight !== null ? { height: `${viewportMaxHeight}px` } : undefined}
+      className={`relative h-[clamp(220px,38dvh,320px)] w-full touch-manipulation overflow-hidden rounded-2xl border transition-colors sm:h-[440px] ${
         hasDangerEnemy
           ? "border-destructive/60 bg-card shadow-[0_0_20px_rgba(239,68,68,0.15)]"
           : "border-border bg-card/80"
@@ -98,8 +136,11 @@ export function WordShooterField({
       {phase === "playing" && !inputFocused ? (
         <button
           type="button"
-          onClick={focusInput}
-          className="absolute bottom-2 left-1/2 z-20 -translate-x-1/2 rounded-full border border-border bg-card/90 px-3 py-1 font-mono text-[11px] font-medium text-muted-foreground shadow-sm sm:hidden"
+          onClick={(e) => {
+            e.stopPropagation();
+            focusInput();
+          }}
+          className="absolute bottom-2 left-1/2 z-20 min-h-9 -translate-x-1/2 cursor-pointer rounded-full border border-border bg-card/95 px-3.5 py-1.5 font-mono text-xs font-medium text-foreground shadow-sm hover:bg-secondary"
         >
           Tap field to focus keyboard
         </button>
@@ -144,7 +185,13 @@ export function WordShooterField({
         autoCorrect="off"
         autoComplete="off"
         spellCheck={false}
-        onFocus={() => setInputFocused(true)}
+        onFocus={() => {
+          setInputFocused(true);
+          if (typeof fieldRef.current?.scrollIntoView === "function") {
+            fieldRef.current.scrollIntoView({ block: "nearest" });
+          }
+          syncViewportFit();
+        }}
         onBlur={() => setInputFocused(false)}
         onChange={(e) => {
           const v = e.target.value;
@@ -155,7 +202,7 @@ export function WordShooterField({
           }
           e.target.value = "";
         }}
-        className="absolute inset-0 h-full w-full cursor-text text-base opacity-0"
+        className="absolute inset-0 z-10 h-full w-full cursor-text text-base opacity-0"
       />
     </div>
   );

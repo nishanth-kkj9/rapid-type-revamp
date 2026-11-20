@@ -1,255 +1,74 @@
-# Architecture — Rapid Type Revamp
+# Architecture — Typing Trainer Pro
 
 ## Purpose
 
-Rapid Type Revamp is a browser-first typing trainer. The normal typing experience does not require an application database or account: practice content is generated locally, typing is evaluated in the browser, and run history is persisted in `localStorage`.
+Typing Trainer Pro is a local-first, offline-capable typing trainer and arcade game implemented as a client-side Vite + React single-page application. All practice generation, keystroke timing, metrics computation, achievements, daily streak tracking, and Word Shooter physics execute deterministically in the browser with zero backend routes, zero external font CDNs, zero analytics, and zero external API calls.
 
-The application also exposes a small MCP endpoint for passage generation and typing analysis.
-
-## Runtime architecture
+## Runtime Architecture
 
 ```text
-                         ┌──────────────────────────┐
-                         │        Browser            │
-                         │                          │
-                         │  React + TanStack Start  │
-                         │          route: /        │
-                         │            │             │
-                         │    ┌───────┴────────┐    │
-                         │    │ typing state   │    │
-                         │    │ timer/input    │    │
-                         │    └───────┬────────┘    │
-                         │            │             │
-                         │     ┌──────┴──────┐      │
-                         │     │ core libs   │      │
-                         │     │ stats/text  │      │
-                         │     └──────┬──────┘      │
-                         │            │             │
-                         │       localStorage      │
-                         └──────────────────────────┘
-
-External MCP client
-        │
-        ▼
-      /mcp
-        │
-        ├── generate_passage
-        └── analyze_typing
-
-Deployment/runtime
-        │
-        ├── Vite
-        ├── TanStack Start / Router
-        ├── Nitro target from Lovable config
-        └── src/server.ts SSR error wrapper
+Browser
+├── index.html + /public/boot.js (synchronous pre-paint boot)
+│     Reads localStorage["ttp:boot:v1"] -> { theme, accent, dyslexiaFont }
+│     Fallback: OS prefers-contrast / prefers-color-scheme -> dark
+│
+├── src/main.tsx -> src/App.tsx
+│     └── useAppStore()
+│           ├── Hydrates from appStorage (IndexedDB via src/lib/storage.ts)
+│           │     └── Runs migrateLegacyLocalStorage() before hydration
+│           ├── Mirrors { theme, accent, dyslexiaFont } -> ttp:boot:v1
+│           ├── Practice view -> DrillScreen + useTypingSession (idle -> running -> finished)
+│           ├── Word Shooter view -> ShooterScreen + useWordShooterGame + shooterEngine.ts
+│           ├── Achievements view -> AchievementsScreen
+│           └── Settings view -> SettingsScreen (7 unified tabs)
+│
+└── Service Worker (vite-plugin-pwa + Workbox)
+      Precaches app shell, /boot.js, icons, and self-hosted @fontsource fonts
 ```
 
-## Source layout
+## Persistence & Pre-Paint Boot
 
-### `src/routes/index.tsx`
+- **Primary store (`IndexedDB`)**: `src/lib/storage.ts` provides `IndexedDbStorage` (with an in-memory fallback when IndexedDB is unavailable) behind the `Storage` interface. `src/lib/appHydration.ts` loads and validates all `ttp:*` keys with Zod schemas before populating React state.
+- **Legacy migration**: On startup, `migrateLegacyLocalStorage()` migrates legacy `ttp:*` `localStorage` keys into `appStorage`. It retains legacy `ttp:theme:v1` and `ttp:uiprefs:v1` in `localStorage` until `ttp:boot:v1` has been written once, then cleans them up safely.
+- **Pre-paint boot cache (`ttp:boot:v1`)**: `src/lib/bootPrefs.ts` mirrors only `{ theme, accent, dyslexiaFont }` into `localStorage` under `ttp:boot:v1` synchronously on theme/accent/font changes, after hydration, and after backup import, and removes it on full data deletion. `/public/boot.js` runs synchronously in `<head>` to apply theme classes, `theme-color`, accent, and OpenDyslexic attributes before first paint.
 
-Primary application route. Owns the typing-session state machine, timing lifecycle, keyboard/input behavior, result presentation, history integration, and command-palette wiring.
+## Source Layout
 
-Important state includes:
+- **`src/hooks/`**
+  - `useAppStore.ts` — Central application store hydrated from IndexedDB, managing URL query state (`?mode=drill|shooter|achievements|settings`), settings updates, run commits, full backup import/export, and complete data deletion.
+  - `useTypingSession.ts` — Pure reducer state machine (`idle -> running -> finished`) tracking per-keystroke accuracy, uncorrected errors, per-second monotonic samples, mistake maps, key bigrams, inter-key latencies, missed words, and slow words.
+  - `useWordShooterGame.ts` — Bridges `requestAnimationFrame` canvas loop and keyboard events to `shooterEngine.ts`.
 
-- selected `difficulty`
-- selected `duration`
-- generated `text`
-- `typed` input
-- `running` / `finished`
-- elapsed time
-- correct/incorrect counters
-- mistakes map
-- per-second samples
-- loaded history
+- **`src/lib/` (Pure, framework-free domain modules + unit tests)**
+  - `typingStats.ts` — WPM, Raw WPM, Adjusted WPM, keystroke-level accuracy, rolling 5-second WPM consistency, history storage (`loadHistoryFromStorage`, `saveRunToStorage`, `importHistoryToStorage`), and `MAX_IMPORT_RUNS`.
+  - `sentenceGenerator.ts` / `grammarPools.ts` / `quotes.ts` — Local vocabulary pools (`WORD_LISTS`), grammar-structured sentence builder, non-repeating quote shuffle, and weak-key/slow-key remediation passage generation.
+  - `daily.ts` — Daily practice goals (active minutes or completed runs) with same-day streak updates, UTC calendar date math, and optional 7-day cooldown streak freeze.
+  - `achievements.ts` — Deterministic achievement evaluator and progress selectors (`ACHIEVEMENTS`).
+  - `backup.ts` — Schema v2 full-app JSON backup export, merge-import (with v1 history fallback), shared `MAX_IMPORT_RUNS` validation, and `clearAllAppData()`.
+  - `shareResult.ts` — Text summary formatter and HTML Canvas PNG card renderer that waits for self-hosted `Space Grotesk` and `JetBrains Mono` fonts via `document.fonts.load`.
+  - `keyboardLayout.ts` — ANSI/ISO key matrices across QWERTY, Dvorak, Colemak, QWERTZ, and AZERTY layouts with finger-zone mapping.
+  - `shooterEngine.ts` — Deterministic Word Shooter simulation step, difficulty ramp, streak abilities, and boss waves.
 
-The route uses `requestAnimationFrame` with `performance.now()` for the session timer and throttles visible timer state to roughly 10 Hz.
+- **`src/components/`**
+  - Top-level screens (`DrillScreen.tsx`, `ShooterScreen.tsx`, `AchievementsScreen.tsx`, `SettingsScreen.tsx`) and focused sub-components under `src/components/settings/` and `src/components/charts/`.
 
-### `src/components/`
+## Data Flows
 
-Presentation and interaction components:
+### Practice Run Commit
 
-- `TypingText.tsx` — per-character feedback and caret.
-- `Keyboard.tsx` — virtual keyboard and key-state visuals.
-- `HistoryPanel.tsx` — local progress and import/export UI.
-- `ProblemKeys.tsx` — most-missed expected characters.
-- `WpmChart.tsx` — per-second chart.
-- `StatCard.tsx` — statistics display.
-- `CommandPalette.tsx` — keyboard-first session controls.
-- `WordShooter.tsx` — separate falling-word game implementation; currently not mounted by `src/routes/index.tsx`.
+1. First printable keystroke dispatches transition from `idle` to `running` in `useTypingSession`.
+2. Every keystroke updates keystroke accuracy counters, expected-key mistake maps, inter-key latency (capped for pauses), and rolling samples.
+3. On completion or time expiry (`finished`), `ResultsPanel` computes metrics, coaching guidance, and optional PNG share card.
+4. `useAppStore.commitDrillRun()` writes history, key errors, bigrams, key latencies, spaced-repetition missed words, daily progress, and achievement state to `appStorage`.
 
-### `src/lib/sentenceGenerator.ts`
+### Backup Import & Data Wipe
 
-Pure local passage generation. Difficulty selects separate vocabulary pools and templates. The generator avoids recent sentence duplication and returns text without network calls.
+1. JSON input is parsed cleanly (`try/catch`), checked against `MAX_IMPORT_RUNS`, and validated with Zod schemas (`BackupV2EnvelopeSchema` or v1 history fallback).
+2. Rejection returns explicit failure reasons (`invalid`, `too-many-runs`, or `quota`).
+3. Valid backups merge records into `appStorage`, rehydrate application state, and refresh `ttp:boot:v1`.
+4. Deleting all data (`clearAllAppData`) removes all `ttp:*` keys from IndexedDB and `localStorage` including `ttp:boot:v1`, then resets state cleanly.
 
-Because this module is pure and server-safe, it is shared by both the browser trainer and the MCP `generate_passage` tool.
+## Privacy & Security Boundaries
 
-### `src/lib/typingStats.ts`
-
-Core statistics and local-history layer.
-
-Responsibilities:
-
-- WPM/raw WPM/net WPM calculations.
-- Accuracy and consistency calculation.
-- Cumulative-sample conversion to per-second deltas.
-- Versioned history storage.
-- Legacy history migration.
-- Import/export.
-- Run ID generation.
-
-The history schema is parsed with Zod before imported data is accepted.
-
-### `src/lib/mcp/`
-
-MCP tool registry and implementations.
-
-Current tools:
-
-```text
- generate_passage
-     difficulty + minChars
-             │
-             ▼
-     generatePassage()
-
- analyze_typing
-     target + typed + elapsedSeconds
-     + optional perSecondCorrect
-             │
-             ▼
-     computeStats() + mistake analysis
-```
-
-The tools are annotated read-only and have `openWorldHint: false`.
-
-### `src/routes/mcp.ts`
-
-Auto-generated MCP route. Do not manually modify it while the generator banner remains in place. The route currently uses forwarded host/protocol trust expected by the Lovable deployment setup.
-
-### `src/routes/[.well-known]/oauth-protected-resource.ts`
-
-Auto-generated MCP resource metadata/discovery route. It shares the forwarded-header deployment considerations of `/mcp`.
-
-### `src/server.ts`
-
-Custom TanStack Start server entry. It loads the framework server entry and normalizes a specific class of h3-swallowed SSR failures into the project's HTML error page.
-
-### `.github/workflows/ci.yml`
-
-Verification pipeline:
-
-```text
-Lint ───────────┐
-Format ─────────┤
-Typecheck ──────┤
-Tests ──────────┤──> verify ──> final CI gate
-Build ──────────┘
-
-Dependency audit ──> report-only
-```
-
-The workflow installs with a frozen Bun lockfile and gives the workflow only `contents: read` permissions.
-
-## Data flow: normal typing run
-
-```text
-1. Route mounts
-2. loadHistory() reads ttp:history:v1
-3. generatePassage() creates the initial passage
-4. First typing change starts the high-resolution timer
-5. Every change is reconciled against the expected passage
-6. Counters + mistakes + pressed-key state are updated
-7. Per-second correct counts feed the chart/consistency calculation
-8. At time expiry, final stats are frozen
-9. The run is stored in localStorage
-10. The results view reads the frozen snapshot
-```
-
-The route also appends more generated text when the user approaches the end of the current passage.
-
-## Data flow: history import
-
-```text
-File/text input
-      │
-      ▼
-JSON.parse
-      │
-      ▼
-Zod array schema
-      │
-      ├── invalid → reject
-      │
-      └── valid → merge by id
-                         │
-                         ▼
-                 newest-first, max 100
-                         │
-                         ▼
-                  localStorage
-```
-
-The import is local-only. There is no server-side history synchronization in the current architecture.
-
-## Data flow: MCP request
-
-```text
-MCP client
-   │
-   ▼
-/mcp
-   │
-   ▼
-Lovable MCP handler
-   │
-   ├── validate request with Zod
-   │
-   ├── generate_passage
-   │       └── local sentence generation
-   │
-   └── analyze_typing
-           ├── compare target vs typed
-           ├── compute stats
-           └── calculate problem keys
-```
-
-The current manifest declares MCP authentication as `none`. Treat the endpoint as a public service unless the deployment layer restricts it.
-
-## Security boundaries
-
-The browser is an untrusted environment. Local history and fair-play controls can be modified by the user.
-
-Security-sensitive deployment assumptions live outside the React UI:
-
-- `/mcp` exposure and rate limiting.
-- Reverse-proxy handling of `X-Forwarded-Host` and `X-Forwarded-Proto`.
-- HTTPS/TLS termination.
-- Security headers and edge access policies.
-
-The anti-paste guard, hidden typing input, and local best-score storage are UX/fairness mechanisms, not trusted security controls.
-
-## Current integration gap
-
-`WordShooter.tsx` is present as a complete component, but the root route currently does not import or mount it. This means the repository contains game code that is not reachable from the active product flow.
-
-When integrating it, prefer an explicit game-mode state or route rather than conditionally mounting a large game tree from unrelated typing-session state. Add user-flow tests after integration so the game cannot silently regress to an unreachable state.
-
-## Architectural invariants
-
-1. Passage generation remains deterministic in shape and local; no network dependency is required for ordinary typing.
-2. History writes stay browser-local until cloud sync is deliberately introduced.
-3. Imported history is never accepted without schema validation.
-4. MCP tools remain read-only unless a future design explicitly changes their contract.
-5. The browser is never treated as an authoritative source for competitive scoring.
-6. Auto-generated Lovable files are not hand-edited without taking ownership according to the generator instructions.
-
-## Recommended extension points
-
-For future development, keep these concerns separate:
-
-- **Game/session state:** route or dedicated hook.
-- **Scoring/statistics:** `src/lib/typingStats.ts` and pure helpers.
-- **Passage generation:** `src/lib/sentenceGenerator.ts`.
-- **Persistence:** a dedicated storage adapter so `localStorage` can later be replaced or supplemented without rewriting UI components.
-- **MCP transport:** keep tools thin; share pure business logic with the browser instead of duplicating calculations.
+- All data lives locally in the browser; imported JSON backups are treated as untrusted input and validated with strict Zod bounds (`MAX_IMPORT_RUNS`, field ranges, string length caps) before storage.
+- No telemetry, third-party scripts, CDN stylesheets, or runtime API keys exist anywhere in the client bundle.

@@ -14,6 +14,7 @@ interface AchievementsPageProps {
   achState: AchievementState;
   history: HistoryEntry[];
   longestStreak: number;
+  learnUnlockedCount?: number | undefined;
   onBack: () => void;
 }
 
@@ -43,12 +44,16 @@ export function AchievementsPage({
   achState,
   history,
   longestStreak,
+  learnUnlockedCount = 6,
   onBack,
 }: AchievementsPageProps) {
   const [category, setCategory] = useState<AchievementCategory | "all">("all");
   const [status, setStatus] = useState<StatusFilter>("all");
 
-  const fallbackCtx = useMemo(() => ({ history, longestStreak }), [history, longestStreak]);
+  const fallbackCtx = useMemo(
+    () => ({ history, longestStreak, learnUnlockedCount }),
+    [history, longestStreak, learnUnlockedCount],
+  );
 
   const allProgress = useMemo(
     () => getAllAchievementsProgress(achState, fallbackCtx),

@@ -94,6 +94,8 @@ export function HistoryRunDetailDialog({
           {isShooter && entry.practiceMode ? " · Practice" : ""}
           {isShooter && entry.dailyChallengeDate ? ` · Daily (${entry.dailyChallengeDate})` : ""}
           {!isShooter ? ` · ${entry.adjustedWpm.toFixed(0)} net wpm` : ""}
+          {entry.strict ? ` · strict: ${entry.strict}` : ""}
+          {entry.repeated ? " · Repeated text (excluded from PBs)" : ""}
         </p>
 
         {entry.samples && entry.samples.length >= 2 ? (

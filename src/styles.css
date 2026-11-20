@@ -297,6 +297,16 @@
     background: currentColor;
     opacity: 0.75;
   }
+
+  .keycap[data-learn="locked"] {
+    opacity: 0.34;
+    filter: saturate(0.35);
+  }
+
+  .keycap[data-learn="focus"]:not([data-state="active"]):not([data-state="error"]) {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 1px var(--color-accent) inset;
+  }
 }
 
 @keyframes caret-blink {
@@ -327,6 +337,10 @@
 .caret-smooth {
   transition: transform 80ms cubic-bezier(0.2, 0, 0.2, 1);
   animation: caret-pulse 1.05s ease-in-out infinite;
+}
+
+.pace-caret {
+  transition: transform 90ms linear;
 }
 
 @keyframes shake-x {
@@ -488,6 +502,7 @@
   .record-glow,
   .caret,
   .caret-smooth,
+  .pace-caret,
   .score-popup,
   .particle-burst,
   .level-banner,

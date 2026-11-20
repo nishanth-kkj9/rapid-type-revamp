@@ -1,9 +1,8 @@
 import { defineConfig } from "vitest/config";
 import { fileURLToPath } from "node:url";
 
-// Standalone test config: unit tests are pure TS and must not boot the app's
-// Vite plugin chain (TanStack Start, Nitro, MCP codegen). Loading those in CI
-// is slow and can fail for reasons unrelated to the tests themselves.
+// Standalone test config: unit tests do not need the app's Vite build or PWA
+// plugins. Keeping this isolated makes unit tests fast and deterministic.
 export default defineConfig({
   resolve: {
     alias: {

@@ -12,6 +12,7 @@ import {
   SHOOTER_BEST_KEY,
   type HydratedAppState,
 } from "./appHydration";
+import { removeBootPrefs } from "./bootPrefs";
 import {
   CUSTOM_TEXTS_KEY,
   sanitizeCustomTexts,
@@ -62,15 +63,27 @@ import {
 } from "./shooterSettings";
 import { LEGACY_EXACT_KEYS, LEGACY_SAMPLES_PREFIX, type Storage } from "./storage";
 import {
+  HISTORY_INDEX_KEY,
   HistoryEntrySchema,
   importHistoryToStorage,
+  invalidateHistoryCache,
+  MAX_IMPORT_RUNS,
   parseHistoryEntries,
   restoreHistoryToStorage,
   SamplesSchema,
   type HistoryEntry,
+  type ImportFailureReason,
 } from "./typingStats";
 import { DEFAULT_UI_PREFS, sanitizeUiPrefs, saveUiPrefsToStorage, type UiPrefs } from "./uiPrefs";
 import { getPreferredSystemTheme, saveThemeToStorage, ThemeSchema, type Theme } from "./useTheme";
+import {
+  createInitialLearnState,
+  LEARN_STORAGE_KEY,
+  mergeLearnStates,
+  sanitizeLearnState,
+  saveLearnToStorage,
+  type LearnState,
+} from "./learn";
 
 export const APP_BACKUP_VERSION = 2;
 
@@ -85,6 +98,7 @@ export interface AppBackupPayloadV2 {
   daily: DailyState | null;
   missedWordRecords: MissedWordRecord[];
   customTexts: CustomTextEntry[];
+  learn?: LearnState | undefined;
   drillSettings: DrillSettings;
   shooterSettings: ShooterSettings;
   uiPrefs: UiPrefs;
@@ -96,7 +110,7 @@ export interface AppBackupPayloadV2 {
 const BackupV2EnvelopeSchema = z.object({
   schemaVersion: z.literal(2),
   exportedAt: z.number().finite().min(0),
-  history: z.array(HistoryEntrySchema).max(20000),
+  history: z.array(HistoryEntrySchema).max(MAX_IMPORT_RUNS),
   allTimeKeys: z.record(z.string(), z.unknown()).optional(),
   allTimeBigrams: z.record(z.string(), z.unknown()).optional(),
   allTimeSpeed: z.record(z.string(), z.unknown()).optional(),
@@ -104,6 +118,7 @@ const BackupV2EnvelopeSchema = z.object({
   daily: DailyStateSchema.nullable().optional(),
   missedWordRecords: z.array(z.unknown()).optional(),
   customTexts: z.array(z.unknown()).optional(),
+  learn: z.unknown().optional(),
   drillSettings: z.unknown().optional(),
   shooterSettings: z.unknown().optional(),
   uiPrefs: z.unknown().optional(),
@@ -120,7 +135,7 @@ export type BackupImportResult =
     }
   | {
       ok: false;
-      reason: "invalid" | "quota";
+      reason: ImportFailureReason;
     };
 
 export async function exportAllAppDataFromStorage(storage: Storage): Promise<AppBackupPayloadV2> {
@@ -146,6 +161,7 @@ export async function exportAllAppDataFromStorage(storage: Storage): Promise<App
     daily: hydrated.daily,
     missedWordRecords: hydrated.missedWordRecords,
     customTexts: hydrated.customTexts,
+    learn: hydrated.learn,
     drillSettings: hydrated.drillSettings,
     shooterSettings: hydrated.shooterSettings,
     uiPrefs: hydrated.uiPrefs,
@@ -243,11 +259,23 @@ export async function importAllAppDataToStorage(
     return { ok: false, reason: "invalid" };
   }
 
+  if (
+    parsedJson &&
+    typeof parsedJson === "object" &&
+    !Array.isArray(parsedJson) &&
+    (parsedJson as { schemaVersion?: unknown }).schemaVersion === 2 &&
+    Array.isArray((parsedJson as { history?: unknown }).history) &&
+    (parsedJson as { history: unknown[] }).history.length > MAX_IMPORT_RUNS
+  ) {
+    return { ok: false, reason: "too-many-runs" };
+  }
+
   const v2Check = BackupV2EnvelopeSchema.safeParse(parsedJson);
   if (!v2Check.success) {
     // Fall back gracefully to legacy v1 history import
     const legacyRes = await importHistoryToStorage(storage, rawJson);
     if (!legacyRes.ok) return { ok: false, reason: legacyRes.reason };
+    await storage.set(ONBOARDED_KEY, "1");
     const state = await hydrateAppFromStorage(storage);
     return { ok: true, scope: "history-only", state };
   }
@@ -311,6 +339,11 @@ export async function importAllAppDataToStorage(
       await saveCustomTextsToStorage(storage, mergedCustom);
     }
 
+    if (payload.learn !== undefined) {
+      const mergedLearn = mergeLearnStates(current.learn, sanitizeLearnState(payload.learn));
+      await saveLearnToStorage(storage, mergedLearn);
+    }
+
     if (payload.drillSettings !== undefined) {
       await saveDrillSettingsToStorage(storage, sanitizeDrillSettings(payload.drillSettings));
     }
@@ -343,6 +376,7 @@ export async function importAllAppDataToStorage(
     // Ensure keySpeed was reloaded cleanly if unused
     void loadKeySpeedFromStorage;
 
+    await storage.set(ONBOARDED_KEY, "1");
     const nextState = await hydrateAppFromStorage(storage);
     return { ok: true, scope: "full", state: nextState };
   } catch {
@@ -353,12 +387,14 @@ export async function importAllAppDataToStorage(
 export async function clearAllAppData(storage: Storage): Promise<HydratedAppState> {
   const keysToDelete = new Set<string>([
     ...LEGACY_EXACT_KEYS,
+    HISTORY_INDEX_KEY,
     KEY_STATS_KEY,
     KEY_BIGRAMS_KEY,
     ACHIEVEMENTS_KEY,
     DAILY_STORAGE_KEY,
     MISSED_WORDS_KEY,
     CUSTOM_TEXTS_KEY,
+    LEARN_STORAGE_KEY,
     SHOOTER_BEST_KEY,
     ONBOARDED_KEY,
   ]);
@@ -370,23 +406,36 @@ export async function clearAllAppData(storage: Storage): Promise<HydratedAppStat
     // non-fatal
   }
 
-  for (const key of keysToDelete) {
+  if (storage.deleteMany) {
     try {
-      await storage.delete(key);
+      await storage.deleteMany(Array.from(keysToDelete));
     } catch {
-      // continue deleting remaining keys
+      // fall through to individual deletes
+    }
+  } else {
+    for (const key of keysToDelete) {
+      try {
+        await storage.delete(key);
+      } catch {
+        // continue deleting remaining keys
+      }
     }
   }
 
-  if (typeof window !== "undefined" && window.localStorage) {
+  invalidateHistoryCache(storage);
+  removeBootPrefs();
+  if (typeof window !== "undefined") {
     try {
-      const lsKeys: string[] = [];
-      for (let i = 0; i < window.localStorage.length; i++) {
-        const k = window.localStorage.key(i);
-        if (k && k.startsWith("ttp:")) lsKeys.push(k);
-      }
-      for (const k of lsKeys) {
-        window.localStorage.removeItem(k);
+      const ls = window.localStorage;
+      if (ls) {
+        const lsKeys: string[] = [];
+        for (let i = 0; i < ls.length; i++) {
+          const k = ls.key(i);
+          if (k && k.startsWith("ttp:")) lsKeys.push(k);
+        }
+        for (const k of lsKeys) {
+          ls.removeItem(k);
+        }
       }
     } catch {
       // ignore
@@ -408,6 +457,7 @@ export async function clearAllAppData(storage: Storage): Promise<HydratedAppStat
     missedWordRecords: [],
     missedWords: getActiveMissedWords([]),
     customTexts: [],
+    learn: createInitialLearnState(),
     shooterBest: 0,
     onboarded: true,
   };

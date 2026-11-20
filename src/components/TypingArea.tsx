@@ -1,4 +1,4 @@
-import { useRef, useState, type RefObject } from "react";
+import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { TypingText } from "@/components/TypingText";
 import type { CaretStyle, DrillMode } from "@/lib/drillSettings";
 
@@ -26,6 +26,8 @@ interface TypingAreaProps {
   text: string;
   typed: string;
   caretStyle: CaretStyle;
+  paceCaretIndex?: number | null | undefined;
+  strictRejectSeq?: number | undefined;
   drillMode: DrillMode;
   quoteAuthor: string | null;
   finished: boolean;
@@ -43,6 +45,8 @@ export function TypingArea({
   text,
   typed,
   caretStyle,
+  paceCaretIndex = null,
+  strictRejectSeq = 0,
   drillMode,
   quoteAuthor,
   finished,
@@ -59,8 +63,18 @@ export function TypingArea({
   const lastTrustedBeforeInputRef = useRef<{ inputType: string; at: number } | null>(null);
   const lastCompositionEndAtRef = useRef(0);
 
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (el && composingValue === null && el.value !== typed) {
+      el.value = typed;
+    }
+  }, [inputRef, typed, strictRejectSeq, composingValue]);
+
   return (
     <section
+      id="typing-area"
+      tabIndex={-1}
+      aria-label="Typing area"
       className={`panel relative mt-3 p-4 transition-shadow sm:p-8 ${
         !finished ? "cursor-text" : ""
       } ${errorFlash ? "shake" : ""} ${isRecord ? "record-glow" : ""}`}
@@ -77,7 +91,12 @@ export function TypingArea({
               : "transition-[filter]"
         }
       >
-        <TypingText text={text} typed={typed} caretStyle={caretStyle} />
+        <TypingText
+          text={text}
+          typed={typed}
+          caretStyle={caretStyle}
+          paceCaretIndex={paceCaretIndex}
+        />
         {drillMode === "quote" && quoteAuthor ? (
           <p className="mt-3 text-right font-sans text-xs italic text-muted-foreground">
             — {quoteAuthor}

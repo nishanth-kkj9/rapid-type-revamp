@@ -26,12 +26,13 @@ describe("typingSessionReducer", () => {
     expect(state.keystrokesIncorrect).toBe(1);
     expect(state.mistakes["c"]).toBe(1);
 
-    // Backspace 'd' -> mistake on 'c' and keystroke counts must remain preserved
+    // Backspace 'd' -> mistake on 'c' and keystroke/hit counts must remain preserved
     state = typingSessionReducer(state, { type: "BACKSPACE" });
     expect(state.typed).toBe("ab");
     expect(state.keystrokesCorrect).toBe(2);
     expect(state.keystrokesIncorrect).toBe(1);
     expect(state.mistakes["c"]).toBe(1);
+    expect(state.keyHits).toEqual({ a: 1, b: 1, c: 1 });
 
     // Tick at 2000ms (1s elapsed) while typed === "ab"
     state = typingSessionReducer(state, { type: "TICK", nowMs: 2000 });
@@ -45,6 +46,7 @@ describe("typingSessionReducer", () => {
     expect(state.keystrokesCorrect).toBe(4);
     expect(state.keystrokesIncorrect).toBe(1);
     expect(state.mistakes["c"]).toBe(1);
+    expect(state.keyHits).toEqual({ a: 1, b: 1, c: 2, d: 1 });
 
     const stats = selectSessionStats(state);
     expect(stats.accuracy).toBe(80);
@@ -199,5 +201,66 @@ describe("typingSessionReducer", () => {
 
     // Active typing time = initial(200ms) + 200ms + capped(2000ms) + 200ms + 200ms = 2800ms (not 45600ms)
     expect(state.activeTypingMs).toBe(200 + 200 + ACTIVE_INPUT_GAP_CAP_MS + 200 + 200);
+  });
+
+  it("enforces strictMode 'letter' by recording errors without advancing the caret", () => {
+    let state = createInitialSessionState({
+      text: "cat",
+      drillMode: "words",
+      durationSec: 30,
+      strictMode: "letter",
+    });
+    state = typingSessionReducer(state, { type: "KEY", value: "c", nowMs: 100 });
+    expect(state.typed).toBe("c");
+
+    // Wrong key 'z' for expected 'a': records error + mistake + increments strictRejectSeq, stays at "c"
+    state = typingSessionReducer(state, { type: "KEY", value: "z", nowMs: 200 });
+    expect(state.typed).toBe("c");
+    expect(state.keystrokesIncorrect).toBe(1);
+    expect(state.mistakes["a"]).toBe(1);
+    expect(state.strictRejectSeq).toBe(1);
+
+    // Correct key 'a' and 't' complete cleanly
+    state = typingSessionReducer(state, { type: "KEY", value: "a", nowMs: 300 });
+    state = typingSessionReducer(state, { type: "KEY", value: "t", nowMs: 400 });
+    expect(state.typed).toBe("cat");
+    expect(state.status).toBe("finished");
+  });
+
+  it("enforces strictMode 'word' by blocking Space until the current word has no mismatches", () => {
+    let state = createInitialSessionState({
+      text: "hi me",
+      drillMode: "words",
+      durationSec: 30,
+      strictMode: "word",
+    });
+    state = typingSessionReducer(state, { type: "KEY", value: "h", nowMs: 100 });
+    state = typingSessionReducer(state, { type: "KEY", value: "x", nowMs: 200 }); // mismatch in "hi"
+    expect(state.typed).toBe("hx");
+
+    // Space at position 2 is blocked while "hi" has mismatch at index 1
+    state = typingSessionReducer(state, { type: "KEY", value: " ", nowMs: 300 });
+    expect(state.typed).toBe("hx");
+    expect(state.strictRejectSeq).toBe(1);
+    expect(state.keystrokesIncorrect).toBe(1);
+
+    // Backspace fixes it, then 'i' and ' ' succeed
+    state = typingSessionReducer(state, { type: "BACKSPACE" });
+    state = typingSessionReducer(state, { type: "KEY", value: "i", nowMs: 400 });
+    state = typingSessionReducer(state, { type: "KEY", value: " ", nowMs: 500 });
+    expect(state.typed).toBe("hi ");
+  });
+
+  it("interpolates live pace caret index cleanly across ghost samples", async () => {
+    const { interpolatePaceCaretIndex } = await import("./typingSession");
+    expect(interpolatePaceCaretIndex(undefined, 1000, 50)).toBeNull();
+    expect(interpolatePaceCaretIndex([], 1000, 50)).toBeNull();
+    expect(interpolatePaceCaretIndex([5, 11, 20], 0, 50)).toBe(0);
+    expect(interpolatePaceCaretIndex([5, 11, 20], 500, 50)).toBe(3);
+    expect(interpolatePaceCaretIndex([5, 11, 20], 1000, 50)).toBe(5);
+    expect(interpolatePaceCaretIndex([5, 11, 20], 1500, 50)).toBe(8);
+    expect(interpolatePaceCaretIndex([5, 11, 20], 2500, 50)).toBe(16);
+    // Clamped to textLength past end of samples
+    expect(interpolatePaceCaretIndex([5, 11, 20], 5000, 18)).toBe(18);
   });
 });

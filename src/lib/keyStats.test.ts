@@ -1,67 +1,68 @@
-// @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  clearKeyStats,
-  loadKeyStats,
+  KEY_STATS_KEY,
+  loadKeyStatsFromStorage,
   pickWeakKeyPassage,
-  recordKeyMistakes,
+  recordKeyMistakesInStorage,
   sanitizeKeyBigrams,
+  sanitizeKeyStats,
   topWeakBigrams,
   topWeakKeys,
-  KEY_STATS_KEY,
 } from "./keyStats";
+import { MemoryStorage } from "./storage";
 
 describe("keyStats", () => {
-  beforeEach(() => {
-    localStorage.clear();
+  it("returns empty stats when storage is empty", async () => {
+    const storage = new MemoryStorage();
+    expect(await loadKeyStatsFromStorage(storage)).toEqual({});
   });
 
-  it("returns empty stats when storage is empty", () => {
-    expect(loadKeyStats()).toEqual({});
-  });
-
-  it("merges mistake maps and accumulates across calls", () => {
-    recordKeyMistakes({ a: 2, b: 1 });
-    const merged = recordKeyMistakes({ a: 1, c: 3 });
+  it("merges mistake maps and accumulates across calls", async () => {
+    const storage = new MemoryStorage();
+    await recordKeyMistakesInStorage(storage, { a: 2, b: 1 });
+    const merged = await recordKeyMistakesInStorage(storage, { a: 1, c: 3 });
     expect(merged).toEqual({ a: 3, b: 1, c: 3 });
-    expect(loadKeyStats()).toEqual({ a: 3, b: 1, c: 3 });
+    expect(await loadKeyStatsFromStorage(storage)).toEqual({ a: 3, b: 1, c: 3 });
   });
 
-  it("ignores invalid mistake entries (multi-char keys, bad counts)", () => {
-    const merged = recordKeyMistakes({ abc: 5, x: -1, y: 1.5, z: 0, q: 2 });
+  it("ignores invalid mistake entries (multi-char keys, bad counts)", async () => {
+    const storage = new MemoryStorage();
+    const merged = await recordKeyMistakesInStorage(storage, {
+      abc: 5,
+      x: -1,
+      y: 1.5,
+      z: 0,
+      q: 2,
+    });
     expect(merged).toEqual({ q: 2 });
   });
 
-  it("caps stored keys at 64, keeping the highest counts", () => {
+  it("caps stored keys at 64, keeping the highest counts", async () => {
+    const storage = new MemoryStorage();
     const flood: Record<string, number> = {};
     for (let i = 0; i < 80; i++) flood[String.fromCharCode(33 + i)] = i + 1;
-    const merged = recordKeyMistakes(flood);
+    const merged = await recordKeyMistakesInStorage(storage, flood);
     expect(Object.keys(merged).length).toBe(64);
     const counts = Object.values(merged);
     expect(Math.min(...counts)).toBeGreaterThanOrEqual(17); // top 64 of 1..80
   });
 
-  it("sanitizes corrupted stored stats on load", () => {
-    localStorage.setItem(KEY_STATS_KEY, JSON.stringify({ ab: 3, c: "many", d: -2, e: 4 }));
-    expect(loadKeyStats()).toEqual({ e: 4 });
+  it("sanitizes corrupted stored stats on load", async () => {
+    const storage = new MemoryStorage();
+    await storage.set(KEY_STATS_KEY, { ab: 3, c: "many", d: -2, e: 4 });
+    expect(await loadKeyStatsFromStorage(storage)).toEqual({ e: 4 });
+    expect(sanitizeKeyStats({ ab: 3, c: "many", d: -2, e: 4 })).toEqual({ e: 4 });
   });
 
-  it("falls back to empty on corrupted JSON and keeps recording", () => {
-    localStorage.setItem(KEY_STATS_KEY, "{broken");
-    expect(loadKeyStats()).toEqual({});
-    expect(recordKeyMistakes({ k: 1 })).toEqual({ k: 1 });
-  });
-
-  it("clearKeyStats empties persisted stats", () => {
-    recordKeyMistakes({ w: 9 });
-    clearKeyStats();
-    expect(loadKeyStats()).toEqual({});
-    expect(localStorage.getItem(KEY_STATS_KEY)).toBeNull();
+  it("falls back to empty on malformed storage payload and keeps recording", async () => {
+    const storage = new MemoryStorage();
+    await storage.set(KEY_STATS_KEY, "{broken");
+    expect(await loadKeyStatsFromStorage(storage)).toEqual({});
+    expect(await recordKeyMistakesInStorage(storage, { k: 1 })).toEqual({ k: 1 });
   });
 
   it("topWeakKeys sorts worst-first and respects the limit", () => {
-    recordKeyMistakes({ a: 1, b: 5, c: 3 });
-    expect(topWeakKeys(loadKeyStats(), 2)).toEqual(["b", "c"]);
+    expect(topWeakKeys({ a: 1, b: 5, c: 3 }, 2)).toEqual(["b", "c"]);
   });
 
   it("sanitizes bigrams and picks passages rich in weak bigrams", () => {

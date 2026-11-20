@@ -1,23 +1,23 @@
 import { BookOpen, FileText, Target } from "lucide-react";
 import type { CustomTextEntry } from "@/lib/customTexts";
 import { resolveTextOptions, type DrillSettings } from "@/lib/drillSettings";
-import type { Difficulty } from "@/lib/sentenceGenerator";
+import { WORD_LISTS, type Difficulty } from "@/lib/sentenceGenerator";
 
 const DIFFICULTIES: { id: Difficulty; label: string; desc: string }[] = [
   {
     id: "easy",
     label: "Easy",
-    desc: "200 high-frequency everyday words paired with clear subject-verb-object sentences.",
+    desc: `${WORD_LISTS.easy.length.toLocaleString()} high-frequency everyday words paired with clear subject-verb-object sentences.`,
   },
   {
     id: "medium",
     label: "Medium",
-    desc: "1,005 common + intermediate words with optional compound clauses.",
+    desc: `${WORD_LISTS.medium.length.toLocaleString()} common + intermediate words with optional compound clauses.`,
   },
   {
     id: "hard",
     label: "Hard",
-    desc: "4,162 words covering technical, academic & literary vocabulary with multi-clause syntax.",
+    desc: `${WORD_LISTS.hard.length.toLocaleString()} words covering technical, academic & literary vocabulary with multi-clause syntax.`,
   },
 ];
 

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "./zodSetup";
 import type { Storage } from "./storage";
 
 /**
@@ -57,17 +57,6 @@ export function sanitizeKeyBigrams(raw: unknown): Record<string, number> {
   return out;
 }
 
-export function loadKeyStats(): Record<string, number> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = localStorage.getItem(KEY_STATS_KEY);
-    if (!raw) return {};
-    return sanitizeKeyStats(JSON.parse(raw));
-  } catch {
-    return {};
-  }
-}
-
 function mergeAndCapMap(
   existing: Record<string, number>,
   mistakes: Record<string, number>,
@@ -92,29 +81,6 @@ function mergeAndCapMap(
     .sort((a, b) => b[1] - a[1])
     .slice(0, maxItems);
   return Object.fromEntries(entries);
-}
-
-/** Merge one run's mistake map into the persisted stats. Returns the new map. */
-export function recordKeyMistakes(mistakes: Record<string, number>): Record<string, number> {
-  const capped = mergeAndCapMap(loadKeyStats(), mistakes, 1, MAX_KEYS);
-  if (typeof window !== "undefined") {
-    try {
-      localStorage.setItem(KEY_STATS_KEY, JSON.stringify(capped));
-    } catch {
-      // quota-safe: stats are non-critical, drop the write
-    }
-  }
-  return capped;
-}
-
-export function clearKeyStats(): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.removeItem(KEY_STATS_KEY);
-    localStorage.removeItem(KEY_BIGRAMS_KEY);
-  } catch {
-    // ignore
-  }
 }
 
 export async function loadKeyStatsFromStorage(storage: Storage): Promise<Record<string, number>> {

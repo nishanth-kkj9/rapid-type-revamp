@@ -1,8 +1,8 @@
 import { lazy, Suspense, useState, type RefObject } from "react";
-import { Check, Copy, ImageDown, Target } from "lucide-react";
+import { Check, Copy, ImageDown, RotateCcw, Target } from "lucide-react";
 import { toast } from "sonner";
 import type { RunSlowWord, RunStats } from "@/lib/typingStats";
-import type { DrillMode } from "@/lib/drillSettings";
+import { QUICK_RESTART_LABELS, type DrillMode, type QuickRestartKey } from "@/lib/drillSettings";
 import type { KeyboardLayoutId, KeyboardStandard } from "@/lib/keyboardLayout";
 import type { KeySpeedMap } from "@/lib/keySpeed";
 import type { AchievementState } from "@/lib/achievements";
@@ -25,7 +25,8 @@ export interface DrillResultData {
   effectiveMissedWordsCount: number;
   weakKeys3: string[];
   slowKeys3: string[];
-  tabToRestart: boolean;
+  quickRestart: QuickRestartKey;
+  repeated?: boolean | undefined;
   samples: number[];
   errorSeconds: number[];
   elapsedSec: number;
@@ -50,10 +51,10 @@ export interface ResultsPanelProps {
   againRef: RefObject<HTMLButtonElement | null>;
   result: DrillResultData;
   onRestart: () => void;
+  onRepeatSameText: () => void;
   onPracticeWeakKeys: () => void;
   onPracticeSlowKeys?: (() => void) | undefined;
   onPracticeMissedWords: () => void;
-  onSwitchToShooter: () => void;
   onOpenAchievements?: (() => void) | undefined;
 }
 
@@ -62,10 +63,10 @@ export function ResultsPanel({
   againRef,
   result,
   onRestart,
+  onRepeatSameText,
   onPracticeWeakKeys,
   onPracticeSlowKeys,
   onPracticeMissedWords,
-  onSwitchToShooter,
   onOpenAchievements,
 }: ResultsPanelProps) {
   const [copied, setCopied] = useState(false);
@@ -78,7 +79,8 @@ export function ResultsPanel({
     effectiveMissedWordsCount,
     weakKeys3,
     slowKeys3,
-    tabToRestart,
+    quickRestart,
+    repeated,
     samples,
     errorSeconds,
     elapsedSec,
@@ -130,14 +132,14 @@ export function ResultsPanel({
       ref={resultsRef}
       tabIndex={-1}
       aria-label="Run results"
-      className="panel relative mt-4 flex flex-col items-center justify-start gap-4 p-6 text-center focus-visible:outline-none sm:p-8"
+      className="panel relative mt-4 flex flex-col items-center justify-start gap-4 p-6 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-8"
     >
       <p role="status" aria-live="polite" className="sr-only">
         {`Run finished: ${stats.wpm.toFixed(0)} WPM, ${stats.accuracy.toFixed(0)} percent accuracy, ${stats.consistency.toFixed(0)} percent consistency.${
           isRecord ? " New personal best." : ""
         }${stats.wpm >= targetWpm ? " Target met." : ""}`}
       </p>
-      {(isRecord || stats.wpm >= targetWpm) && (
+      {(isRecord || stats.wpm >= targetWpm || repeated) && (
         <div className="flex flex-wrap items-center justify-center gap-2 font-mono text-xs font-semibold uppercase tracking-[0.14em]">
           {isRecord ? (
             <span className="text-accent">
@@ -145,7 +147,10 @@ export function ResultsPanel({
               {recordDelta != null && recordDelta > 0 ? ` (+${recordDelta} WPM)` : ""}
             </span>
           ) : null}
-          {isRecord && stats.wpm >= targetWpm ? (
+          {repeated ? (
+            <span className="text-muted-foreground">Repeated text · excluded from PBs</span>
+          ) : null}
+          {(isRecord || repeated) && stats.wpm >= targetWpm ? (
             <span aria-hidden="true" className="text-border">
               ·
             </span>
@@ -186,16 +191,29 @@ export function ResultsPanel({
           onClick={onRestart}
           className="cursor-pointer rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
         >
-          Go again{" "}
-          <span className="ml-1 font-mono text-xs opacity-75">
-            ({tabToRestart ? "Tab" : "Esc"})
+          Go again
+          {quickRestart !== "off" ? (
+            <span className="ml-1 font-mono text-xs opacity-75">
+              ({QUICK_RESTART_LABELS[quickRestart]})
+            </span>
+          ) : null}
+        </button>
+        <button
+          type="button"
+          onClick={onRepeatSameText}
+          className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+        >
+          <RotateCcw className="size-3.5 text-primary" />
+          Repeat this text
+          <span className="ml-0.5 hidden font-mono text-xs text-muted-foreground sm:inline">
+            (Shift+Enter)
           </span>
         </button>
         {effectiveMissedWordsCount > 0 ? (
           <button
             type="button"
             onClick={onPracticeMissedWords}
-            className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/25"
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent/25"
           >
             <Target className="size-4 text-accent" />
             Practice Missed Words ({effectiveMissedWordsCount})
@@ -204,7 +222,7 @@ export function ResultsPanel({
           <button
             type="button"
             onClick={onPracticeWeakKeys}
-            className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/25"
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent/25"
           >
             <Target className="size-4 text-accent" />
             Target Weak Keys ({weakKeys3.join(", ")})
@@ -237,18 +255,6 @@ export function ResultsPanel({
           Download PNG
         </button>
       </div>
-
-      <p className="text-xs text-muted-foreground">
-        Too tense?{" "}
-        <button
-          type="button"
-          onClick={onSwitchToShooter}
-          className="cursor-pointer font-semibold text-primary underline-offset-2 hover:underline"
-        >
-          Loosen up in Arcade
-        </button>{" "}
-        — your weak keys show up there too.
-      </p>
 
       <Suspense fallback={<ChartSkeleton />}>
         <LazyWpmChart

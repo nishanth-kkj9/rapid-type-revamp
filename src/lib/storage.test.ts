@@ -8,7 +8,15 @@ import {
   type Storage,
 } from "./storage";
 import { hydrateAppFromStorage } from "./appHydration";
-import { importHistoryToStorage, loadHistoryFromStorage, saveRunToStorage } from "./typingStats";
+import {
+  HISTORY_INDEX_KEY,
+  HISTORY_STORAGE_KEY,
+  RUN_KEY_PREFIX,
+  importHistoryToStorage,
+  loadHistoryFromStorage,
+  restoreHistoryToStorage,
+  saveRunToStorage,
+} from "./typingStats";
 
 describe("storage adapters & migration", () => {
   beforeEach(() => {
@@ -81,8 +89,17 @@ describe("storage adapters & migration", () => {
     expect(report.failed).toEqual([]);
     expect(report.migrated.length).toBeGreaterThanOrEqual(13);
     expect(window.localStorage.getItem("ttp:history:v1")).toBeNull();
-    expect(window.localStorage.getItem("ttp:theme:v1")).toBeNull();
     expect(window.localStorage.getItem("ttp:best:samples:v1:30s")).toBeNull();
+    // Pre-paint boot keys remain until ttp:boot:v1 has been written
+    expect(window.localStorage.getItem("ttp:theme:v1")).toBe("light");
+    expect(window.localStorage.getItem("ttp:uiprefs:v1")).toBeTruthy();
+
+    window.localStorage.setItem("ttp:boot:v1", JSON.stringify({ theme: "light" }));
+    const secondReport = await migrateLegacyLocalStorage(mem, window.localStorage);
+    expect(secondReport.removed).toContain("ttp:theme:v1");
+    expect(secondReport.removed).toContain("ttp:uiprefs:v1");
+    expect(window.localStorage.getItem("ttp:theme:v1")).toBeNull();
+    expect(window.localStorage.getItem("ttp:uiprefs:v1")).toBeNull();
 
     const hydrated = await hydrateAppFromStorage(mem);
     expect(hydrated.history).toHaveLength(2);
@@ -95,6 +112,10 @@ describe("storage adapters & migration", () => {
     expect(hydrated.theme).toBe("light");
     expect(hydrated.shooterBest).toBe(1500);
     expect(hydrated.onboarded).toBe(true);
+    // Legacy ttp:history:v1 array is automatically migrated to ttp:run:<id> + ttp:history:index:v1
+    expect(await mem.get(HISTORY_STORAGE_KEY)).toBeNull();
+    expect(await mem.list(RUN_KEY_PREFIX)).toHaveLength(2);
+    expect(await mem.get(HISTORY_INDEX_KEY)).toHaveLength(2);
   });
 
   it("retains legacy localStorage keys if any write fails", async () => {
@@ -159,5 +180,55 @@ describe("storage adapters & migration", () => {
       date: 1700000000999,
     });
     expect(await loadHistoryFromStorage(mem)).toHaveLength(121);
+  });
+
+  it("saves a new run into a 5,000-run IndexedDB history in under 100ms", async () => {
+    const db = new IndexedDbStorage();
+    const initialRuns = Array.from({ length: 5000 }, (_, i) => ({
+      id: `bench-${i}`,
+      date: 1700000000000 + i,
+      difficulty: "medium",
+      mode: "30s",
+      wpm: 70 + (i % 20),
+      rawWpm: 72,
+      adjustedWpm: 68,
+      accuracy: 96.5,
+      correct: 175,
+      incorrect: 5,
+      typed: 180,
+      elapsed: 30,
+      consistency: 90,
+    }));
+    await restoreHistoryToStorage(db, initialRuns);
+    const loaded = await loadHistoryFromStorage(db);
+    expect(loaded).toHaveLength(5000);
+
+    const t0 = performance.now();
+    const res = await saveRunToStorage(
+      db,
+      {
+        id: "bench-new-5001",
+        date: 1700009999999,
+        difficulty: "medium",
+        mode: "30s",
+        wpm: 88,
+        rawWpm: 90,
+        adjustedWpm: 87,
+        accuracy: 98.5,
+        correct: 220,
+        incorrect: 3,
+        typed: 223,
+        elapsed: 30,
+        consistency: 94,
+      },
+      loaded,
+    );
+    const elapsedMs = performance.now() - t0;
+
+    expect(res.ok).toBe(true);
+    expect(res.list).toHaveLength(5001);
+    expect(elapsedMs).toBeLessThan(100);
+    expect(await db.get(`${RUN_KEY_PREFIX}bench-new-5001`)).toMatchObject({ wpm: 88 });
+    expect(await db.get(HISTORY_INDEX_KEY)).toHaveLength(5001);
   });
 });

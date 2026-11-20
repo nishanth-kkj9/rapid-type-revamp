@@ -3,6 +3,10 @@ export interface Storage {
   set<T>(key: string, value: T): Promise<void>;
   delete(key: string): Promise<void>;
   list(prefix?: string): Promise<string[]>;
+  getMany?<T = unknown>(keys: readonly string[]): Promise<(T | null)[]>;
+  setMany?(entries: readonly (readonly [string, unknown])[]): Promise<void>;
+  deleteMany?(keys: readonly string[]): Promise<void>;
+  getAllByPrefix?<T = unknown>(prefix: string): Promise<[string, T][]>;
 }
 
 const DB_NAME = "typing-trainer-pro";
@@ -28,6 +32,32 @@ export class MemoryStorage implements Storage {
   async list(prefix?: string): Promise<string[]> {
     const keys = Array.from(this.map.keys());
     return prefix ? keys.filter((k) => k.startsWith(prefix)) : keys;
+  }
+
+  async getMany<T = unknown>(keys: readonly string[]): Promise<(T | null)[]> {
+    return keys.map((k) => (this.map.has(k) ? (this.map.get(k) as T) : null));
+  }
+
+  async setMany(entries: readonly (readonly [string, unknown])[]): Promise<void> {
+    for (const [k, v] of entries) {
+      this.map.set(k, v);
+    }
+  }
+
+  async deleteMany(keys: readonly string[]): Promise<void> {
+    for (const k of keys) {
+      this.map.delete(k);
+    }
+  }
+
+  async getAllByPrefix<T = unknown>(prefix: string): Promise<[string, T][]> {
+    const out: [string, T][] = [];
+    for (const [k, v] of this.map.entries()) {
+      if (k.startsWith(prefix)) {
+        out.push([k, v as T]);
+      }
+    }
+    return out;
   }
 }
 
@@ -113,7 +143,8 @@ export class IndexedDbStorage implements Storage {
       return await new Promise<string[]>((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, "readonly");
         const store = tx.objectStore(STORE_NAME);
-        const req = store.getAllKeys();
+        const range = prefix ? IDBKeyRange.bound(prefix, `${prefix}\uffff`) : undefined;
+        const req = range ? store.getAllKeys(range) : store.getAllKeys();
         req.onsuccess = () => {
           const keys = req.result.filter((k): k is string => typeof k === "string");
           resolve(prefix ? keys.filter((k) => k.startsWith(prefix)) : keys);
@@ -122,6 +153,92 @@ export class IndexedDbStorage implements Storage {
       });
     } catch {
       return this.fallback.list(prefix);
+    }
+  }
+
+  async getMany<T = unknown>(keys: readonly string[]): Promise<(T | null)[]> {
+    if (keys.length === 0) return [];
+    try {
+      const db = await this.openDb();
+      return await new Promise<(T | null)[]>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readonly");
+        const store = tx.objectStore(STORE_NAME);
+        const out = new Array<T | null>(keys.length).fill(null);
+        tx.oncomplete = () => resolve(out);
+        tx.onerror = () => reject(tx.error ?? new Error("IndexedDB getMany failed"));
+        keys.forEach((k, idx) => {
+          const req = store.get(k);
+          req.onsuccess = () => {
+            out[idx] = (req.result as T | undefined) ?? null;
+          };
+        });
+      });
+    } catch {
+      return this.fallback.getMany<T>(keys);
+    }
+  }
+
+  async setMany(entries: readonly (readonly [string, unknown])[]): Promise<void> {
+    if (entries.length === 0) return;
+    try {
+      const db = await this.openDb();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        const store = tx.objectStore(STORE_NAME);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error ?? new Error("IndexedDB setMany failed"));
+        for (const [k, v] of entries) {
+          store.put(v, k);
+        }
+      });
+    } catch {
+      await this.fallback.setMany(entries);
+    }
+  }
+
+  async deleteMany(keys: readonly string[]): Promise<void> {
+    if (keys.length === 0) return;
+    try {
+      const db = await this.openDb();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        const store = tx.objectStore(STORE_NAME);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error ?? new Error("IndexedDB deleteMany failed"));
+        for (const k of keys) {
+          store.delete(k);
+        }
+      });
+    } catch {
+      await this.fallback.deleteMany(keys);
+    }
+  }
+
+  async getAllByPrefix<T = unknown>(prefix: string): Promise<[string, T][]> {
+    try {
+      const db = await this.openDb();
+      return await new Promise<[string, T][]>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readonly");
+        const store = tx.objectStore(STORE_NAME);
+        const range = IDBKeyRange.bound(prefix, `${prefix}\uffff`);
+        const keysReq = store.getAllKeys(range);
+        const valsReq = store.getAll(range);
+        tx.oncomplete = () => {
+          const keys = keysReq.result;
+          const vals = valsReq.result;
+          const out: [string, T][] = [];
+          for (let i = 0; i < keys.length; i++) {
+            const k = keys[i];
+            if (typeof k === "string" && k.startsWith(prefix)) {
+              out.push([k, vals[i] as T]);
+            }
+          }
+          resolve(out);
+        };
+        tx.onerror = () => reject(tx.error ?? new Error("IndexedDB getAllByPrefix failed"));
+      });
+    } catch {
+      return this.fallback.getAllByPrefix<T>(prefix);
     }
   }
 }
@@ -263,7 +380,18 @@ export async function migrateLegacyLocalStorage(
     return report;
   }
 
+  const bootProtectedLegacyKeys = new Set(["ttp:theme:v1", "ttp:uiprefs:v1"]);
+  let hasBootPrefs = false;
+  try {
+    hasBootPrefs = local.getItem("ttp:boot:v1") !== null;
+  } catch {
+    hasBootPrefs = false;
+  }
+
   for (const { key } of keysPresent) {
+    if (bootProtectedLegacyKeys.has(key) && !hasBootPrefs) {
+      continue;
+    }
     try {
       local.removeItem(key);
       report.removed.push(key);

@@ -13,6 +13,8 @@ interface Props {
   layout?: KeyboardLayoutId | undefined;
   standard?: KeyboardStandard | undefined;
   showFingerZones?: boolean | undefined;
+  lockedKeys?: ReadonlySet<string> | undefined;
+  focusKey?: string | null | undefined;
 }
 
 const SHORT_LABELS: Record<string, string> = {
@@ -42,6 +44,8 @@ export function Keyboard({
   layout = "qwerty",
   standard = "ansi",
   showFingerZones = true,
+  lockedKeys,
+  focusKey = null,
 }: Props) {
   const rows = getKeyboardRows(layout, standard);
   const targetLookup = keyFor(nextChar, layout, standard);
@@ -61,7 +65,7 @@ export function Keyboard({
           (showFingerZones && targetLookup.finger)) ? (
           <div className="mb-1 flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-muted-foreground">
             {targetLookup.unmapped ? (
-              <span className="rounded bg-accent/15 px-2 py-0.5 font-mono font-semibold text-accent-foreground">
+              <span className="rounded bg-accent/15 px-2 py-0.5 font-mono font-semibold text-foreground">
                 Not on {layout.toUpperCase()} layout: &ldquo;{nextChar}&rdquo;
               </span>
             ) : (
@@ -85,6 +89,11 @@ export function Keyboard({
               const isShiftKey = cell.id === "Shift-L" || cell.id === "Shift-R";
               const isTarget = cell.id === targetLookup.keyId || (targetLookup.shift && isShiftKey);
               const isPressed = !isTarget && cell.id === pressedLookup.keyId;
+              const baseLower = cell.base.toLowerCase();
+              const isAlpha = !cell.isModifier && /^[a-z]$/.test(baseLower);
+              const isLocked = Boolean(isAlpha && lockedKeys?.has(baseLower));
+              const isFocus = Boolean(isAlpha && focusKey && baseLower === focusKey.toLowerCase());
+              const learnState = isLocked ? "locked" : isFocus ? "focus" : undefined;
               const displayLabel =
                 cell.id === "Space" ? "" : cell.id === "EnterTop" ? "⏎" : cell.base;
               const shortLabel = SHORT_LABELS[displayLabel];
@@ -97,6 +106,7 @@ export function Keyboard({
                   }
                   data-finger={showFingerZones && !cell.isModifier ? cell.finger : undefined}
                   data-home={cell.home ? "true" : undefined}
+                  data-learn={learnState}
                   className={`keycap relative flex h-8 min-w-0 items-center justify-center px-0.5 font-mono text-[10px] sm:h-11 sm:px-1 sm:text-xs ${
                     cell.width ?? "flex-1"
                   }`}

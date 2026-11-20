@@ -43,9 +43,9 @@ interface Props {
   onSelectAccent: (accent: ThemeAccent) => void;
   onToggleDyslexiaFont: () => void;
   onRestart: () => void;
+  onRepeatSameText?: (() => void) | undefined;
   onModeChange: (m: AppMode) => void;
   onOpenSettingsTab: (tab: SettingsTabId) => void;
-  onExportAllData: () => void;
   onPracticeMissedWords?: (() => void) | undefined;
   onPracticeWeakKeys?: (() => void) | undefined;
   onPracticeSlowKeys?: (() => void) | undefined;
@@ -74,9 +74,9 @@ export function CommandPalette({
   onSelectAccent,
   onToggleDyslexiaFont,
   onRestart,
+  onRepeatSameText,
   onModeChange,
   onOpenSettingsTab,
-  onExportAllData,
   onPracticeMissedWords,
   onPracticeWeakKeys,
   onPracticeSlowKeys,
@@ -107,11 +107,20 @@ export function CommandPalette({
         <CommandEmpty>No matching command.</CommandEmpty>
         <CommandGroup heading="Workspace">
           <CommandItem
-            value="mode timed drill typing test"
+            value="mode practice timed drill typing test"
             onSelect={() => run(() => onModeChange("drill"))}
           >
-            <span>Timed Drill Mode</span>
+            <span>Practice Mode</span>
             {mode === "drill" ? (
+              <span className="ml-auto text-xs text-muted-foreground">current</span>
+            ) : null}
+          </CommandItem>
+          <CommandItem
+            value="mode learn touch typing lessons letters alphabet"
+            onSelect={() => run(() => onModeChange("learn"))}
+          >
+            <span>Learn Mode (Touch Typing)</span>
+            {mode === "learn" ? (
               <span className="ml-auto text-xs text-muted-foreground">current</span>
             ) : null}
           </CommandItem>
@@ -121,6 +130,15 @@ export function CommandPalette({
           >
             <span>Word Shooter Arcade</span>
             {mode === "shooter" ? (
+              <span className="ml-auto text-xs text-muted-foreground">current</span>
+            ) : null}
+          </CommandItem>
+          <CommandItem
+            value="mode stats progress analytics history heatmap calendar"
+            onSelect={() => run(() => onModeChange("stats"))}
+          >
+            <span>Stats &amp; Progress</span>
+            {mode === "stats" ? (
               <span className="ml-auto text-xs text-muted-foreground">current</span>
             ) : null}
           </CommandItem>
@@ -206,6 +224,15 @@ export function CommandPalette({
           <CommandItem value="restart test drill" onSelect={() => run(onRestart)}>
             Restart current drill
           </CommandItem>
+          {onRepeatSameText ? (
+            <CommandItem
+              value="repeat same text passage again"
+              onSelect={() => run(onRepeatSameText)}
+            >
+              <span>Repeat this text</span>
+              <span className="ml-auto font-mono text-xs text-muted-foreground">Shift+Enter</span>
+            </CommandItem>
+          ) : null}
           {onPracticeMissedWords ? (
             <CommandItem
               value="practice missed problem words"
@@ -238,14 +265,11 @@ export function CommandPalette({
               Manage custom practice lists
             </CommandItem>
           ) : null}
-          <CommandItem value="export full backup json data" onSelect={() => run(onExportAllData)}>
-            Export full backup (JSON)
-          </CommandItem>
           <CommandItem
-            value="delete all my data privacy clear"
+            value="export full backup import json delete all my data privacy settings"
             onSelect={() => run(() => onOpenSettingsTab("data"))}
           >
-            Delete all my data…
+            Manage data, backups &amp; privacy…
           </CommandItem>
         </CommandGroup>
       </CommandList>

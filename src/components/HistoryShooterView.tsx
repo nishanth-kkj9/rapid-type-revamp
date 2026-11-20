@@ -144,10 +144,10 @@ export function HistoryShooterView({
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
             <div className="rounded-xl border border-border/70 bg-card p-3">
               <div className="flex items-center gap-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                <Trophy className="size-3 text-amber-500" />
+                <Trophy className="size-3 text-primary" />
                 High Score
               </div>
-              <div className="font-mono text-2xl font-bold tabular-nums text-amber-500">
+              <div className="font-mono text-2xl font-bold tabular-nums text-primary">
                 {highScore.toLocaleString()}
               </div>
             </div>
@@ -229,7 +229,7 @@ export function HistoryShooterView({
                         ) : null}
                       </span>
                       <span className="shrink-0 font-mono text-xs tabular-nums sm:text-sm">
-                        <strong className="font-semibold text-amber-500">
+                        <strong className="font-semibold text-primary">
                           {score.toLocaleString()}
                         </strong>{" "}
                         pts · <span className="text-foreground">{words} words</span> ·{" "}

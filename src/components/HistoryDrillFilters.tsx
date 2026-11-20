@@ -9,6 +9,7 @@ export const TEST_TYPE_FILTERS = [
   { id: "50w", label: "50 words" },
   { id: "100w", label: "100 words" },
   { id: "quote", label: "Quote" },
+  { id: "learn", label: "Learn" },
 ] as const;
 
 export const DIFFICULTIES = ["all", "easy", "medium", "hard"] as const;

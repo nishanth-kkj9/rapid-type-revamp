@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "./zodSetup";
 import type { Storage } from "./storage";
 
 export const CUSTOM_TEXTS_KEY = "ttp:custom-texts:v1";
@@ -68,7 +68,7 @@ export function normalizeCustomText(raw: string): NormalizeResult {
   let replacedNonAscii = false;
   let strippedUnsupported = false;
 
-  // Replace smart quotes, long dashes, ellipsis, and special spaces first
+  // Replace curly quotes, long dashes, ellipsis, and special spaces first
   let working = "";
   for (const ch of raw) {
     const mapped = CHAR_REPLACEMENTS[ch];
@@ -103,7 +103,7 @@ export function normalizeCustomText(raw: string): NormalizeResult {
 
   const warnings: string[] = [];
   if (replacedNonAscii) {
-    warnings.push("Smart quotes, dashes, or accented characters were converted to standard ASCII.");
+    warnings.push("Curly quotes, dashes, or accented characters were converted to standard ASCII.");
   }
   if (strippedUnsupported) {
     warnings.push("Unsupported non-ASCII symbols were removed so every character is typeable.");

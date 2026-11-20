@@ -5,7 +5,7 @@ import {
   typingSessionReducer,
   type TypingSessionState,
 } from "@/lib/typingSession";
-import type { DrillMode } from "@/lib/drillSettings";
+import type { DrillMode, StrictMode } from "@/lib/drillSettings";
 import type { RunStats } from "@/lib/typingStats";
 
 export interface UseTypingSessionOptions {
@@ -13,6 +13,7 @@ export interface UseTypingSessionOptions {
   initialQuoteAuthor?: string | null;
   drillMode: DrillMode;
   durationSec: number;
+  strictMode?: StrictMode;
   /** Called lazily when Time mode needs more passage text appended. */
   getAppendText?: () => string;
   /** Called once whenever a session transitions to "finished". */
@@ -24,6 +25,7 @@ export function useTypingSession({
   initialQuoteAuthor = null,
   drillMode,
   durationSec,
+  strictMode = "off",
   getAppendText,
   onRunFinished,
 }: UseTypingSessionOptions) {
@@ -34,6 +36,7 @@ export function useTypingSession({
       quoteAuthor: initialQuoteAuthor,
       drillMode,
       durationSec,
+      strictMode,
     },
     createInitialSessionState,
   );
@@ -118,6 +121,8 @@ export function useTypingSession({
       quoteAuthor?: string | null;
       drillMode: DrillMode;
       durationSec: number;
+      strictMode?: StrictMode;
+      isRepeated?: boolean;
       keepMissedWords?: boolean;
     }) => {
       dispatch({
@@ -126,6 +131,8 @@ export function useTypingSession({
         quoteAuthor: opts.quoteAuthor,
         drillMode: opts.drillMode,
         durationSec: opts.durationSec,
+        strictMode: opts.strictMode,
+        isRepeated: opts.isRepeated,
         keepMissedWords: opts.keepMissedWords,
       });
     },

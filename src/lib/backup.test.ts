@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MemoryStorage } from "./storage";
 import { exportAllAppDataFromStorage, importAllAppDataToStorage, clearAllAppData } from "./backup";
 import {
+  MAX_IMPORT_RUNS,
   saveRunToStorage,
   loadBestSamplesFromStorage,
   saveBestSamplesToStorage,
@@ -17,6 +18,7 @@ import { saveDrillSettingsToStorage } from "./drillSettings";
 import { saveShooterSettingsToStorage } from "./shooterSettings";
 import { saveThemeToStorage } from "./useTheme";
 import { hydrateAppFromStorage } from "./appHydration";
+import { saveLearnToStorage } from "./learn";
 
 const sampleEntry: HistoryEntry = {
   id: "run-backup-1",
@@ -102,6 +104,13 @@ describe("Backup v2 & full deletion", () => {
     });
     await saveThemeToStorage(storage, "light");
     await saveBestSamplesToStorage(storage, "25w", [12, 24, 38], "hard");
+    await saveLearnToStorage(storage, {
+      unlocked: ["e", "t", "a", "o", "i", "n", "s"],
+      perKey: { s: { emaMs: 250, hits: 32, errors: 1, recentAcc: 0.96 } },
+      targetWpm: 45,
+      lessons: 6,
+      updatedAt: 1730000002000,
+    });
 
     // 1. Export everything
     const exported = await exportAllAppDataFromStorage(storage);
@@ -116,6 +125,8 @@ describe("Backup v2 & full deletion", () => {
     expect(exported.customTexts[0]?.name).toBe("Warmup");
     expect(exported.drillSettings.targetWpm).toBe(85);
     expect(exported.shooterBest).toBe(4200);
+    expect(exported.learn?.unlocked).toEqual(["e", "t", "a", "o", "i", "n", "s"]);
+    expect(exported.learn?.targetWpm).toBe(45);
 
     const backupJson = JSON.stringify(exported);
 
@@ -134,6 +145,8 @@ describe("Backup v2 & full deletion", () => {
     expect(rehydratedEmpty.allTimeSpeed).toEqual({});
     expect(rehydratedEmpty.daily).toBeNull();
     expect(rehydratedEmpty.shooterBest).toBe(0);
+    expect(rehydratedEmpty.learn.unlocked).toEqual(["e", "t", "a", "o", "i", "n"]);
+    expect(rehydratedEmpty.learn.lessons).toBe(0);
     expect(await loadBestSamplesFromStorage(storage, "25w", "hard")).toBeUndefined();
 
     // 3. Import backup -> restores everything
@@ -156,7 +169,51 @@ describe("Backup v2 & full deletion", () => {
     expect(restoredRes.state.shooterSettings.startingLives).toBe(5);
     expect(restoredRes.state.theme).toBe("light");
     expect(restoredRes.state.shooterBest).toBe(4200);
+    expect(restoredRes.state.learn.unlocked).toEqual(["e", "t", "a", "o", "i", "n", "s"]);
+    expect(restoredRes.state.learn.targetWpm).toBe(45);
     expect(await loadBestSamplesFromStorage(storage, "25w", "hard")).toEqual([12, 24, 38]);
+  });
+
+  it("imports 12,000 runs cleanly and rejects >20,000 runs with too-many-runs", async () => {
+    const storage = new MemoryStorage();
+    const makeRuns = (count: number) =>
+      Array.from({ length: count }, (_, i) => ({
+        ...sampleEntry,
+        id: `bulk-${i}`,
+        date: 1730000000000 + i,
+      }));
+
+    const valid12k = JSON.stringify({
+      schemaVersion: 2,
+      exportedAt: 1730000000000,
+      history: makeRuns(12000),
+    });
+    const ok12k = await importAllAppDataToStorage(storage, valid12k);
+    expect(ok12k.ok).toBe(true);
+    if (ok12k.ok) {
+      expect(ok12k.scope).toBe("full");
+      expect(ok12k.state.history).toHaveLength(12000);
+    }
+
+    const overV2 = JSON.stringify({
+      schemaVersion: 2,
+      exportedAt: 1730000000000,
+      history: makeRuns(MAX_IMPORT_RUNS + 1),
+    });
+    expect(await importAllAppDataToStorage(storage, overV2)).toEqual({
+      ok: false,
+      reason: "too-many-runs",
+    });
+
+    const overV1 = JSON.stringify({
+      schemaVersion: 1,
+      exportedAt: 1730000000000,
+      entries: makeRuns(MAX_IMPORT_RUNS + 1),
+    });
+    expect(await importAllAppDataToStorage(storage, overV1)).toEqual({
+      ok: false,
+      reason: "too-many-runs",
+    });
   });
 
   it("remains compatible with schemaVersion 1 history exports and rejects corrupted data", async () => {

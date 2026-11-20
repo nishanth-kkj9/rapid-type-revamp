@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "./zodSetup";
 import type { KeyboardLayoutId, KeyboardStandard } from "@/lib/keyboardLayout";
 import type { Difficulty, TextStyle } from "@/lib/sentenceGenerator";
 import type { Storage } from "./storage";
@@ -6,12 +6,21 @@ import type { Storage } from "./storage";
 export type CaretStyle = "smooth" | "block" | "bar" | "underline";
 export type DrillSound = "off" | "click" | "beep";
 export type DrillMode = "time" | "words" | "quote";
-export type WordCountOption = 10 | 25 | 50 | 100;
+export type WordCountOption = number;
 export type QuoteLengthOption = "short" | "medium" | "long";
+export type StrictMode = "off" | "letter" | "word";
+export type QuickRestartKey = "esc" | "tab" | "enter" | "off";
+export type PaceCaretMode = "off" | "pb";
+
+export const CUSTOM_DURATION_MIN = 5;
+export const CUSTOM_DURATION_MAX = 600;
+export const CUSTOM_DURATION_STEP = 5;
+export const CUSTOM_WORD_MIN = 5;
+export const CUSTOM_WORD_MAX = 500;
 
 export interface DrillSettings {
   difficulty: Difficulty;
-  duration: number; // 15, 30, 60, 120
+  duration: number; // 5..600 step 5 (presets: 15, 30, 60, 120)
   sound: DrillSound;
   caretStyle: CaretStyle;
   targetWpm: number; // e.g. 60
@@ -21,7 +30,9 @@ export interface DrillSettings {
   drillMode?: DrillMode | undefined;
   wordCount?: WordCountOption | undefined;
   quoteLength?: QuoteLengthOption | undefined;
-  tabToRestart?: boolean | undefined;
+  quickRestart?: QuickRestartKey | undefined;
+  strictMode?: StrictMode | undefined;
+  paceCaret?: PaceCaretMode | undefined;
   textStyle?: TextStyle | undefined;
   includePunctuation?: boolean | undefined;
   includeNumbers?: boolean | undefined;
@@ -44,19 +55,73 @@ export const DEFAULT_DRILL_SETTINGS: DrillSettings = {
 };
 
 export const DRILL_SETTINGS_KEY = "ttp:drill:settings:v1";
-const LEGACY_DIFF_KEY = "ttp:drill:diff:v1";
 
 export const DRILL_DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
 export const DRILL_DURATIONS = [15, 30, 60, 120] as const;
-export const DRILL_WORD_COUNTS: WordCountOption[] = [10, 25, 50, 100];
+export const DRILL_WORD_COUNTS = [10, 25, 50, 100] as const;
 export const DRILL_QUOTE_LENGTHS: QuoteLengthOption[] = ["short", "medium", "long"];
+export const STRICT_MODES: { id: StrictMode; label: string; description: string }[] = [
+  { id: "off", label: "Off", description: "Type freely through errors" },
+  { id: "letter", label: "Letter", description: "Caret stays on wrong letters" },
+  { id: "word", label: "Word", description: "Space blocked until word is fixed" },
+];
+export const QUICK_RESTART_LABELS: Record<QuickRestartKey, string> = {
+  esc: "Esc",
+  tab: "Tab",
+  enter: "Enter",
+  off: "Off",
+};
+export const QUICK_RESTART_OPTIONS: { id: QuickRestartKey; label: string }[] = [
+  { id: "esc", label: "Esc" },
+  { id: "tab", label: "Tab" },
+  { id: "enter", label: "Enter" },
+  { id: "off", label: "Off" },
+];
+export const PACE_CARET_OPTIONS: { id: PaceCaretMode; label: string }[] = [
+  { id: "off", label: "Off" },
+  { id: "pb", label: "Personal Best" },
+];
 
-const VALID_DURATIONS = new Set<number>(DRILL_DURATIONS);
-const VALID_WORD_COUNTS = new Set<number>(DRILL_WORD_COUNTS);
+export function isValidDuration(val: unknown): val is number {
+  return (
+    typeof val === "number" &&
+    Number.isInteger(val) &&
+    val >= CUSTOM_DURATION_MIN &&
+    val <= CUSTOM_DURATION_MAX &&
+    val % CUSTOM_DURATION_STEP === 0
+  );
+}
+
+export function clampCustomDuration(val: number): number {
+  if (!Number.isFinite(val)) return DEFAULT_DRILL_SETTINGS.duration;
+  const clamped = Math.min(CUSTOM_DURATION_MAX, Math.max(CUSTOM_DURATION_MIN, Math.round(val)));
+  const stepped = Math.round(clamped / CUSTOM_DURATION_STEP) * CUSTOM_DURATION_STEP;
+  return Math.min(CUSTOM_DURATION_MAX, Math.max(CUSTOM_DURATION_MIN, stepped));
+}
+
+export function isValidWordCount(val: unknown): val is number {
+  return (
+    typeof val === "number" &&
+    Number.isInteger(val) &&
+    val >= CUSTOM_WORD_MIN &&
+    val <= CUSTOM_WORD_MAX
+  );
+}
+
+export function clampCustomWordCount(val: number): number {
+  if (!Number.isFinite(val)) return 25;
+  return Math.min(CUSTOM_WORD_MAX, Math.max(CUSTOM_WORD_MIN, Math.round(val)));
+}
 
 export const DrillSettingsSchema = z.object({
   difficulty: z.enum(["easy", "medium", "hard"]).optional(),
-  duration: z.number().optional(),
+  duration: z
+    .number()
+    .int()
+    .min(CUSTOM_DURATION_MIN)
+    .max(CUSTOM_DURATION_MAX)
+    .refine((n) => n % CUSTOM_DURATION_STEP === 0)
+    .optional(),
   sound: z.enum(["off", "click", "beep"]).optional(),
   caretStyle: z.enum(["smooth", "block", "bar", "underline"]).optional(),
   targetWpm: z.number().finite().optional(),
@@ -64,9 +129,11 @@ export const DrillSettingsSchema = z.object({
   showKeyboard: z.boolean().optional(),
   focusWeakKeys: z.boolean().optional(),
   drillMode: z.enum(["time", "words", "quote"]).optional(),
-  wordCount: z.number().optional(),
+  wordCount: z.number().int().min(CUSTOM_WORD_MIN).max(CUSTOM_WORD_MAX).optional(),
   quoteLength: z.enum(["short", "medium", "long"]).optional(),
-  tabToRestart: z.boolean().optional(),
+  quickRestart: z.enum(["esc", "tab", "enter", "off"]).optional(),
+  strictMode: z.enum(["off", "letter", "word"]).optional(),
+  paceCaret: z.enum(["off", "pb"]).optional(),
   textStyle: z.enum(["words", "sentences"]).optional(),
   includePunctuation: z.boolean().optional(),
   includeNumbers: z.boolean().optional(),
@@ -89,8 +156,16 @@ export function getQuoteLength(settings: DrillSettings): QuoteLengthOption {
   return settings.quoteLength ?? "medium";
 }
 
-export function getTabToRestart(settings: DrillSettings): boolean {
-  return settings.tabToRestart ?? false;
+export function getQuickRestart(settings: DrillSettings): QuickRestartKey {
+  return settings.quickRestart ?? "esc";
+}
+
+export function getStrictMode(settings: DrillSettings): StrictMode {
+  return settings.strictMode ?? "off";
+}
+
+export function getPaceCaret(settings: DrillSettings): PaceCaretMode {
+  return settings.paceCaret ?? "off";
 }
 
 export function getKeyboardLayout(settings: DrillSettings): KeyboardLayoutId {
@@ -143,10 +218,7 @@ export function sanitizeDrillSettings(raw: unknown): DrillSettings {
 
   const result: DrillSettings = {
     difficulty: diffCheck.success ? diffCheck.data : DEFAULT_DRILL_SETTINGS.difficulty,
-    duration:
-      typeof durVal === "number" && VALID_DURATIONS.has(durVal)
-        ? durVal
-        : DEFAULT_DRILL_SETTINGS.duration,
+    duration: isValidDuration(durVal) ? durVal : DEFAULT_DRILL_SETTINGS.duration,
     sound: soundCheck.success ? soundCheck.data : DEFAULT_DRILL_SETTINGS.sound,
     caretStyle: caretCheck.success ? caretCheck.data : DEFAULT_DRILL_SETTINGS.caretStyle,
     targetWpm:
@@ -173,8 +245,8 @@ export function sanitizeDrillSettings(raw: unknown): DrillSettings {
   }
 
   const wcVal = record["wordCount"];
-  if (typeof wcVal === "number" && VALID_WORD_COUNTS.has(wcVal)) {
-    result.wordCount = wcVal as WordCountOption;
+  if (isValidWordCount(wcVal)) {
+    result.wordCount = wcVal;
   }
 
   const qlCheck = z.enum(["short", "medium", "long"]).safeParse(record["quoteLength"]);
@@ -182,8 +254,21 @@ export function sanitizeDrillSettings(raw: unknown): DrillSettings {
     result.quoteLength = qlCheck.data;
   }
 
-  if (typeof record["tabToRestart"] === "boolean") {
-    result.tabToRestart = record["tabToRestart"];
+  const qrCheck = z.enum(["esc", "tab", "enter", "off"]).safeParse(record["quickRestart"]);
+  if (qrCheck.success) {
+    result.quickRestart = qrCheck.data;
+  } else if (typeof record["tabToRestart"] === "boolean") {
+    result.quickRestart = record["tabToRestart"] ? "tab" : "esc";
+  }
+
+  const strictCheck = z.enum(["off", "letter", "word"]).safeParse(record["strictMode"]);
+  if (strictCheck.success) {
+    result.strictMode = strictCheck.data;
+  }
+
+  const paceCheck = z.enum(["off", "pb"]).safeParse(record["paceCaret"]);
+  if (paceCheck.success) {
+    result.paceCaret = paceCheck.data;
   }
 
   const tsCheck = z.enum(["words", "sentences"]).safeParse(record["textStyle"]);
@@ -223,33 +308,6 @@ export function sanitizeDrillSettings(raw: unknown): DrillSettings {
   }
 
   return result;
-}
-
-export function loadDrillSettings(): DrillSettings {
-  if (typeof window === "undefined") return DEFAULT_DRILL_SETTINGS;
-  try {
-    const raw = localStorage.getItem(DRILL_SETTINGS_KEY);
-    if (!raw) {
-      const legacyDiff = localStorage.getItem(LEGACY_DIFF_KEY) as Difficulty | null;
-      if (legacyDiff && ["easy", "medium", "hard"].includes(legacyDiff)) {
-        return { ...DEFAULT_DRILL_SETTINGS, difficulty: legacyDiff };
-      }
-      return DEFAULT_DRILL_SETTINGS;
-    }
-    return sanitizeDrillSettings(JSON.parse(raw));
-  } catch {
-    return DEFAULT_DRILL_SETTINGS;
-  }
-}
-
-export function saveDrillSettings(settings: DrillSettings): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(DRILL_SETTINGS_KEY, JSON.stringify(settings));
-    localStorage.setItem(LEGACY_DIFF_KEY, settings.difficulty);
-  } catch {
-    // Ignore storage errors
-  }
 }
 
 export async function loadDrillSettingsFromStorage(storage: Storage): Promise<DrillSettings> {

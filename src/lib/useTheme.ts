@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import { z } from "zod";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { z } from "./zodSetup";
+import { writeBootPrefs } from "./bootPrefs";
 import { appStorage, type Storage } from "./storage";
 
 export type Theme = "dark" | "light" | "high-contrast";
@@ -75,9 +76,12 @@ export function getNextTheme(current: Theme): Theme {
 
 export function useTheme(initialTheme?: Theme) {
   const [theme, setTheme] = useState<Theme>(() => initialTheme ?? getPreferredSystemTheme());
+  const themeRef = useRef<Theme>(theme);
+  themeRef.current = theme;
 
   useEffect(() => {
     if (initialTheme) {
+      themeRef.current = initialTheme;
       setTheme(initialTheme);
       applyTheme(initialTheme);
       return;
@@ -85,8 +89,10 @@ export function useTheme(initialTheme?: Theme) {
     let cancelled = false;
     void loadThemeFromStorage(appStorage).then((loaded) => {
       if (cancelled) return;
+      themeRef.current = loaded;
       setTheme(loaded);
       applyTheme(loaded);
+      writeBootPrefs({ theme: loaded });
     });
     return () => {
       cancelled = true;
@@ -94,18 +100,20 @@ export function useTheme(initialTheme?: Theme) {
   }, [initialTheme]);
 
   const selectTheme = useCallback((next: Theme) => {
+    themeRef.current = next;
     setTheme(next);
     applyTheme(next);
+    writeBootPrefs({ theme: next });
     void saveThemeToStorage(appStorage, next);
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setTheme((prev) => {
-      const next = getNextTheme(prev);
-      applyTheme(next);
-      void saveThemeToStorage(appStorage, next);
-      return next;
-    });
+    const next = getNextTheme(themeRef.current);
+    themeRef.current = next;
+    setTheme(next);
+    applyTheme(next);
+    writeBootPrefs({ theme: next });
+    void saveThemeToStorage(appStorage, next);
   }, []);
 
   return { theme, selectTheme, toggleTheme };

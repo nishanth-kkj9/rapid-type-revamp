@@ -1,18 +1,19 @@
-// @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import {
   addDays,
-  DAILY_STORAGE_KEY,
   daysBetween,
   DEFAULT_DAILY_GOAL_CONFIG,
   getEffectiveDaily,
   getLocalDateString,
-  loadDaily,
+  loadDailyFromStorage,
   recordRunToday,
   sanitizeDailyState,
+  saveDailyToStorage,
   updateDailyGoalConfig,
+  DAILY_STORAGE_KEY,
   type DailyState,
 } from "./daily";
+import { MemoryStorage } from "./storage";
 
 const makeState = (over: Partial<DailyState> = {}): DailyState => ({
   lastDate: "2026-09-20",
@@ -216,7 +217,7 @@ describe("daily goal v2 & streak v2", () => {
     expect(asRuns.streak).toBe(1);
   });
 
-  it("migrates legacy v1 daily payloads and rejects corrupted/NaN payloads safely", () => {
+  it("migrates legacy v1 daily payloads and rejects corrupted/NaN payloads safely", async () => {
     const legacyIncomplete = sanitizeDailyState({
       lastDate: "2026-09-20",
       streak: 5,
@@ -230,19 +231,16 @@ describe("daily goal v2 & streak v2", () => {
     expect(legacyComplete?.streak).toBe(4);
     expect(legacyComplete?.goalMetToday).toBe(true);
 
-    localStorage.setItem(
-      DAILY_STORAGE_KEY,
-      JSON.stringify({ lastDate: "2026-09-21", streak: null, runsToday: 1 }),
-    );
-    expect(loadDaily()).toBeNull();
+    expect(sanitizeDailyState({ lastDate: "2026-09-21", streak: null, runsToday: 1 })).toBeNull();
+    expect(sanitizeDailyState({ lastDate: "2026-09-21", streak: 2.5, runsToday: 1 })).toBeNull();
+    expect(sanitizeDailyState({ lastDate: "2026-09-21", streak: -3, runsToday: 1 })).toBeNull();
+    expect(sanitizeDailyState({ lastDate: "not-a-date", streak: 2, runsToday: 1 })).toBeNull();
 
-    localStorage.setItem(DAILY_STORAGE_KEY, '{"lastDate":"2026-09-21","streak":2.5,"runsToday":1}');
-    expect(loadDaily()).toBeNull();
+    const storage = new MemoryStorage();
+    await saveDailyToStorage(storage, legacyComplete!);
+    expect(await loadDailyFromStorage(storage)).toEqual(legacyComplete);
 
-    localStorage.setItem(DAILY_STORAGE_KEY, '{"lastDate":"2026-09-21","streak":-3,"runsToday":1}');
-    expect(loadDaily()).toBeNull();
-
-    localStorage.setItem(DAILY_STORAGE_KEY, '{"lastDate":"not-a-date","streak":2,"runsToday":1}');
-    expect(loadDaily()).toBeNull();
+    await storage.set(DAILY_STORAGE_KEY, { lastDate: "not-a-date", streak: 2, runsToday: 1 });
+    expect(await loadDailyFromStorage(storage)).toBeNull();
   });
 });

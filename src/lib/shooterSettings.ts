@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "./zodSetup";
 import type { Difficulty } from "@/lib/sentenceGenerator";
 import type { Storage } from "./storage";
 
@@ -68,26 +68,6 @@ export function sanitizeShooterSettings(raw: unknown): ShooterSettings {
         ? record["dailyChallenge"]
         : DEFAULT_SHOOTER_SETTINGS.dailyChallenge,
   };
-}
-
-export function loadShooterSettings(): ShooterSettings {
-  if (typeof window === "undefined") return DEFAULT_SHOOTER_SETTINGS;
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return DEFAULT_SHOOTER_SETTINGS;
-    return sanitizeShooterSettings(JSON.parse(raw));
-  } catch {
-    return DEFAULT_SHOOTER_SETTINGS;
-  }
-}
-
-export function saveShooterSettings(settings: ShooterSettings): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-  } catch {
-    // Ignore quota or private browsing errors
-  }
 }
 
 export async function loadShooterSettingsFromStorage(storage: Storage): Promise<ShooterSettings> {

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "./zodSetup";
 import type { Storage } from "./storage";
 
 /**
@@ -56,48 +56,6 @@ export function applyDyslexiaFont(enabled: boolean): void {
     } else {
       delete document.documentElement.dataset["font"];
     }
-  }
-}
-
-export function loadUiPrefs(): UiPrefs {
-  if (typeof window === "undefined") return { ...DEFAULT_UI_PREFS };
-  try {
-    const raw = localStorage.getItem(UI_PREFS_KEY);
-    if (!raw) return { ...DEFAULT_UI_PREFS };
-    return sanitizeUiPrefs(JSON.parse(raw));
-  } catch {
-    return { ...DEFAULT_UI_PREFS };
-  }
-}
-
-export function saveUiPrefs(patch: Partial<UiPrefs>): UiPrefs {
-  const current = loadUiPrefs();
-  const next: UiPrefs = sanitizeUiPrefs({
-    ...current,
-    ...patch,
-  });
-  if (patch.themeAccent) {
-    applyThemeAccent(next.themeAccent);
-  }
-  if (typeof patch.dyslexiaFont === "boolean") {
-    applyDyslexiaFont(next.dyslexiaFont);
-  }
-  if (typeof window !== "undefined") {
-    try {
-      localStorage.setItem(UI_PREFS_KEY, JSON.stringify(next));
-    } catch {
-      // quota-safe silent fallback
-    }
-  }
-  return next;
-}
-
-export function clearUiPrefs(): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.removeItem(UI_PREFS_KEY);
-  } catch {
-    // ignore
   }
 }
 

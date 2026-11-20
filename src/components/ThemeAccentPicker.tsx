@@ -35,7 +35,7 @@ export function ThemeAccentPicker({ accent, onSelectAccent, className = "" }: Pr
               aria-label={`Accent color ${item.label}`}
               title={`Accent: ${item.label}`}
               onClick={() => onSelectAccent(item.id)}
-              className="flex size-7 cursor-pointer items-center justify-center rounded-full transition-transform hover:scale-110"
+              className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-full transition-transform hover:scale-110 sm:size-7 sm:min-h-7 sm:min-w-7"
             >
               <span
                 aria-hidden="true"

@@ -25,6 +25,7 @@ export type { DrillRunCommitPayload };
 
 export interface DrillScreenHandle {
   restart: (overrideSettings?: DrillSettings) => void;
+  repeatSameText: () => void;
   focusInput: () => void;
   practiceWeakKeys: () => void;
   practiceSlowKeys: () => void;
@@ -43,7 +44,6 @@ interface DrillScreenProps {
   onUpdateDrillSettings: (patch: Partial<DrillSettings>) => void;
   onOpenCustomText: () => void;
   onCommitRun: (payload: DrillRunCommitPayload) => void;
-  onSwitchToShooter: () => void;
   onOpenAchievements?: (() => void) | undefined;
   onFocusDimmedChange: (dimmed: boolean) => void;
 }
@@ -61,7 +61,6 @@ export const DrillScreen = forwardRef<DrillScreenHandle, DrillScreenProps>(funct
     onUpdateDrillSettings,
     onOpenCustomText,
     onCommitRun,
-    onSwitchToShooter,
     onOpenAchievements,
     onFocusDimmedChange,
   },
@@ -89,6 +88,7 @@ export const DrillScreen = forwardRef<DrillScreenHandle, DrillScreenProps>(funct
     ref,
     () => ({
       restart: (overrideSettings) => c.restartWithSettings(overrideSettings),
+      repeatSameText: c.repeatSameText,
       focusInput: c.focusInput,
       practiceWeakKeys: c.practiceWeakKeys,
       practiceSlowKeys: c.practiceSlowKeys,
@@ -116,14 +116,10 @@ export const DrillScreen = forwardRef<DrillScreenHandle, DrillScreenProps>(funct
         settled={c.elapsed > 1000}
         showLiveWpm={drillSettings.showLiveWpm}
         drillMode={c.drillMode}
-        duration={drillSettings.duration}
         remaining={c.remaining}
         wordCount={c.wordCount}
         typed={c.state.typed}
         textLength={c.state.text.length}
-        quoteAuthor={c.state.quoteAuthor}
-        samplesCount={c.state.samples.length}
-        previousBest={c.previousBest}
         progress={c.progress}
       />
       {drillSettings.showKeyboard && coarsePointer ? (
@@ -142,6 +138,8 @@ export const DrillScreen = forwardRef<DrillScreenHandle, DrillScreenProps>(funct
         text={c.state.text}
         typed={c.state.typed}
         caretStyle={drillSettings.caretStyle}
+        paceCaretIndex={c.paceCaretIndex}
+        strictRejectSeq={c.state.strictRejectSeq}
         drillMode={c.drillMode}
         quoteAuthor={c.state.quoteAuthor}
         finished={c.finished}
@@ -159,10 +157,10 @@ export const DrillScreen = forwardRef<DrillScreenHandle, DrillScreenProps>(funct
           againRef={c.againRef}
           result={c.resultData}
           onRestart={() => c.restartWithSettings()}
+          onRepeatSameText={c.repeatSameText}
           onPracticeWeakKeys={c.practiceWeakKeys}
           onPracticeSlowKeys={c.practiceSlowKeys}
           onPracticeMissedWords={c.practiceMissedWords}
-          onSwitchToShooter={onSwitchToShooter}
           onOpenAchievements={onOpenAchievements}
         />
       ) : null}

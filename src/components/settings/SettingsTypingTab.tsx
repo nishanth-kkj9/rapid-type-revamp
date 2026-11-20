@@ -1,12 +1,24 @@
-import { Sparkles, Target, Timer } from "lucide-react";
+import { Gauge, ShieldAlert, Sparkles, Target, Timer } from "lucide-react";
 import type { DailyGoalConfig, DailyState } from "@/lib/daily";
 import {
+  CUSTOM_DURATION_MAX,
+  CUSTOM_DURATION_MIN,
+  CUSTOM_DURATION_STEP,
+  CUSTOM_WORD_MAX,
+  CUSTOM_WORD_MIN,
   DRILL_DURATIONS,
   DRILL_QUOTE_LENGTHS,
   DRILL_WORD_COUNTS,
+  PACE_CARET_OPTIONS,
+  QUICK_RESTART_OPTIONS,
+  STRICT_MODES,
+  clampCustomDuration,
+  clampCustomWordCount,
   getDrillMode,
+  getPaceCaret,
+  getQuickRestart,
   getQuoteLength,
-  getTabToRestart,
+  getStrictMode,
   getWordCount,
   type CaretStyle,
   type DrillMode,
@@ -39,7 +51,9 @@ export function SettingsTypingTab({
   const drillMode = getDrillMode(drillSettings);
   const wordCount = getWordCount(drillSettings);
   const quoteLength = getQuoteLength(drillSettings);
-  const tabToRestart = getTabToRestart(drillSettings);
+  const quickRestart = getQuickRestart(drillSettings);
+  const strictMode = getStrictMode(drillSettings);
+  const paceCaret = getPaceCaret(drillSettings);
 
   return (
     <div className="space-y-6">
@@ -73,40 +87,85 @@ export function SettingsTypingTab({
         </div>
 
         {drillMode === "time" ? (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {DRILL_DURATIONS.map((sec) => (
-              <button
-                key={sec}
-                type="button"
-                aria-pressed={drillSettings.duration === sec}
-                onClick={() => onUpdateDrill({ duration: sec })}
-                className={`min-h-10 cursor-pointer rounded-lg border px-3 py-2 font-mono text-xs font-medium transition-colors ${
-                  drillSettings.duration === sec
-                    ? "border-accent bg-accent font-semibold text-accent-foreground"
-                    : "border-border bg-secondary text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {sec}s
-              </button>
-            ))}
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {DRILL_DURATIONS.map((sec) => (
+                <button
+                  key={sec}
+                  type="button"
+                  aria-pressed={drillSettings.duration === sec}
+                  onClick={() => onUpdateDrill({ duration: sec })}
+                  className={`min-h-10 cursor-pointer rounded-lg border px-3 py-2 font-mono text-xs font-medium transition-colors ${
+                    drillSettings.duration === sec
+                      ? "border-accent bg-accent font-semibold text-accent-foreground"
+                      : "border-border bg-secondary text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {sec}s
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-secondary/30 px-3 py-2">
+              <label htmlFor="settings-custom-duration" className="text-xs text-muted-foreground">
+                Custom duration ({CUSTOM_DURATION_MIN}–{CUSTOM_DURATION_MAX}s, step{" "}
+                {CUSTOM_DURATION_STEP}s)
+              </label>
+              <input
+                id="settings-custom-duration"
+                type="number"
+                min={CUSTOM_DURATION_MIN}
+                max={CUSTOM_DURATION_MAX}
+                step={CUSTOM_DURATION_STEP}
+                value={drillSettings.duration}
+                onChange={(e) => {
+                  const parsed = parseInt(e.target.value, 10);
+                  if (!Number.isNaN(parsed)) {
+                    onUpdateDrill({ duration: clampCustomDuration(parsed) });
+                  }
+                }}
+                className="w-24 rounded-md border border-border bg-background px-2.5 py-1 text-right font-mono text-xs tabular-nums text-foreground"
+              />
+            </div>
           </div>
         ) : drillMode === "words" ? (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {DRILL_WORD_COUNTS.map((cnt) => (
-              <button
-                key={cnt}
-                type="button"
-                aria-pressed={wordCount === cnt}
-                onClick={() => onUpdateDrill({ wordCount: cnt })}
-                className={`min-h-10 cursor-pointer rounded-lg border px-3 py-2 font-mono text-xs font-medium transition-colors ${
-                  wordCount === cnt
-                    ? "border-accent bg-accent font-semibold text-accent-foreground"
-                    : "border-border bg-secondary text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {cnt} words
-              </button>
-            ))}
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {DRILL_WORD_COUNTS.map((cnt) => (
+                <button
+                  key={cnt}
+                  type="button"
+                  aria-pressed={wordCount === cnt}
+                  onClick={() => onUpdateDrill({ wordCount: cnt })}
+                  className={`min-h-10 cursor-pointer rounded-lg border px-3 py-2 font-mono text-xs font-medium transition-colors ${
+                    wordCount === cnt
+                      ? "border-accent bg-accent font-semibold text-accent-foreground"
+                      : "border-border bg-secondary text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {cnt} words
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-secondary/30 px-3 py-2">
+              <label htmlFor="settings-custom-words" className="text-xs text-muted-foreground">
+                Custom word count ({CUSTOM_WORD_MIN}–{CUSTOM_WORD_MAX})
+              </label>
+              <input
+                id="settings-custom-words"
+                type="number"
+                min={CUSTOM_WORD_MIN}
+                max={CUSTOM_WORD_MAX}
+                step={1}
+                value={wordCount}
+                onChange={(e) => {
+                  const parsed = parseInt(e.target.value, 10);
+                  if (!Number.isNaN(parsed)) {
+                    onUpdateDrill({ wordCount: clampCustomWordCount(parsed) });
+                  }
+                }}
+                className="w-24 rounded-md border border-border bg-background px-2.5 py-1 text-right font-mono text-xs tabular-nums text-foreground"
+              />
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-2">
@@ -180,6 +239,36 @@ export function SettingsTypingTab({
       <div className="space-y-3 border-t border-border/60 pt-5">
         <div className="flex items-center justify-between">
           <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <ShieldAlert className="size-3.5 text-primary" />
+            Strict Error Discipline
+          </h3>
+          <span className="font-mono text-xs font-semibold capitalize text-primary">
+            {strictMode}
+          </span>
+        </div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {STRICT_MODES.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              aria-pressed={strictMode === m.id}
+              onClick={() => onUpdateDrill({ strictMode: m.id })}
+              className={`flex min-h-10 cursor-pointer flex-col items-start rounded-lg border px-3 py-2 text-left transition-colors ${
+                strictMode === m.id
+                  ? "border-primary bg-primary/15 text-foreground ring-1 ring-primary"
+                  : "border-border bg-secondary text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span className="text-xs font-semibold">{m.label}</span>
+              <span className="mt-0.5 text-[11px] opacity-80">{m.description}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3 border-t border-border/60 pt-5">
+        <div className="flex items-center justify-between">
+          <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             <Sparkles className="size-3.5 text-primary" />
             Caret Style
           </h3>
@@ -205,6 +294,35 @@ export function SettingsTypingTab({
             </button>
           ))}
         </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-secondary/40 p-3.5">
+          <div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+              <Gauge className="size-3.5 text-primary" />
+              Live Pace Caret
+            </div>
+            <div className="mt-0.5 text-xs text-muted-foreground">
+              Show a secondary pace marker tracking your personal best run in Time and Words drills
+            </div>
+          </div>
+          <div className="flex gap-1.5">
+            {PACE_CARET_OPTIONS.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                aria-pressed={paceCaret === opt.id}
+                onClick={() => onUpdateDrill({ paceCaret: opt.id })}
+                className={`min-h-9 cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  paceCaret === opt.id
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-secondary text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       <SettingsDailyGoalSection daily={daily} onUpdateDailyGoal={onUpdateDailyGoal} />
@@ -214,8 +332,8 @@ export function SettingsTypingTab({
           <div>
             <div className="text-xs font-semibold text-foreground">Live Metrics During Run</div>
             <div className="mt-0.5 text-xs text-muted-foreground">
-              Hide the live WPM, Accuracy, and Consistency stat cards while typing (full results are
-              still shown when the run finishes)
+              Show live WPM and accuracy in the compact strip above the passage while typing (full
+              results are always shown when the run finishes)
             </div>
           </div>
           <button
@@ -232,26 +350,31 @@ export function SettingsTypingTab({
           </button>
         </div>
 
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-secondary/40 p-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-secondary/40 p-3.5">
           <div>
-            <div className="text-xs font-semibold text-foreground">Tab Key Quick Restart</div>
+            <div className="text-xs font-semibold text-foreground">Quick Restart Key</div>
             <div className="mt-0.5 text-xs text-muted-foreground">
-              Restart immediately with Tab instead of moving focus (Esc always restarts; keep off
-              for standard keyboard navigation)
+              Hotkey to reset the active drill (runs over 10s or 50% require a second tap within
+              1.5s)
             </div>
           </div>
-          <button
-            type="button"
-            aria-pressed={tabToRestart}
-            onClick={() => onUpdateDrill({ tabToRestart: !tabToRestart })}
-            className={`min-h-10 shrink-0 cursor-pointer rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-              tabToRestart
-                ? "bg-primary text-primary-foreground"
-                : "border border-border bg-secondary text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tabToRestart ? "Enabled" : "Disabled"}
-          </button>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Quick restart key">
+            {QUICK_RESTART_OPTIONS.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                aria-pressed={quickRestart === opt.id}
+                onClick={() => onUpdateDrill({ quickRestart: opt.id })}
+                className={`min-h-9 cursor-pointer rounded-lg border px-3 py-1.5 font-mono text-xs font-semibold transition-colors ${
+                  quickRestart === opt.id
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-secondary text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

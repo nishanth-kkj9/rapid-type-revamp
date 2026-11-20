@@ -1,23 +1,22 @@
-// @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   DEFAULT_DRILL_SETTINGS,
-  loadDrillSettings,
-  saveDrillSettings,
   DRILL_SETTINGS_KEY,
+  loadDrillSettingsFromStorage,
+  sanitizeDrillSettings,
+  saveDrillSettingsToStorage,
   type DrillSettings,
 } from "./drillSettings";
+import { MemoryStorage } from "./storage";
 
 describe("drillSettings", () => {
-  beforeEach(() => {
-    localStorage.clear();
+  it("returns default settings when storage is empty", async () => {
+    const storage = new MemoryStorage();
+    expect(await loadDrillSettingsFromStorage(storage)).toEqual(DEFAULT_DRILL_SETTINGS);
   });
 
-  it("returns default settings when storage is empty", () => {
-    expect(loadDrillSettings()).toEqual(DEFAULT_DRILL_SETTINGS);
-  });
-
-  it("saves and loads custom drill settings", () => {
+  it("saves and loads custom drill settings", async () => {
+    const storage = new MemoryStorage();
     const custom: DrillSettings = {
       difficulty: "hard",
       duration: 60,
@@ -28,24 +27,22 @@ describe("drillSettings", () => {
       showKeyboard: false,
       focusWeakKeys: false,
     };
-    saveDrillSettings(custom);
-    expect(loadDrillSettings()).toEqual(custom);
+    await saveDrillSettingsToStorage(storage, custom);
+    expect(await loadDrillSettingsFromStorage(storage)).toEqual(custom);
   });
 
-  it("sanitizes invalid or corrupted values", () => {
-    localStorage.setItem(
-      DRILL_SETTINGS_KEY,
-      JSON.stringify({
-        difficulty: "impossible",
-        duration: 999,
-        sound: "loud",
-        caretStyle: "invisible",
-        targetWpm: 9999,
-        showLiveWpm: "yes",
-        showKeyboard: "hidden",
-      }),
-    );
-    const loaded = loadDrillSettings();
+  it("sanitizes invalid or corrupted values", async () => {
+    const storage = new MemoryStorage();
+    await storage.set(DRILL_SETTINGS_KEY, {
+      difficulty: "impossible",
+      duration: 999,
+      sound: "loud",
+      caretStyle: "invisible",
+      targetWpm: 9999,
+      showLiveWpm: "yes",
+      showKeyboard: "hidden",
+    });
+    const loaded = await loadDrillSettingsFromStorage(storage);
     expect(loaded.difficulty).toBe("medium");
     expect(loaded.duration).toBe(30);
     expect(loaded.sound).toBe("click");
@@ -56,43 +53,83 @@ describe("drillSettings", () => {
     expect(loaded.focusWeakKeys).toBe(false);
   });
 
-  it("persists the showKeyboard toggle", () => {
-    saveDrillSettings({ ...DEFAULT_DRILL_SETTINGS, showKeyboard: false });
-    expect(loadDrillSettings().showKeyboard).toBe(false);
+  it("persists the showKeyboard toggle", async () => {
+    const storage = new MemoryStorage();
+    await saveDrillSettingsToStorage(storage, { ...DEFAULT_DRILL_SETTINGS, showKeyboard: false });
+    expect((await loadDrillSettingsFromStorage(storage)).showKeyboard).toBe(false);
 
-    localStorage.setItem(
-      DRILL_SETTINGS_KEY,
-      JSON.stringify({ ...DEFAULT_DRILL_SETTINGS, showKeyboard: "invalid" }),
-    );
-    expect(loadDrillSettings().showKeyboard).toBe(true);
+    expect(
+      sanitizeDrillSettings({ ...DEFAULT_DRILL_SETTINGS, showKeyboard: "invalid" }).showKeyboard,
+    ).toBe(true);
   });
 
-  it("persists the focusWeakKeys toggle and sanitizes non-boolean values", () => {
-    saveDrillSettings({ ...DEFAULT_DRILL_SETTINGS, focusWeakKeys: true });
-    expect(loadDrillSettings().focusWeakKeys).toBe(true);
+  it("persists the focusWeakKeys toggle and sanitizes non-boolean values", async () => {
+    const storage = new MemoryStorage();
+    await saveDrillSettingsToStorage(storage, { ...DEFAULT_DRILL_SETTINGS, focusWeakKeys: true });
+    expect((await loadDrillSettingsFromStorage(storage)).focusWeakKeys).toBe(true);
 
-    localStorage.setItem(
-      DRILL_SETTINGS_KEY,
-      JSON.stringify({ ...DEFAULT_DRILL_SETTINGS, focusWeakKeys: "yes" }),
-    );
-    expect(loadDrillSettings().focusWeakKeys).toBe(false);
+    expect(
+      sanitizeDrillSettings({ ...DEFAULT_DRILL_SETTINGS, focusWeakKeys: "yes" }).focusWeakKeys,
+    ).toBe(false);
   });
 
-  it("persists the tabToRestart toggle and defaults to false", () => {
-    expect(loadDrillSettings().tabToRestart).toBeUndefined();
-    saveDrillSettings({ ...DEFAULT_DRILL_SETTINGS, tabToRestart: true });
-    expect(loadDrillSettings().tabToRestart).toBe(true);
+  it("validates custom durations (5-600s step 5) and word counts (5-500)", () => {
+    expect(sanitizeDrillSettings({ ...DEFAULT_DRILL_SETTINGS, duration: 45 }).duration).toBe(45);
+    expect(sanitizeDrillSettings({ ...DEFAULT_DRILL_SETTINGS, duration: 600 }).duration).toBe(600);
+    // Out-of-range or off-step durations fall back to default 30s
+    expect(sanitizeDrillSettings({ ...DEFAULT_DRILL_SETTINGS, duration: 12 }).duration).toBe(30);
+    expect(sanitizeDrillSettings({ ...DEFAULT_DRILL_SETTINGS, duration: 605 }).duration).toBe(30);
 
-    localStorage.setItem(
-      DRILL_SETTINGS_KEY,
-      JSON.stringify({ ...DEFAULT_DRILL_SETTINGS, tabToRestart: "yes" }),
+    expect(sanitizeDrillSettings({ ...DEFAULT_DRILL_SETTINGS, wordCount: 5 }).wordCount).toBe(5);
+    expect(sanitizeDrillSettings({ ...DEFAULT_DRILL_SETTINGS, wordCount: 75 }).wordCount).toBe(75);
+    expect(sanitizeDrillSettings({ ...DEFAULT_DRILL_SETTINGS, wordCount: 500 }).wordCount).toBe(
+      500,
     );
-    expect(loadDrillSettings().tabToRestart).toBeUndefined();
+    expect(
+      sanitizeDrillSettings({ ...DEFAULT_DRILL_SETTINGS, wordCount: 2 }).wordCount,
+    ).toBeUndefined();
+    expect(
+      sanitizeDrillSettings({ ...DEFAULT_DRILL_SETTINGS, wordCount: 501 }).wordCount,
+    ).toBeUndefined();
   });
 
-  it("falls back to legacy difficulty key if new key not present", () => {
-    localStorage.setItem("ttp:drill:diff:v1", "hard");
-    const loaded = loadDrillSettings();
-    expect(loaded.difficulty).toBe("hard");
+  it("persists strictMode and paceCaret and sanitizes invalid values", async () => {
+    const storage = new MemoryStorage();
+    await saveDrillSettingsToStorage(storage, {
+      ...DEFAULT_DRILL_SETTINGS,
+      strictMode: "word",
+      paceCaret: "pb",
+    });
+    const loaded = await loadDrillSettingsFromStorage(storage);
+    expect(loaded.strictMode).toBe("word");
+    expect(loaded.paceCaret).toBe("pb");
+
+    const sanitized = sanitizeDrillSettings({
+      ...DEFAULT_DRILL_SETTINGS,
+      strictMode: "super-strict",
+      paceCaret: "avg",
+    });
+    expect(sanitized.strictMode).toBeUndefined();
+    expect(sanitized.paceCaret).toBeUndefined();
+  });
+
+  it("persists quickRestart and migrates legacy tabToRestart booleans cleanly", async () => {
+    const storage = new MemoryStorage();
+    expect((await loadDrillSettingsFromStorage(storage)).quickRestart).toBeUndefined();
+    await saveDrillSettingsToStorage(storage, {
+      ...DEFAULT_DRILL_SETTINGS,
+      quickRestart: "enter",
+    });
+    expect((await loadDrillSettingsFromStorage(storage)).quickRestart).toBe("enter");
+
+    expect(
+      sanitizeDrillSettings({ ...DEFAULT_DRILL_SETTINGS, tabToRestart: true }).quickRestart,
+    ).toBe("tab");
+    expect(
+      sanitizeDrillSettings({ ...DEFAULT_DRILL_SETTINGS, tabToRestart: false }).quickRestart,
+    ).toBe("esc");
+    expect(
+      sanitizeDrillSettings({ ...DEFAULT_DRILL_SETTINGS, quickRestart: "space" }).quickRestart,
+    ).toBeUndefined();
   });
 });

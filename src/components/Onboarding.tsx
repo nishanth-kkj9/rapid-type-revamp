@@ -19,6 +19,7 @@ export interface OnboardingChoices {
   targetWpm: number;
   keyboardLayout: KeyboardLayoutId;
   runPlacementTest: boolean;
+  startMode: "drill" | "learn";
 }
 
 type SpeedPreset = {
@@ -98,6 +99,7 @@ export function Onboarding({ ready, alreadyOnboarded, initialLayout = "qwerty", 
       targetWpm: goalWpm,
       keyboardLayout: layout,
       runPlacementTest: chosen.id === "placement",
+      startMode: chosen.id === "beginner" ? "learn" : "drill",
     });
   };
 
@@ -214,7 +216,11 @@ export function Onboarding({ ready, alreadyOnboarded, initialLayout = "qwerty", 
             onClick={handleComplete}
             className="min-h-10 cursor-pointer rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
           >
-            {levelId === "placement" ? "Start 15s placement test" : "Start practicing"}
+            {levelId === "beginner"
+              ? "Start Learn mode"
+              : levelId === "placement"
+                ? "Start 15s placement test"
+                : "Start practicing"}
           </button>
         </div>
       </DialogContent>

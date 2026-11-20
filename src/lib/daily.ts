@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "./zodSetup";
 import type { Storage } from "./storage";
 
 export type GoalType = "minutes" | "runs";
@@ -435,28 +435,6 @@ export function getEffectiveDaily(state: DailyState | null, todayDate: string): 
     freezeActive,
     progressPercent: Math.min(100, Math.round(progressRatio * 100)),
   };
-}
-
-export function loadDaily(): DailyState | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(DAILY_STORAGE_KEY);
-    if (!raw) return null;
-    return sanitizeDailyState(JSON.parse(raw));
-  } catch {
-    return null;
-  }
-}
-
-export function saveDaily(state: DailyState): void {
-  if (typeof window === "undefined") return;
-  const clean = sanitizeDailyState(state);
-  if (!clean) return;
-  try {
-    localStorage.setItem(DAILY_STORAGE_KEY, JSON.stringify(clean));
-  } catch {
-    // silent storage fallback
-  }
 }
 
 export async function loadDailyFromStorage(storage: Storage): Promise<DailyState | null> {
