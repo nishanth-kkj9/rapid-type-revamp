@@ -28,7 +28,7 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
-  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 /* Dark theme (default) */

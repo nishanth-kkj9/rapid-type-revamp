@@ -72,9 +72,7 @@ export function HistoryPanel({
 
   return (
     <section aria-label="Run history and progress" className="panel p-4 sm:p-5">
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        History
-      </h3>
+      <h3 className="mb-3 text-sm font-medium text-muted-foreground">History</h3>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-4">
         <div
           role="group"
@@ -88,9 +86,9 @@ export function HistoryPanel({
               setViewMode("drill");
               setConfirmClear(false);
             }}
-            className={`flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+            className={`flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold whitespace-nowrap shrink-0 transition-colors ${
               viewMode === "drill"
-                ? "bg-primary text-primary-foreground shadow-sm"
+                ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -104,9 +102,9 @@ export function HistoryPanel({
               setViewMode("shooter");
               setConfirmClear(false);
             }}
-            className={`flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+            className={`flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold whitespace-nowrap shrink-0 transition-colors ${
               viewMode === "shooter"
-                ? "bg-primary text-primary-foreground shadow-sm"
+                ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >

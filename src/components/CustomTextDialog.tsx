@@ -78,10 +78,8 @@ export function CustomTextDialog({
               <FileText className="size-4" />
             </div>
             <div>
-              <DialogTitle className="font-mono text-xl font-bold">
-                Custom Practice Text
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
+              <DialogTitle className="text-xl font-semibold">Custom Practice Text</DialogTitle>
+              <DialogDescription className="text-[13px] text-muted-foreground">
                 Paste code, study notes, or prose (up to {MAX_CUSTOM_TEXT_CHARS.toLocaleString()}{" "}
                 chars) and practice in Time, Words, or Quote style.
               </DialogDescription>
@@ -92,8 +90,8 @@ export function CustomTextDialog({
         {customTexts.length > 0 ? (
           <div className="mt-2 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Saved Lists ({customTexts.length})
+              <span className="text-[13px] font-medium text-muted-foreground">
+                Saved lists ({customTexts.length})
               </span>
               {activeCustomTextId ? (
                 <button
@@ -102,7 +100,7 @@ export function CustomTextDialog({
                     onSelectCustomText(null);
                     onOpenChange(false);
                   }}
-                  className="cursor-pointer text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                  className="cursor-pointer text-[13px] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
                 >
                   Use standard generator instead
                 </button>
@@ -114,13 +112,13 @@ export function CustomTextDialog({
                 return (
                   <li
                     key={entry.id}
-                    className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs ${
+                    className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-[13px] ${
                       isActive ? "border-primary bg-primary/10" : "border-border bg-secondary/40"
                     }`}
                   >
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-semibold text-foreground">{entry.name}</div>
-                      <div className="truncate text-[11px] text-muted-foreground">
+                      <div className="truncate text-[13px] text-muted-foreground">
                         {entry.text.length.toLocaleString()} chars · {entry.text}
                       </div>
                     </div>
@@ -175,14 +173,14 @@ export function CustomTextDialog({
 
         <div className="mt-3 space-y-3 border-t border-border pt-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {editingId ? "Edit List" : "Create New List"}
+            <span className="text-[13px] font-medium text-muted-foreground">
+              {editingId ? "Edit list" : "Create new list"}
             </span>
             {editingId ? (
               <button
                 type="button"
                 onClick={startNew}
-                className="inline-flex cursor-pointer items-center gap-1 text-xs text-primary hover:underline"
+                className="inline-flex cursor-pointer items-center gap-1 text-[13px] text-primary hover:underline"
               >
                 <Plus className="size-3" /> New list
               </button>
@@ -206,18 +204,18 @@ export function CustomTextDialog({
               onChange={(e) => setRawText(e.target.value)}
               rows={5}
               placeholder="Paste or type your practice text here..."
-              className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 font-mono text-xs leading-relaxed text-foreground placeholder:text-muted-foreground focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 font-mono text-[13px] leading-relaxed text-foreground placeholder:text-muted-foreground focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
-            <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
+            <div className="mt-1 flex items-center justify-between text-[13px] text-muted-foreground">
               <span>Normalized to typeable ASCII</span>
-              <span className="font-mono">
+              <span className="font-mono tabular-nums">
                 {normalized.text.length.toLocaleString()} / {MAX_CUSTOM_TEXT_CHARS.toLocaleString()}
               </span>
             </div>
           </div>
 
           {normalized.warnings.length > 0 ? (
-            <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-foreground">
+            <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-[13px] text-foreground">
               <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-primary" />
               <div className="space-y-0.5">
                 {normalized.warnings.map((w) => (
@@ -232,7 +230,7 @@ export function CustomTextDialog({
               type="button"
               disabled={!normalized.text}
               onClick={() => handleSave(false)}
-              className="cursor-pointer rounded-lg border border-border bg-secondary px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-50"
+              className="cursor-pointer rounded-lg border border-border bg-secondary px-4 py-2 text-[13px] font-semibold text-foreground transition-colors hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {editingId ? "Update List" : "Save List"}
             </button>
@@ -240,7 +238,7 @@ export function CustomTextDialog({
               type="button"
               disabled={!normalized.text}
               onClick={() => handleSave(true)}
-              className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {editingId ? "Update & Practice" : "Save & Practice"}
             </button>

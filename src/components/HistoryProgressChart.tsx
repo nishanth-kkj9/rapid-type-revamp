@@ -50,15 +50,13 @@ export function HistoryProgressChart({ entries, className = "" }: HistoryProgres
     <section aria-label="WPM over time" className={`panel p-4 sm:p-5 ${className}`}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Progress Over Time
-          </h3>
-          <p className="text-[11px] text-muted-foreground">
+          <h3 className="text-sm font-medium text-muted-foreground">Progress over time</h3>
+          <p className="text-[13px] text-muted-foreground">
             WPM, 7-run moving average, and accuracy across {fullSeries.length.toLocaleString()} runs
             {seriesData.length < fullSeries.length ? ` (${seriesData.length} sampled points)` : ""}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-3 text-[13px] text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <span className="inline-block h-1 w-3 rounded-full bg-primary" /> WPM
           </span>

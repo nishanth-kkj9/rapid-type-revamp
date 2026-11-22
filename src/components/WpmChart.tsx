@@ -138,38 +138,38 @@ export function WpmChart({
         </div>
       }
       headerRight={
-        <div className="hidden items-center gap-1.5 font-mono text-xs sm:flex">
+        <div className="hidden items-center gap-1.5 text-[13px] sm:flex">
           <span className="text-muted-foreground">Peak:</span>
-          <span className="font-bold text-accent">{stats.peakWpm} WPM</span>
+          <span className="font-mono font-bold tabular-nums text-accent">{stats.peakWpm} WPM</span>
         </div>
       }
       statsGrid={(isExpanded) =>
         isExpanded ? (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
             <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                <Activity className="size-3 text-primary" /> Average Pace
+              <span className="flex items-center gap-1 text-[13px] font-medium text-muted-foreground">
+                <Activity className="size-3 text-primary" /> Average pace
               </span>
               <span className="mt-1 font-mono text-base font-bold tabular-nums text-foreground">
                 {stats.avgWpm}{" "}
-                <span className="text-[11px] font-normal text-muted-foreground">WPM</span>
+                <span className="font-sans text-[13px] font-normal text-muted-foreground">WPM</span>
               </span>
             </div>
 
             <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                <Zap className="size-3 text-accent" /> Peak Burst
+              <span className="flex items-center gap-1 text-[13px] font-medium text-muted-foreground">
+                <Zap className="size-3 text-accent" /> Peak burst
               </span>
               <span className="mt-1 font-mono text-base font-bold tabular-nums text-accent">
                 {stats.peakWpm}{" "}
-                <span className="text-[11px] font-normal text-muted-foreground">
+                <span className="font-sans text-[13px] font-normal text-muted-foreground">
                   at {stats.peakSec}s
                 </span>
               </span>
             </div>
 
             <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="flex items-center gap-1 text-[13px] font-medium text-muted-foreground">
                 <Target className="size-3 text-primary" /> Target
               </span>
               <span className="mt-1 font-mono text-base font-bold tabular-nums text-foreground">
@@ -180,31 +180,33 @@ export function WpmChart({
                     ) : (
                       <span className="text-primary">-{targetWpm - stats.avgWpm}</span>
                     )}{" "}
-                    <span className="text-[11px] font-normal text-muted-foreground">
+                    <span className="font-sans text-[13px] font-normal text-muted-foreground">
                       vs {targetWpm}
                     </span>
                   </>
                 ) : (
-                  <span className="text-xs font-normal text-muted-foreground">None</span>
+                  <span className="font-sans text-[13px] font-normal text-muted-foreground">
+                    None
+                  </span>
                 )}
               </span>
             </div>
 
             <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                <Award className="size-3 text-muted-foreground" /> Lowest Dip
+              <span className="flex items-center gap-1 text-[13px] font-medium text-muted-foreground">
+                <Award className="size-3 text-muted-foreground" /> Lowest dip
               </span>
               <span className="mt-1 font-mono text-base font-bold tabular-nums text-muted-foreground">
                 {stats.minWpm}{" "}
-                <span className="text-[11px] font-normal text-muted-foreground">
+                <span className="font-sans text-[13px] font-normal text-muted-foreground">
                   at {stats.minSec}s
                 </span>
               </span>
             </div>
 
             <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                <Clock className="size-3 text-primary" /> Total Time
+              <span className="flex items-center gap-1 text-[13px] font-medium text-muted-foreground">
+                <Clock className="size-3 text-primary" /> Total time
               </span>
               <span className="mt-1 font-mono text-base font-bold tabular-nums text-foreground">
                 {totalSec}s
@@ -212,8 +214,8 @@ export function WpmChart({
             </div>
 
             <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                <Flame className="size-3 text-primary" /> Ghost Avg (Best)
+              <span className="flex items-center gap-1 text-[13px] font-medium text-muted-foreground">
+                <Flame className="size-3 text-primary" /> Ghost avg (best)
               </span>
               <span className="mt-1 font-mono text-base font-bold tabular-nums text-foreground">
                 {stats.ghostAvg !== undefined ? `${stats.ghostAvg} WPM` : "None"}
@@ -224,7 +226,7 @@ export function WpmChart({
       }
       footer={(isExpanded) =>
         isExpanded ? (
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[13px] text-muted-foreground">
             <div className="flex flex-wrap items-center gap-3">
               <span className="flex items-center gap-1.5">
                 <span className="inline-block h-1 w-3.5 rounded-full bg-primary" /> Rolling WPM
@@ -250,8 +252,10 @@ export function WpmChart({
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xs text-muted-foreground">{totalSec}s duration</span>
-              <span className="hidden text-[10px] text-primary sm:inline-block">
+              <span className="text-[13px] tabular-nums text-muted-foreground">
+                {totalSec}s duration
+              </span>
+              <span className="hidden text-[13px] text-primary sm:inline-block">
                 (Click to collapse)
               </span>
             </div>

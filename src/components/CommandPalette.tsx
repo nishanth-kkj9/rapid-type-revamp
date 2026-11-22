@@ -107,7 +107,7 @@ export function CommandPalette({
           >
             <span>Practice Mode</span>
             {mode === "drill" ? (
-              <span className="ml-auto text-xs text-muted-foreground">current</span>
+              <span className="ml-auto text-[13px] text-muted-foreground">current</span>
             ) : null}
           </CommandItem>
           <CommandItem
@@ -116,7 +116,7 @@ export function CommandPalette({
           >
             <span>Learn Mode (Touch Typing)</span>
             {mode === "learn" ? (
-              <span className="ml-auto text-xs text-muted-foreground">current</span>
+              <span className="ml-auto text-[13px] text-muted-foreground">current</span>
             ) : null}
           </CommandItem>
           <CommandItem
@@ -125,7 +125,7 @@ export function CommandPalette({
           >
             <span>Word Shooter Arcade</span>
             {mode === "shooter" ? (
-              <span className="ml-auto text-xs text-muted-foreground">current</span>
+              <span className="ml-auto text-[13px] text-muted-foreground">current</span>
             ) : null}
           </CommandItem>
           <CommandItem
@@ -134,7 +134,7 @@ export function CommandPalette({
           >
             <span>Stats &amp; Progress</span>
             {mode === "stats" ? (
-              <span className="ml-auto text-xs text-muted-foreground">current</span>
+              <span className="ml-auto text-[13px] text-muted-foreground">current</span>
             ) : null}
           </CommandItem>
           <CommandItem
@@ -143,7 +143,7 @@ export function CommandPalette({
           >
             <span>Achievements</span>
             {mode === "achievements" ? (
-              <span className="ml-auto text-xs text-muted-foreground">current</span>
+              <span className="ml-auto text-[13px] text-muted-foreground">current</span>
             ) : null}
           </CommandItem>
         </CommandGroup>
@@ -157,7 +157,7 @@ export function CommandPalette({
             >
               <span>Time Drill · {s}s</span>
               {drillMode === "time" && duration === s ? (
-                <span className="ml-auto text-xs text-muted-foreground">current</span>
+                <span className="ml-auto text-[13px] text-muted-foreground">current</span>
               ) : null}
             </CommandItem>
           ))}
@@ -169,7 +169,7 @@ export function CommandPalette({
             >
               <span>Word Quota · {wc} words</span>
               {drillMode === "words" && wordCount === wc ? (
-                <span className="ml-auto text-xs text-muted-foreground">current</span>
+                <span className="ml-auto text-[13px] text-muted-foreground">current</span>
               ) : null}
             </CommandItem>
           ))}
@@ -181,7 +181,7 @@ export function CommandPalette({
             >
               <span className="capitalize">Quote · {ql}</span>
               {drillMode === "quote" && quoteLength === ql ? (
-                <span className="ml-auto text-xs text-muted-foreground">current</span>
+                <span className="ml-auto text-[13px] text-muted-foreground">current</span>
               ) : null}
             </CommandItem>
           ))}
@@ -196,7 +196,7 @@ export function CommandPalette({
             >
               <span className="capitalize">Difficulty: {d}</span>
               {difficulty === d ? (
-                <span className="ml-auto text-xs text-muted-foreground">current</span>
+                <span className="ml-auto text-[13px] text-muted-foreground">current</span>
               ) : null}
             </CommandItem>
           ))}
@@ -223,7 +223,9 @@ export function CommandPalette({
               onSelect={() => run(onRepeatSameText)}
             >
               <span>Repeat this text</span>
-              <span className="ml-auto font-mono text-xs text-muted-foreground">Shift+Enter</span>
+              <span className="ml-auto font-mono text-[13px] text-muted-foreground">
+                Shift+Enter
+              </span>
             </CommandItem>
           ) : null}
           {onPracticeMissedWords ? (

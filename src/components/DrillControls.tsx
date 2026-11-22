@@ -112,9 +112,9 @@ export function DrillControls({
             type="button"
             onClick={() => setDrillMode("time")}
             aria-pressed={drillMode === "time"}
-            className={`flex min-h-11 sm:min-h-8 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold uppercase tracking-wider whitespace-nowrap shrink-0 transition-colors ${
+            className={`flex min-h-11 sm:min-h-8 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1 text-[13px] font-semibold whitespace-nowrap shrink-0 transition-colors ${
               drillMode === "time"
-                ? "bg-primary text-primary-foreground shadow-sm"
+                ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -125,9 +125,9 @@ export function DrillControls({
             type="button"
             onClick={() => setDrillMode("words")}
             aria-pressed={drillMode === "words"}
-            className={`flex min-h-11 sm:min-h-8 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold uppercase tracking-wider whitespace-nowrap shrink-0 transition-colors ${
+            className={`flex min-h-11 sm:min-h-8 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1 text-[13px] font-semibold whitespace-nowrap shrink-0 transition-colors ${
               drillMode === "words"
-                ? "bg-primary text-primary-foreground shadow-sm"
+                ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -138,9 +138,9 @@ export function DrillControls({
             type="button"
             onClick={() => setDrillMode("quote")}
             aria-pressed={drillMode === "quote"}
-            className={`flex min-h-11 sm:min-h-8 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold uppercase tracking-wider whitespace-nowrap shrink-0 transition-colors ${
+            className={`flex min-h-11 sm:min-h-8 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1 text-[13px] font-semibold whitespace-nowrap shrink-0 transition-colors ${
               drillMode === "quote"
-                ? "bg-primary text-primary-foreground shadow-sm"
+                ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -166,7 +166,7 @@ export function DrillControls({
                 key={s}
                 onClick={() => onUpdateSettings({ duration: s })}
                 aria-pressed={settings.duration === s}
-                className={`min-h-11 sm:min-h-8 cursor-pointer rounded-lg px-2.5 py-1 font-mono text-xs tabular-nums whitespace-nowrap shrink-0 transition-colors ${
+                className={`min-h-11 sm:min-h-8 cursor-pointer rounded-lg px-2.5 py-1 text-[13px] tabular-nums whitespace-nowrap shrink-0 transition-colors ${
                   settings.duration === s
                     ? "bg-accent font-semibold text-accent-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -181,7 +181,7 @@ export function DrillControls({
               aria-pressed={isCustomDuration}
               aria-expanded={customOpen}
               aria-haspopup="dialog"
-              className={`min-h-11 sm:min-h-8 cursor-pointer rounded-lg px-2.5 py-1 font-mono text-xs tabular-nums whitespace-nowrap shrink-0 transition-colors ${
+              className={`min-h-11 sm:min-h-8 cursor-pointer rounded-lg px-2.5 py-1 text-[13px] tabular-nums whitespace-nowrap shrink-0 transition-colors ${
                 isCustomDuration
                   ? "bg-accent font-semibold text-accent-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -194,7 +194,7 @@ export function DrillControls({
               <div
                 role="dialog"
                 aria-label="Set custom duration"
-                className="absolute left-0 top-full z-30 mt-2 flex max-w-[calc(100vw-2rem)] items-center gap-2 rounded-xl border border-border bg-popover p-2.5 shadow-xl"
+                className="absolute left-0 top-full z-30 mt-2 flex max-w-[calc(100vw-2rem)] items-center gap-2 rounded-xl border border-border bg-popover p-2.5"
               >
                 <input
                   type="number"
@@ -211,13 +211,13 @@ export function DrillControls({
                       applyCustomLength();
                     }
                   }}
-                  className="h-11 w-20 rounded-md border border-input bg-background px-2 font-mono text-xs text-foreground sm:h-8"
+                  className="h-11 w-20 rounded-md border border-input bg-background px-2 font-mono text-[13px] tabular-nums text-foreground sm:h-8"
                 />
-                <span className="text-xs text-muted-foreground">sec</span>
+                <span className="text-[13px] text-muted-foreground">sec</span>
                 <button
                   type="button"
                   onClick={applyCustomLength}
-                  className="h-11 cursor-pointer rounded-md bg-primary px-2.5 text-xs font-semibold text-primary-foreground sm:h-8"
+                  className="h-11 cursor-pointer rounded-md bg-primary px-2.5 text-[13px] font-semibold text-primary-foreground sm:h-8"
                 >
                   Apply
                 </button>
@@ -237,7 +237,7 @@ export function DrillControls({
                 key={cnt}
                 onClick={() => onUpdateSettings({ wordCount: cnt })}
                 aria-pressed={wordCount === cnt}
-                className={`min-h-11 sm:min-h-8 cursor-pointer rounded-lg px-2.5 py-1 font-mono text-xs tabular-nums whitespace-nowrap shrink-0 transition-colors ${
+                className={`min-h-11 sm:min-h-8 cursor-pointer rounded-lg px-2.5 py-1 text-[13px] tabular-nums whitespace-nowrap shrink-0 transition-colors ${
                   wordCount === cnt
                     ? "bg-accent font-semibold text-accent-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -252,7 +252,7 @@ export function DrillControls({
               aria-pressed={isCustomWords}
               aria-expanded={customOpen}
               aria-haspopup="dialog"
-              className={`min-h-11 sm:min-h-8 cursor-pointer rounded-lg px-2.5 py-1 font-mono text-xs tabular-nums whitespace-nowrap shrink-0 transition-colors ${
+              className={`min-h-11 sm:min-h-8 cursor-pointer rounded-lg px-2.5 py-1 text-[13px] tabular-nums whitespace-nowrap shrink-0 transition-colors ${
                 isCustomWords
                   ? "bg-accent font-semibold text-accent-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -265,7 +265,7 @@ export function DrillControls({
               <div
                 role="dialog"
                 aria-label="Set custom word count"
-                className="absolute left-0 top-full z-30 mt-2 flex max-w-[calc(100vw-2rem)] items-center gap-2 rounded-xl border border-border bg-popover p-2.5 shadow-xl"
+                className="absolute left-0 top-full z-30 mt-2 flex max-w-[calc(100vw-2rem)] items-center gap-2 rounded-xl border border-border bg-popover p-2.5"
               >
                 <input
                   type="number"
@@ -282,13 +282,13 @@ export function DrillControls({
                       applyCustomLength();
                     }
                   }}
-                  className="h-11 w-20 rounded-md border border-input bg-background px-2 font-mono text-xs text-foreground sm:h-8"
+                  className="h-11 w-20 rounded-md border border-input bg-background px-2 font-mono text-[13px] tabular-nums text-foreground sm:h-8"
                 />
-                <span className="text-xs text-muted-foreground">words</span>
+                <span className="text-[13px] text-muted-foreground">words</span>
                 <button
                   type="button"
                   onClick={applyCustomLength}
-                  className="h-11 cursor-pointer rounded-md bg-primary px-2.5 text-xs font-semibold text-primary-foreground sm:h-8"
+                  className="h-11 cursor-pointer rounded-md bg-primary px-2.5 text-[13px] font-semibold text-primary-foreground sm:h-8"
                 >
                   Apply
                 </button>
@@ -303,7 +303,7 @@ export function DrillControls({
                 key={ql}
                 onClick={() => onUpdateSettings({ quoteLength: ql })}
                 aria-pressed={quoteLength === ql}
-                className={`min-h-11 sm:min-h-8 cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium capitalize whitespace-nowrap shrink-0 transition-colors ${
+                className={`min-h-11 sm:min-h-8 cursor-pointer rounded-lg px-2.5 py-1 text-[13px] font-medium capitalize whitespace-nowrap shrink-0 transition-colors ${
                   quoteLength === ql
                     ? "bg-accent font-semibold text-accent-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -329,7 +329,7 @@ export function DrillControls({
             <button
               type="button"
               onClick={onOpenCustomText}
-              className={`inline-flex min-h-11 sm:min-h-8 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium whitespace-nowrap shrink-0 transition-colors ${
+              className={`inline-flex min-h-11 sm:min-h-8 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[13px] font-medium whitespace-nowrap shrink-0 transition-colors ${
                 activeCustomText
                   ? "border-primary/50 bg-primary/15 font-semibold text-foreground"
                   : "border-border bg-secondary/70 text-muted-foreground hover:text-foreground"

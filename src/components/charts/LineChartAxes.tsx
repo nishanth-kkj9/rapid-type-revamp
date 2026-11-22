@@ -100,7 +100,7 @@ export function LineChartAxes<T extends Record<string, unknown>>({
           <text
             key={`x-${idx}`}
             x={xPos(idx)}
-            y={pad.top + plotH + 14}
+            y={pad.top + plotH + 16}
             textAnchor="middle"
             fill="var(--color-muted-foreground)"
             fontSize={fontSize}
@@ -116,8 +116,7 @@ export function LineChartAxes<T extends Record<string, unknown>>({
           y={height - 2}
           textAnchor="end"
           fill="var(--color-muted-foreground)"
-          fontSize={fontSize - 1}
-          opacity={0.85}
+          fontSize={fontSize}
         >
           {xLabel}
         </text>
@@ -139,7 +138,6 @@ export function LineChartAxes<T extends Record<string, unknown>>({
             textAnchor="end"
             fill="var(--color-muted-foreground)"
             fontSize={fontSize}
-            className="font-mono"
           >
             {referenceLine.label}
           </text>

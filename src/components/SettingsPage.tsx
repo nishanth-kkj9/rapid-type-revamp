@@ -100,10 +100,8 @@ export function SettingsPage({
     <section aria-label="Settings and privacy" className="panel mt-6 p-4 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-4">
         <div>
-          <h2 className="font-mono text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-            Settings
-          </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <h2 className="text-xl font-semibold text-foreground">Settings</h2>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">
             All preferences apply immediately and save locally in your browser.
           </p>
         </div>
@@ -113,7 +111,7 @@ export function SettingsPage({
             <button
               type="button"
               onClick={handleResetTabDefaults}
-              className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               <RotateCcw className="size-3.5" />
               Reset defaults
@@ -122,7 +120,7 @@ export function SettingsPage({
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+            className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-[13px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
           >
             <ArrowLeft className="size-3.5" />
             Done
@@ -147,9 +145,9 @@ export function SettingsPage({
               aria-selected={active}
               aria-controls={`settings-panel-${tab.id}`}
               onClick={() => onSelectTab(tab.id)}
-              className={`inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+              className={`inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[13px] font-semibold transition-colors ${
                 active
-                  ? "border-primary bg-primary text-primary-foreground shadow-xs"
+                  ? "border-primary bg-primary text-primary-foreground"
                   : "border-border bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
               }`}
             >

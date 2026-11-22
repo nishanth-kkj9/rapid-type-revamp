@@ -107,10 +107,10 @@ export function Onboarding({ ready, alreadyOnboarded, initialLayout = "qwerty", 
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[92vh] w-full max-w-lg overflow-y-auto border-border bg-card p-6 text-foreground">
         <DialogHeader className="space-y-1.5 text-left">
-          <DialogTitle className="font-mono text-2xl font-bold">
+          <DialogTitle className="text-xl font-semibold">
             Welcome to Typing<span className="text-primary">Trainer</span>Pro
           </DialogTitle>
-          <DialogDescription className="text-xs leading-relaxed text-muted-foreground">
+          <DialogDescription className="text-[13px] leading-relaxed text-muted-foreground">
             Tailor your starting drill in seconds. Everything stays in your browser — no account, no
             tracking, zero external font CDNs.
           </DialogDescription>
@@ -118,7 +118,7 @@ export function Onboarding({ ready, alreadyOnboarded, initialLayout = "qwerty", 
 
         <div className="space-y-5">
           <div>
-            <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground">
               <Sparkles className="size-3.5 text-primary" />
               1. Current typing pace
             </div>
@@ -137,8 +137,12 @@ export function Onboarding({ ready, alreadyOnboarded, initialLayout = "qwerty", 
                         : "border-border bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground"
                     }`}
                   >
-                    <span className="text-xs font-semibold text-foreground">{preset.label}</span>
-                    <span className="mt-0.5 text-xs text-muted-foreground">{preset.sublabel}</span>
+                    <span className="text-[13px] font-semibold text-foreground">
+                      {preset.label}
+                    </span>
+                    <span className="mt-0.5 text-[13px] text-muted-foreground">
+                      {preset.sublabel}
+                    </span>
                   </button>
                 );
               })}
@@ -147,11 +151,13 @@ export function Onboarding({ ready, alreadyOnboarded, initialLayout = "qwerty", 
 
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground">
                 <Target className="size-3.5 text-primary" />
                 2. Target WPM goal
               </span>
-              <span className="font-mono text-xs font-bold text-primary">{goalWpm} WPM</span>
+              <span className="font-mono text-[13px] font-bold tabular-nums text-primary">
+                {goalWpm} WPM
+              </span>
             </div>
             <div className="grid grid-cols-5 gap-1.5">
               {GOAL_PRESETS.map((wpm) => {
@@ -162,7 +168,7 @@ export function Onboarding({ ready, alreadyOnboarded, initialLayout = "qwerty", 
                     type="button"
                     aria-pressed={active}
                     onClick={() => setGoalWpm(wpm)}
-                    className={`min-h-10 cursor-pointer rounded-lg border px-2 py-1.5 font-mono text-xs font-medium transition-colors ${
+                    className={`min-h-10 cursor-pointer rounded-lg border px-2 py-1.5 font-mono text-[13px] font-medium tabular-nums transition-colors ${
                       active
                         ? "border-primary bg-primary font-semibold text-primary-foreground"
                         : "border-border bg-secondary text-muted-foreground hover:text-foreground"
@@ -176,7 +182,7 @@ export function Onboarding({ ready, alreadyOnboarded, initialLayout = "qwerty", 
           </div>
 
           <div>
-            <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground">
               <Keyboard className="size-3.5 text-primary" />
               3. Keyboard layout
             </div>
@@ -189,7 +195,7 @@ export function Onboarding({ ready, alreadyOnboarded, initialLayout = "qwerty", 
                     type="button"
                     aria-pressed={active}
                     onClick={() => setLayout(item.id)}
-                    className={`min-h-10 cursor-pointer rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors ${
+                    className={`min-h-10 cursor-pointer rounded-lg border px-2 py-1.5 text-[13px] font-medium transition-colors ${
                       active
                         ? "border-accent bg-accent font-semibold text-accent-foreground"
                         : "border-border bg-secondary text-muted-foreground hover:text-foreground"
@@ -207,7 +213,7 @@ export function Onboarding({ ready, alreadyOnboarded, initialLayout = "qwerty", 
           <button
             type="button"
             onClick={() => handleOpenChange(false)}
-            className="min-h-10 cursor-pointer rounded-lg border border-border bg-secondary px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+            className="min-h-10 cursor-pointer rounded-lg border border-border bg-secondary px-4 py-2 text-[13px] font-medium text-muted-foreground hover:text-foreground"
           >
             Skip setup
           </button>

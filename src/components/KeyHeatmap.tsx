@@ -42,7 +42,7 @@ function MetricChip({
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`inline-flex min-h-9 cursor-pointer items-center justify-center rounded-md border px-3 py-1 font-mono text-xs uppercase tracking-[0.12em] transition-colors ${
+      className={`inline-flex min-h-9 cursor-pointer items-center justify-center rounded-md border px-3 py-1 text-[13px] transition-colors ${
         active
           ? "border-primary/60 bg-primary/15 font-semibold text-foreground ring-1 ring-primary/40"
           : "border-border text-muted-foreground hover:text-foreground"
@@ -125,11 +125,11 @@ export function KeyHeatmap({
             </MetricChip>
           </div>
         ) : (
-          <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-            Key Mistakes Heatmap
-          </span>
+          <span className="text-[13px] text-muted-foreground">Key mistakes heatmap</span>
         )}
-        <span className="text-xs text-muted-foreground">Tap or focus a key for exact metrics</span>
+        <span className="text-[13px] text-muted-foreground">
+          Tap or focus a key for exact metrics
+        </span>
       </div>
 
       <div className="panel select-none space-y-1 p-2 sm:space-y-1.5 sm:p-4">
@@ -141,8 +141,9 @@ export function KeyHeatmap({
               const ms = statKey ? avgMs[statKey] : undefined;
               const level = active === "speed" ? heatLevel(ms ?? 0, avgMax) : heatLevel(n, missMax);
               const cls = LEVEL_CLASS[level] ?? "";
-              const label =
+              const rawLabel =
                 cell.id === "Space" ? "Space" : cell.id === "EnterTop" ? "⏎" : cell.base;
+              const label = rawLabel.length === 1 ? rawLabel.toUpperCase() : rawLabel;
               const isSelected = Boolean(statKey && selectedKey === statKey);
               const valueLabel =
                 active === "speed"
@@ -156,7 +157,7 @@ export function KeyHeatmap({
                   <div
                     key={`${rowIndex}-${cell.id}`}
                     aria-hidden="true"
-                    className={`keycap flex h-9 min-w-0 items-center justify-center px-0.5 font-mono text-xs uppercase opacity-75 sm:h-11 sm:px-1 ${
+                    className={`keycap flex h-9 min-w-0 items-center justify-center px-0.5 font-mono text-[13px] opacity-75 sm:h-11 sm:px-1 ${
                       cell.width ?? "flex-1"
                     }`}
                   >
@@ -172,16 +173,18 @@ export function KeyHeatmap({
                   onClick={() => setSelectedKey((curr) => (curr === statKey ? null : statKey))}
                   aria-pressed={isSelected}
                   aria-label={`Key ${statKey}: ${valueLabel}`}
-                  className={`keycap flex h-9 min-w-0 cursor-pointer items-center justify-center gap-0.5 px-0.5 font-mono text-xs uppercase sm:h-11 sm:px-1 ${
+                  className={`keycap flex h-9 min-w-0 cursor-pointer items-center justify-center gap-0.5 px-0.5 font-mono text-[13px] sm:h-11 sm:px-1 ${
                     cell.width ?? "flex-1"
                   } ${cls} ${isSelected ? "ring-2 ring-primary ring-offset-1 ring-offset-card" : ""}`}
                 >
                   <span className="truncate">{cell.id === "Space" ? "␣" : label}</span>
                   {active === "misses" && n > 0 ? (
-                    <span className="shrink-0 text-[10px] font-bold">{n}</span>
+                    <span className="hidden shrink-0 text-[13px] font-bold sm:inline">{n}</span>
                   ) : null}
                   {active === "speed" && ms != null ? (
-                    <span className="shrink-0 text-[10px] font-bold">{Math.round(ms)}</span>
+                    <span className="hidden shrink-0 text-[13px] font-bold sm:inline">
+                      {Math.round(ms)}
+                    </span>
                   ) : null}
                 </button>
               );
@@ -192,19 +195,23 @@ export function KeyHeatmap({
 
       <div
         aria-live="polite"
-        className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/70 bg-secondary/40 px-3 py-2 text-xs text-foreground"
+        className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/70 bg-secondary/40 px-3 py-2 text-[13px] text-foreground"
       >
         {selectedKey ? (
-          <div className="flex flex-wrap items-center gap-3 font-mono">
+          <div className="flex flex-wrap items-center gap-3">
             <span>
-              Selected key: <strong className="uppercase text-primary">{selectedKey}</strong>
+              Selected key:{" "}
+              <strong className="font-mono text-primary">
+                {selectedKey.length === 1 ? selectedKey.toUpperCase() : selectedKey}
+              </strong>
             </span>
             <span>
-              Misses: <strong>{selectedMisses}</strong>
+              Misses: <strong className="font-mono tabular-nums">{selectedMisses}</strong>
             </span>
             {selectedMs !== undefined ? (
               <span>
-                Avg speed: <strong>{Math.round(selectedMs)} ms</strong>
+                Avg speed:{" "}
+                <strong className="font-mono tabular-nums">{Math.round(selectedMs)} ms</strong>
               </span>
             ) : null}
           </div>
@@ -218,9 +225,12 @@ export function KeyHeatmap({
                 key={item.key}
                 type="button"
                 onClick={() => setSelectedKey(item.key)}
-                className="cursor-pointer rounded border border-border bg-card px-2 py-0.5 font-mono text-xs text-foreground hover:border-primary"
+                className="cursor-pointer rounded border border-border bg-card px-2 py-0.5 text-[13px] text-foreground hover:border-primary"
               >
-                <span className="uppercase text-primary">{item.key}</span> · {item.value}
+                <span className="font-mono text-primary">
+                  {item.key.length === 1 ? item.key.toUpperCase() : item.key}
+                </span>{" "}
+                · <span className="font-mono tabular-nums">{item.value}</span>
               </button>
             ))}
           </div>

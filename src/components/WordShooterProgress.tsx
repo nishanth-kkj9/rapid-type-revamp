@@ -103,13 +103,15 @@ export function WordShooterProgress({
         </div>
       }
       headerRight={
-        <div className="hidden items-center gap-1.5 font-mono text-xs sm:flex">
+        <div className="hidden items-center gap-1.5 text-[13px] sm:flex">
           <span className="text-muted-foreground">Destroyed:</span>
-          <span className="font-bold text-primary">{summary?.wordsDestroyed ?? 0} words</span>
+          <span className="font-mono font-bold tabular-nums text-primary">
+            {summary?.wordsDestroyed ?? 0} words
+          </span>
         </div>
       }
       emptyState={
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="text-center text-[13px] text-muted-foreground">
           Per-second firing velocity telemetry unavailable for this run.
         </p>
       }
@@ -117,75 +119,77 @@ export function WordShooterProgress({
         isExpanded ? (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
             <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="flex items-center gap-1 text-[13px] font-medium text-muted-foreground">
                 <Trophy className="size-3 text-accent" /> Score
               </span>
-              <span className="mt-1 font-mono text-base font-bold text-accent">
+              <span className="mt-1 font-mono text-base font-bold tabular-nums text-accent">
                 {summary?.score ?? 0}{" "}
-                <span className="text-[11px] font-normal text-muted-foreground">pts</span>
+                <span className="font-sans text-[13px] font-normal text-muted-foreground">pts</span>
               </span>
             </div>
 
             <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="flex items-center gap-1 text-[13px] font-medium text-muted-foreground">
                 <Target className="size-3 text-primary" /> Destroyed
               </span>
-              <span className="mt-1 font-mono text-base font-bold text-primary">
+              <span className="mt-1 font-mono text-base font-bold tabular-nums text-primary">
                 {summary?.wordsDestroyed ?? 0}{" "}
-                <span className="text-[11px] font-normal text-muted-foreground">words</span>
+                <span className="font-sans text-[13px] font-normal text-muted-foreground">
+                  words
+                </span>
               </span>
             </div>
 
             <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                <Zap className="size-3 text-primary" /> Peak Fire Rate
+              <span className="flex items-center gap-1 text-[13px] font-medium text-muted-foreground">
+                <Zap className="size-3 text-primary" /> Peak fire rate
               </span>
-              <span className="mt-1 font-mono text-base font-bold text-foreground">
+              <span className="mt-1 font-mono text-base font-bold tabular-nums text-foreground">
                 {stats.peakWpm}{" "}
-                <span className="text-[11px] font-normal text-muted-foreground">
+                <span className="font-sans text-[13px] font-normal text-muted-foreground">
                   WPM at {stats.peakSec}s
                 </span>
               </span>
             </div>
 
             <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="flex items-center gap-1 text-[13px] font-medium text-muted-foreground">
                 <Award className="size-3 text-primary" /> Accuracy
               </span>
-              <span className="mt-1 font-mono text-base font-bold text-foreground">
+              <span className="mt-1 font-mono text-base font-bold tabular-nums text-foreground">
                 {summary ? summary.accuracy.toFixed(1) : "100"}%
               </span>
               {summary?.hitRate !== undefined ? (
-                <span className="font-mono text-[10px] text-muted-foreground">
-                  Hit rate: {summary.hitRate.toFixed(0)}%
+                <span className="text-[13px] tabular-nums text-muted-foreground">
+                  Hit rate: <span className="font-mono">{summary.hitRate.toFixed(0)}%</span>
                 </span>
               ) : null}
             </div>
 
             <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                <Shield className="size-3 text-primary" /> Wave Level
+              <span className="flex items-center gap-1 text-[13px] font-medium text-muted-foreground">
+                <Shield className="size-3 text-primary" /> Wave level
               </span>
-              <span className="mt-1 font-mono text-base font-bold text-foreground">
+              <span className="mt-1 font-mono text-base font-bold tabular-nums text-foreground">
                 Level {summary?.level ?? 1}
               </span>
               {summary?.maxStreak !== undefined ? (
-                <span className="font-mono text-[10px] text-muted-foreground">
-                  Best streak: {summary.maxStreak}x
+                <span className="text-[13px] tabular-nums text-muted-foreground">
+                  Best streak: <span className="font-mono">{summary.maxStreak}x</span>
                 </span>
               ) : null}
             </div>
 
             <div className="flex flex-col rounded-xl border border-border/70 bg-secondary/30 p-2.5 text-left">
-              <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                <Clock className="size-3 text-primary" /> Survival Time
+              <span className="flex items-center gap-1 text-[13px] font-medium text-muted-foreground">
+                <Clock className="size-3 text-primary" /> Survival time
               </span>
-              <span className="mt-1 font-mono text-base font-bold text-foreground">
+              <span className="mt-1 font-mono text-base font-bold tabular-nums text-foreground">
                 {summary?.durationSec ?? data.length}s
               </span>
               {summary?.strayKeys ? (
-                <span className="font-mono text-[10px] text-muted-foreground">
-                  Stray keys: {summary.strayKeys}
+                <span className="text-[13px] tabular-nums text-muted-foreground">
+                  Stray keys: <span className="font-mono">{summary.strayKeys}</span>
                 </span>
               ) : null}
             </div>
@@ -194,7 +198,7 @@ export function WordShooterProgress({
       }
       footer={(isExpanded) =>
         isExpanded ? (
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[13px] text-muted-foreground">
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1.5">
                 <span className="inline-block h-1 w-3.5 rounded-full bg-accent" /> Word Elimination
@@ -208,12 +212,11 @@ export function WordShooterProgress({
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xs text-muted-foreground">
-                {summary?.difficulty ? `${summary.difficulty.toUpperCase()} MODE` : "ARCADE"} ·{" "}
-                {data.length}s
+              <span className="text-[13px] capitalize tabular-nums text-muted-foreground">
+                {summary?.difficulty ? `${summary.difficulty} mode` : "Arcade"} · {data.length}s
               </span>
               {data.length > 0 ? (
-                <span className="hidden text-[10px] text-accent sm:inline-block">
+                <span className="hidden text-[13px] text-accent sm:inline-block">
                   (Click to collapse)
                 </span>
               ) : null}

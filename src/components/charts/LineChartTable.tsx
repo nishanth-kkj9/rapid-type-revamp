@@ -65,11 +65,11 @@ export function LineChartTable<T extends Record<string, unknown>>({
 
   return (
     <div className="max-h-56 overflow-auto rounded-lg border border-border bg-card">
-      <table className="w-full border-collapse text-left font-mono text-xs">
+      <table className="w-full border-collapse text-left text-[13px]">
         <caption className="sr-only">{caption}</caption>
         <thead className="sticky top-0 bg-secondary text-foreground">
           <tr>
-            <th scope="col" className="border-b border-border px-3 py-2 uppercase">
+            <th scope="col" className="border-b border-border px-3 py-2 capitalize">
               {xKey}
             </th>
             {series.map((s) => (
@@ -103,13 +103,13 @@ export function LineChartTable<T extends Record<string, unknown>>({
                       : String(val)
                     : "-";
                   return (
-                    <td key={s.key} className="px-3 py-1.5 tabular-nums text-foreground">
+                    <td key={s.key} className="px-3 py-1.5 font-mono tabular-nums text-foreground">
                       {text}
                     </td>
                   );
                 })}
                 {errorKey ? (
-                  <td className="px-3 py-1.5 tabular-nums text-foreground">
+                  <td className="px-3 py-1.5 font-mono tabular-nums text-foreground">
                     {Number(row[errorKey] ?? 0)}
                   </td>
                 ) : null}

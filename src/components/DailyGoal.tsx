@@ -27,12 +27,12 @@ export const DailyGoal = memo(function DailyGoal({ daily, onOpenGoalSettings }: 
   return (
     <div
       aria-label="Daily goal progress"
-      className="flex flex-col gap-1.5 rounded-lg border border-border/60 bg-card/60 px-3.5 py-2 text-xs shadow-xs"
+      className="flex flex-col gap-1.5 rounded-lg border border-border/60 bg-card/60 px-3.5 py-2 text-[13px]"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5 font-medium text-foreground">
           <Target className="size-3.5 shrink-0 text-primary" />
-          <span>Daily Goal</span>
+          <span>Daily goal</span>
           <span aria-hidden="true" className="text-muted-foreground">
             ·
           </span>
@@ -74,12 +74,8 @@ export const DailyGoal = memo(function DailyGoal({ daily, onOpenGoalSettings }: 
                 ·
               </span>
               <span
-                className={`hidden items-center gap-1 font-mono text-[11px] sm:inline-flex ${
-                  eff.freezeActive
-                    ? "text-accent"
-                    : eff.freezeAvailable
-                      ? "text-muted-foreground"
-                      : "text-muted-foreground/60"
+                className={`hidden items-center gap-1 text-[13px] sm:inline-flex ${
+                  eff.freezeActive ? "text-accent" : "text-muted-foreground"
                 }`}
                 title={
                   eff.freezeActive
@@ -104,7 +100,7 @@ export const DailyGoal = memo(function DailyGoal({ daily, onOpenGoalSettings }: 
 
         <div className="flex items-center gap-2">
           {eff.goalMetToday ? (
-            <span className="font-mono text-[11px] font-semibold text-accent">Goal met</span>
+            <span className="text-[13px] font-semibold text-accent">Goal met</span>
           ) : null}
           {onOpenGoalSettings ? (
             <button
@@ -112,7 +108,7 @@ export const DailyGoal = memo(function DailyGoal({ daily, onOpenGoalSettings }: 
               onClick={onOpenGoalSettings}
               aria-label="Configure daily goal"
               title="Configure daily goal"
-              className="flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              className="flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             >
               <Settings2 className="size-3.5" />
               <span className="hidden sm:inline">Goal</span>

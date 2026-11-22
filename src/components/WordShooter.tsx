@@ -52,39 +52,37 @@ export function WordShooter({
         {game.liveAnnouncement}
       </div>
 
-      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 text-xs sm:mb-3 sm:gap-3 sm:text-sm">
+      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 text-[13px] sm:mb-3 sm:gap-3 sm:text-sm">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="flex items-baseline gap-1">
-            <span className="font-mono text-lg font-bold text-primary sm:text-2xl">
+            <span className="font-mono text-lg font-bold tabular-nums text-primary sm:text-2xl">
               {game.score}
             </span>
-            <span className="text-[11px] text-muted-foreground">pts</span>
+            <span className="text-[13px] text-muted-foreground">pts</span>
           </div>
 
-          <span className="rounded bg-secondary px-1.5 py-0.5 font-mono text-xs font-bold uppercase text-foreground">
+          <span className="rounded bg-secondary px-1.5 py-0.5 font-mono text-[13px] font-bold tabular-nums text-foreground">
             Lvl {game.level}
           </span>
 
           {settings.practiceMode ? (
-            <span className="rounded bg-accent/15 px-2 py-0.5 font-mono text-[11px] font-semibold text-accent">
+            <span className="rounded bg-accent/15 px-2 py-0.5 text-[13px] font-semibold text-accent">
               Practice
             </span>
           ) : (
             <div className="flex items-center gap-1 text-destructive">
-              <span className="font-mono font-bold">{game.lives}</span>
+              <span className="font-mono font-bold tabular-nums">{game.lives}</span>
               <span className="text-sm">{"❤".repeat(Math.max(0, Math.min(5, game.lives)))}</span>
               {game.lives > 5 ? (
-                <span className="font-mono text-xs font-semibold">+{game.lives - 5}</span>
+                <span className="font-mono text-[13px] font-semibold tabular-nums">
+                  +{game.lives - 5}
+                </span>
               ) : null}
             </div>
           )}
 
           {game.streak >= 3 ? (
-            <span
-              className={`${
-                game.reducedMotion ? "" : "animate-pulse "
-              }font-mono text-xs font-semibold text-accent`}
-            >
+            <span className="font-mono text-[13px] font-semibold tabular-nums text-accent">
               {game.streak}x
             </span>
           ) : null}
@@ -95,7 +93,7 @@ export function WordShooter({
               disabled={game.phase !== "playing" || game.slowCharges <= 0}
               onClick={game.activateSlowTime}
               title="Activate Slow-Time (Tab or 1)"
-              className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-mono text-[11px] font-semibold transition-colors ${
+              className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[13px] font-semibold tabular-nums transition-colors ${
                 game.slowTimeActive
                   ? "border-accent bg-accent/20 text-accent"
                   : game.slowCharges > 0
@@ -104,12 +102,12 @@ export function WordShooter({
               }`}
             >
               <Clock className="size-3" />
-              <span>{game.slowTimeActive ? "SLOW" : `×${game.slowCharges}`}</span>
+              <span>{game.slowTimeActive ? "Slow" : `×${game.slowCharges}`}</span>
             </button>
 
             <span
               title="Shields auto-absorb a breach"
-              className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-mono text-[11px] font-semibold ${
+              className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-mono text-[13px] font-semibold tabular-nums ${
                 game.shieldCharges > 0
                   ? "border-accent/50 bg-accent/15 text-foreground"
                   : "border-border/70 bg-secondary/40 text-muted-foreground"
@@ -122,9 +120,15 @@ export function WordShooter({
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
-          <div className="hidden font-mono text-xs text-muted-foreground md:block">
-            Hit: <span className="font-semibold text-foreground">{game.hitRate}%</span> · Acc:{" "}
-            <span className="font-semibold text-foreground">{game.typingAccuracy}%</span>
+          <div className="hidden text-[13px] text-muted-foreground md:block">
+            Hit:{" "}
+            <span className="font-mono font-semibold tabular-nums text-foreground">
+              {game.hitRate}%
+            </span>{" "}
+            · Acc:{" "}
+            <span className="font-mono font-semibold tabular-nums text-foreground">
+              {game.typingAccuracy}%
+            </span>
           </div>
 
           <button
@@ -145,7 +149,7 @@ export function WordShooter({
               type="button"
               onClick={game.togglePause}
               aria-label={game.phase === "paused" ? "Resume game" : "Pause game"}
-              className="flex min-h-9 cursor-pointer items-center gap-1 rounded-lg border border-border bg-secondary px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+              className="flex min-h-9 cursor-pointer items-center gap-1 rounded-lg border border-border bg-secondary px-2.5 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
             >
               {game.phase === "paused" ? (
                 <>
@@ -165,7 +169,7 @@ export function WordShooter({
             <button
               type="button"
               onClick={game.finishRun}
-              className="flex cursor-pointer items-center gap-1 rounded-lg border border-accent/40 bg-accent/15 px-2 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/25"
+              className="flex cursor-pointer items-center gap-1 rounded-lg border border-accent/40 bg-accent/15 px-2 py-1.5 text-[13px] font-semibold text-accent transition-colors hover:bg-accent/25"
             >
               <Square className="size-3" />
               <span>End</span>
@@ -175,7 +179,7 @@ export function WordShooter({
           <button
             type="button"
             onClick={game.start}
-            className="flex cursor-pointer items-center gap-1 rounded-lg border border-border bg-secondary px-2 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted sm:px-2.5"
+            className="flex cursor-pointer items-center gap-1 rounded-lg border border-border bg-secondary px-2 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted sm:px-2.5"
           >
             <RotateCcw className="size-3.5" />
             <span className="hidden sm:inline">Restart</span>
@@ -190,7 +194,6 @@ export function WordShooter({
         phase={game.phase}
         pauseReason={game.pauseReason}
         resumeCountdown={game.resumeCountdown}
-        reducedMotion={game.reducedMotion}
         hasDangerEnemy={game.hasDangerEnemy}
         levelBanner={game.levelBanner}
         settings={settings}
@@ -210,7 +213,7 @@ export function WordShooter({
         onKey={game.handleKey}
       />
 
-      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-[13px] text-muted-foreground">
         <p className="hidden sm:block">
           Type falling letters ·{" "}
           <kbd className="rounded border border-border bg-secondary px-1 font-mono">Tab/1</kbd>{" "}
@@ -218,14 +221,15 @@ export function WordShooter({
           <kbd className="rounded border border-border bg-secondary px-1 font-mono">F2/Esc</kbd>{" "}
           Pause
         </p>
-        <p className="font-mono text-[11px] sm:hidden">
-          Hit: <strong className="text-foreground">{game.hitRate}%</strong> · Acc:{" "}
-          <strong className="text-foreground">{game.typingAccuracy}%</strong>
+        <p className="text-[13px] sm:hidden">
+          Hit: <strong className="font-mono tabular-nums text-foreground">{game.hitRate}%</strong> ·
+          Acc:{" "}
+          <strong className="font-mono tabular-nums text-foreground">{game.typingAccuracy}%</strong>
         </p>
-        <span className="font-mono text-[11px]">
+        <span className="text-[13px]">
           Target:{" "}
           {game.targetWord !== null ? (
-            <span className="font-semibold text-primary">{game.targetWord}</span>
+            <span className="font-mono font-semibold text-primary">{game.targetWord}</span>
           ) : (
             "auto-locking"
           )}

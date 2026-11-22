@@ -34,8 +34,8 @@ export function SettingsDailyGoalSection({
 
   return (
     <div className="space-y-3 border-t border-border/60 pt-5">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Daily Practice Goal &amp; Streak
+      <h3 className="text-sm font-medium text-muted-foreground">
+        Daily practice goal &amp; streak
       </h3>
       <div className="grid grid-cols-2 gap-2">
         <button
@@ -48,11 +48,11 @@ export function SettingsDailyGoalSection({
               : "border-border bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground"
           }`}
         >
-          <span className="flex items-center gap-1.5 text-xs font-semibold">
+          <span className="flex items-center gap-1.5 text-[13px] font-semibold">
             <Clock className="size-3.5 text-primary" />
-            Active Minutes
+            Active minutes
           </span>
-          <span className="mt-1 text-xs text-muted-foreground">Real typing time only</span>
+          <span className="mt-1 text-[13px] text-muted-foreground">Real typing time only</span>
         </button>
 
         <button
@@ -65,11 +65,13 @@ export function SettingsDailyGoalSection({
               : "border-border bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground"
           }`}
         >
-          <span className="flex items-center gap-1.5 text-xs font-semibold">
+          <span className="flex items-center gap-1.5 text-[13px] font-semibold">
             <Hash className="size-3.5 text-primary" />
-            Completed Runs
+            Completed runs
           </span>
-          <span className="mt-1 text-xs text-muted-foreground">Drills or Word Shooter games</span>
+          <span className="mt-1 text-[13px] text-muted-foreground">
+            Drills or Word Shooter games
+          </span>
         </button>
       </div>
 
@@ -80,7 +82,7 @@ export function SettingsDailyGoalSection({
             type="button"
             aria-pressed={eff.goalTarget === val}
             onClick={() => applyGoal(eff.goalType, val, eff.freezeEnabled)}
-            className={`min-h-10 cursor-pointer rounded-lg border px-3 py-1.5 font-mono text-xs font-medium tabular-nums transition-colors ${
+            className={`min-h-10 cursor-pointer rounded-lg border px-3 py-1.5 text-[13px] font-medium tabular-nums transition-colors ${
               eff.goalTarget === val
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-border bg-secondary text-muted-foreground hover:text-foreground"
@@ -90,7 +92,7 @@ export function SettingsDailyGoalSection({
             {eff.goalType === "minutes" ? "m" : eff.goalTarget === 1 ? " run" : " runs"}
           </button>
         ))}
-        <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+        <label className="ml-auto flex items-center gap-2 text-[13px] text-muted-foreground">
           <span>Custom:</span>
           <input
             type="number"
@@ -99,18 +101,18 @@ export function SettingsDailyGoalSection({
             max={eff.goalType === "minutes" ? 120 : 50}
             value={goalTargetInput}
             onChange={(e) => applyGoal(eff.goalType, Number(e.target.value), eff.freezeEnabled)}
-            className="h-10 w-18 rounded-lg border border-border bg-secondary px-2 text-center font-mono text-xs font-semibold tabular-nums text-foreground"
+            className="h-10 w-18 rounded-lg border border-border bg-secondary px-2 text-center font-mono text-[13px] font-semibold tabular-nums text-foreground"
           />
         </label>
       </div>
 
       <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-secondary/40 p-3.5">
         <div>
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+          <div className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
             <Snowflake className="size-3.5 text-accent" />
-            Weekly Streak Freeze
+            Weekly streak freeze
           </div>
-          <div className="mt-0.5 text-xs text-muted-foreground">
+          <div className="mt-0.5 text-[13px] text-muted-foreground">
             Automatically forgive 1 missed calendar day every 7 days without resetting your streak
           </div>
         </div>
@@ -118,7 +120,7 @@ export function SettingsDailyGoalSection({
           type="button"
           aria-pressed={eff.freezeEnabled}
           onClick={() => applyGoal(eff.goalType, eff.goalTarget, !eff.freezeEnabled)}
-          className={`min-h-10 shrink-0 cursor-pointer rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+          className={`min-h-10 shrink-0 cursor-pointer rounded-lg px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
             eff.freezeEnabled
               ? "bg-primary text-primary-foreground"
               : "border border-border bg-secondary text-muted-foreground hover:text-foreground"

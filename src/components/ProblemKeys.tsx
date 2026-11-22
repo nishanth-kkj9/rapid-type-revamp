@@ -13,11 +13,11 @@ export function ProblemKeys({ mistakes, limit = 6, label = "Problem keys" }: Pro
 
   return (
     <div className="flex flex-wrap items-center justify-center gap-2">
-      <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{label}</span>
+      <span className="text-[13px] text-muted-foreground">{label}</span>
       {top.map(([key, count]) => (
         <span
           key={key}
-          className="rounded-md border border-destructive/40 bg-destructive/15 px-2 py-1 font-mono text-xs"
+          className="rounded-md border border-destructive/40 bg-destructive/15 px-2 py-1 font-mono text-[13px]"
         >
           {key === " " ? "space" : key}
           <span className="ml-1.5 text-muted-foreground">{count}</span>

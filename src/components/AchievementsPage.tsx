@@ -85,26 +85,24 @@ export function AchievementsPage({
           <div>
             <div className="flex items-center gap-2">
               <Trophy className="size-5 text-primary" />
-              <h2 className="font-mono text-xl font-bold tracking-tight sm:text-2xl">
-                Achievements
-              </h2>
+              <h2 className="text-xl font-semibold">Achievements</h2>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+            <p className="mt-1 text-[13px] text-muted-foreground sm:text-sm">
               Track speed, accuracy, pacing, volume, daily streaks, key mastery, and arcade
               milestones.
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="text-right font-mono tabular-nums">
-              <div className="text-lg font-bold text-primary">
+            <div className="text-right tabular-nums">
+              <div className="font-mono text-lg font-bold text-primary">
                 {unlockedCount} / {totalCount}
               </div>
-              <div className="text-xs text-muted-foreground">{overallPercent}% complete</div>
+              <div className="text-[13px] text-muted-foreground">{overallPercent}% complete</div>
             </div>
             <button
               type="button"
               onClick={onBack}
-              className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted whitespace-nowrap shrink-0"
+              className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-muted whitespace-nowrap shrink-0"
             >
               <ArrowLeft className="size-3.5" />
               Back to Drill
@@ -121,23 +119,21 @@ export function AchievementsPage({
 
         {nextUp.length > 0 ? (
           <div className="mt-5 border-t border-border/70 pt-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Closest to Unlocking
-            </h3>
+            <h3 className="text-sm font-medium text-muted-foreground">Closest to unlocking</h3>
             <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-3">
               {nextUp.map((item) => (
                 <div
                   key={item.def.id}
                   className="rounded-xl border border-border/80 bg-secondary/40 p-3"
                 >
-                  <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                  <div className="flex items-center justify-between gap-2 text-[13px] text-muted-foreground">
                     <span>{CATEGORY_LABEL[item.def.category]}</span>
                     <span className="font-mono tabular-nums font-semibold text-primary">
                       {item.percent}%
                     </span>
                   </div>
                   <div className="mt-1 text-sm font-semibold text-foreground">{item.def.title}</div>
-                  <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+                  <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
                     {item.def.description}
                   </p>
                   <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
@@ -146,8 +142,11 @@ export function AchievementsPage({
                       style={{ width: `${item.percent}%` }}
                     />
                   </div>
-                  <div className="mt-1 font-mono text-[11px] tabular-nums text-muted-foreground">
-                    {item.current.toLocaleString()} / {item.target.toLocaleString()} {item.def.unit}
+                  <div className="mt-1 text-[13px] tabular-nums text-muted-foreground">
+                    <span className="font-mono">
+                      {item.current.toLocaleString()} / {item.target.toLocaleString()}
+                    </span>{" "}
+                    {item.def.unit}
                   </div>
                 </div>
               ))}
@@ -161,7 +160,7 @@ export function AchievementsPage({
           <button
             type="button"
             onClick={() => setCategory("all")}
-            className={`cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+            className={`cursor-pointer rounded-lg px-2.5 py-1 text-[13px] font-medium transition-colors whitespace-nowrap shrink-0 ${
               category === "all"
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground"
@@ -174,7 +173,7 @@ export function AchievementsPage({
               key={c.id}
               type="button"
               onClick={() => setCategory(c.id)}
-              className={`cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+              className={`cursor-pointer rounded-lg px-2.5 py-1 text-[13px] font-medium transition-colors whitespace-nowrap shrink-0 ${
                 category === c.id
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -191,7 +190,7 @@ export function AchievementsPage({
               key={st}
               type="button"
               onClick={() => setStatus(st)}
-              className={`cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium capitalize transition-colors whitespace-nowrap shrink-0 ${
+              className={`cursor-pointer rounded-lg px-2.5 py-1 text-[13px] font-medium capitalize transition-colors whitespace-nowrap shrink-0 ${
                 status === st
                   ? "bg-accent text-accent-foreground font-semibold"
                   : "text-muted-foreground hover:text-foreground"
@@ -219,22 +218,22 @@ export function AchievementsPage({
                 }`}
               >
                 <div>
-                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <div className="flex items-center justify-between gap-2 text-[13px] text-muted-foreground">
                     <span>{CATEGORY_LABEL[item.def.category]}</span>
                     {unlocked ? (
-                      <span className="flex items-center gap-1 font-mono text-[11px] text-primary">
+                      <span className="flex items-center gap-1 text-[13px] text-primary">
                         <CheckCircle2 className="size-3.5" aria-hidden="true" />
                         <span>{formatUnlockDate(item.unlockedAt!)}</span>
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 font-mono text-[11px]">
+                      <span className="flex items-center gap-1 text-[13px]">
                         <Lock className="size-3" aria-hidden="true" />
                         <span>Locked</span>
                       </span>
                     )}
                   </div>
                   <h4 className="mt-1.5 text-sm font-semibold text-foreground">{item.def.title}</h4>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
                     {item.def.description}
                   </p>
                 </div>
@@ -248,12 +247,14 @@ export function AchievementsPage({
                       style={{ width: `${item.percent}%` }}
                     />
                   </div>
-                  <div className="mt-1.5 flex items-center justify-between font-mono text-[11px] tabular-nums text-muted-foreground">
+                  <div className="mt-1.5 flex items-center justify-between text-[13px] tabular-nums text-muted-foreground">
                     <span>
-                      {item.current.toLocaleString()} / {item.target.toLocaleString()}{" "}
+                      <span className="font-mono">
+                        {item.current.toLocaleString()} / {item.target.toLocaleString()}
+                      </span>{" "}
                       {item.def.unit}
                     </span>
-                    <span>{item.percent}%</span>
+                    <span className="font-mono">{item.percent}%</span>
                   </div>
                 </div>
               </article>

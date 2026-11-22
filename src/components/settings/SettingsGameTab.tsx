@@ -36,10 +36,8 @@ export function SettingsGameTab({ shooterSettings, onUpdateShooter }: SettingsGa
     <div className="space-y-6">
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Word Shooter Difficulty
-          </h3>
-          <span className="font-mono text-xs font-semibold capitalize text-primary">
+          <h3 className="text-sm font-medium text-muted-foreground">Word Shooter difficulty</h3>
+          <span className="text-[13px] font-semibold capitalize text-primary">
             {shooterSettings.difficulty}
           </span>
         </div>
@@ -58,8 +56,8 @@ export function SettingsGameTab({ shooterSettings, onUpdateShooter }: SettingsGa
                     : "border-border bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground"
                 }`}
               >
-                <span className="font-mono text-sm font-bold capitalize">{d.label}</span>
-                <span className="mt-1 text-xs text-muted-foreground">{d.desc}</span>
+                <span className="text-sm font-bold capitalize">{d.label}</span>
+                <span className="mt-1 text-[13px] text-muted-foreground">{d.desc}</span>
               </button>
             );
           })}
@@ -70,12 +68,12 @@ export function SettingsGameTab({ shooterSettings, onUpdateShooter }: SettingsGa
         <div className="flex items-center justify-between">
           <label
             htmlFor="settings-shooter-speed"
-            className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground"
           >
             <Gauge className="size-3.5 text-primary" />
-            Falling Speed Multiplier
+            Falling speed multiplier
           </label>
-          <span className="font-mono text-xs font-bold text-primary">
+          <span className="font-mono text-[13px] font-bold tabular-nums text-primary">
             {shooterSettings.speedMultiplier.toFixed(2)}x
           </span>
         </div>
@@ -89,21 +87,21 @@ export function SettingsGameTab({ shooterSettings, onUpdateShooter }: SettingsGa
                 type="button"
                 aria-pressed={active}
                 onClick={() => onUpdateShooter({ speedMultiplier: p.value })}
-                className={`min-h-11 cursor-pointer rounded-lg border px-2 py-1.5 text-center text-xs font-medium transition-colors ${
+                className={`min-h-11 cursor-pointer rounded-lg border px-2 py-1.5 text-center text-[13px] font-medium transition-colors ${
                   active
                     ? "border-accent bg-accent font-semibold text-accent-foreground"
                     : "border-border bg-secondary text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {p.label}
-                <span className="block font-mono text-xs">{p.value}x</span>
+                <span className="block text-[13px] tabular-nums">{p.value}x</span>
               </button>
             );
           })}
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="font-mono text-xs text-muted-foreground">0.5x</span>
+          <span className="font-mono text-[13px] tabular-nums text-muted-foreground">0.5x</span>
           <input
             id="settings-shooter-speed"
             type="range"
@@ -114,7 +112,7 @@ export function SettingsGameTab({ shooterSettings, onUpdateShooter }: SettingsGa
             onChange={(e) => onUpdateShooter({ speedMultiplier: parseFloat(e.target.value) })}
             className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-secondary accent-primary"
           />
-          <span className="font-mono text-xs text-muted-foreground">2.5x</span>
+          <span className="font-mono text-[13px] tabular-nums text-muted-foreground">2.5x</span>
         </div>
       </div>
 
@@ -126,12 +124,12 @@ export function SettingsGameTab({ shooterSettings, onUpdateShooter }: SettingsGa
         <div className="flex items-center justify-between">
           <label
             htmlFor="settings-shooter-lives"
-            className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground"
           >
             <Heart className="size-3.5 text-destructive" />
-            Starting Lives {shooterSettings.practiceMode ? "(Unlimited in Practice)" : ""}
+            Starting lives {shooterSettings.practiceMode ? "(unlimited in practice)" : ""}
           </label>
-          <span className="font-mono text-xs font-bold text-destructive">
+          <span className="font-mono text-[13px] font-bold tabular-nums text-destructive">
             {shooterSettings.startingLives} ❤
           </span>
         </div>
@@ -146,7 +144,7 @@ export function SettingsGameTab({ shooterSettings, onUpdateShooter }: SettingsGa
                 disabled={shooterSettings.practiceMode}
                 aria-pressed={active}
                 onClick={() => onUpdateShooter({ startingLives: p.value })}
-                className={`min-h-10 cursor-pointer rounded-lg border px-2 py-1.5 text-center text-xs font-medium transition-colors ${
+                className={`min-h-10 cursor-pointer rounded-lg border px-2 py-1.5 text-center text-[13px] font-medium transition-colors ${
                   active
                     ? "border-destructive/80 bg-destructive/15 font-semibold text-foreground ring-1 ring-destructive/50"
                     : "border-border bg-secondary text-muted-foreground hover:text-foreground"
@@ -159,7 +157,7 @@ export function SettingsGameTab({ shooterSettings, onUpdateShooter }: SettingsGa
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="font-mono text-xs text-muted-foreground">1</span>
+          <span className="font-mono text-[13px] tabular-nums text-muted-foreground">1</span>
           <input
             id="settings-shooter-lives"
             type="range"
@@ -171,18 +169,18 @@ export function SettingsGameTab({ shooterSettings, onUpdateShooter }: SettingsGa
             onChange={(e) => onUpdateShooter({ startingLives: parseInt(e.target.value, 10) })}
             className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-secondary accent-destructive"
           />
-          <span className="font-mono text-xs text-muted-foreground">10</span>
+          <span className="font-mono text-[13px] tabular-nums text-muted-foreground">10</span>
         </div>
       </div>
 
       <div className="space-y-3 border-t border-border/60 pt-5">
         <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-secondary/40 p-3.5">
           <div>
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+            <div className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
               <InfinityIcon className="size-3.5 text-accent" />
               Practice Mode (No Breaches Lost)
             </div>
-            <div className="mt-0.5 text-xs text-muted-foreground">
+            <div className="mt-0.5 text-[13px] text-muted-foreground">
               Practice endlessly without losing lives; scores count cleanly without leaderboard lock
             </div>
           </div>
@@ -190,7 +188,7 @@ export function SettingsGameTab({ shooterSettings, onUpdateShooter }: SettingsGa
             type="button"
             aria-pressed={shooterSettings.practiceMode}
             onClick={() => onUpdateShooter({ practiceMode: !shooterSettings.practiceMode })}
-            className={`min-h-10 shrink-0 cursor-pointer rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+            className={`min-h-10 shrink-0 cursor-pointer rounded-lg px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
               shooterSettings.practiceMode
                 ? "bg-accent text-accent-foreground"
                 : "border border-border bg-secondary text-muted-foreground hover:text-foreground"
@@ -202,11 +200,11 @@ export function SettingsGameTab({ shooterSettings, onUpdateShooter }: SettingsGa
 
         <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-secondary/40 p-3.5">
           <div>
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+            <div className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
               <Calendar className="size-3.5 text-primary" />
               Daily Seeded Challenge
             </div>
-            <div className="mt-0.5 text-xs text-muted-foreground">
+            <div className="mt-0.5 text-[13px] text-muted-foreground">
               Deterministic wave sequence seeded from today&apos;s local calendar date
             </div>
           </div>
@@ -214,7 +212,7 @@ export function SettingsGameTab({ shooterSettings, onUpdateShooter }: SettingsGa
             type="button"
             aria-pressed={shooterSettings.dailyChallenge}
             onClick={() => onUpdateShooter({ dailyChallenge: !shooterSettings.dailyChallenge })}
-            className={`min-h-10 shrink-0 cursor-pointer rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+            className={`min-h-10 shrink-0 cursor-pointer rounded-lg px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
               shooterSettings.dailyChallenge
                 ? "bg-primary text-primary-foreground"
                 : "border border-border bg-secondary text-muted-foreground hover:text-foreground"
@@ -226,11 +224,11 @@ export function SettingsGameTab({ shooterSettings, onUpdateShooter }: SettingsGa
 
         <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-secondary/40 p-3.5">
           <div>
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+            <div className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
               <Keyboard className="size-3.5 text-primary" />
               Arcade On-Screen Keyboard
             </div>
-            <div className="mt-0.5 text-xs text-muted-foreground">
+            <div className="mt-0.5 text-[13px] text-muted-foreground">
               Display the virtual keyboard highlighting the locked target word&apos;s next character
             </div>
           </div>
@@ -238,7 +236,7 @@ export function SettingsGameTab({ shooterSettings, onUpdateShooter }: SettingsGa
             type="button"
             aria-pressed={shooterSettings.showKeyboard}
             onClick={() => onUpdateShooter({ showKeyboard: !shooterSettings.showKeyboard })}
-            className={`min-h-10 shrink-0 cursor-pointer rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+            className={`min-h-10 shrink-0 cursor-pointer rounded-lg px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
               shooterSettings.showKeyboard
                 ? "bg-primary text-primary-foreground"
                 : "border border-border bg-secondary text-muted-foreground hover:text-foreground"

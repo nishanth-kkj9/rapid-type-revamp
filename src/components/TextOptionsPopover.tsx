@@ -68,7 +68,7 @@ export function TextOptionsPopover({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className={`flex min-h-11 sm:min-h-8 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium whitespace-nowrap shrink-0 transition-colors ${
+        className={`flex min-h-11 sm:min-h-8 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[13px] font-medium whitespace-nowrap shrink-0 transition-colors ${
           open || strictMode !== "off" || paceCaret === "pb" || settings.focusWeakKeys
             ? "border-primary/50 bg-primary/10 text-foreground"
             : "border-border bg-secondary/70 text-muted-foreground hover:text-foreground"
@@ -77,7 +77,7 @@ export function TextOptionsPopover({
         <SlidersHorizontal className="size-3.5 text-primary" />
         <span>Options</span>
         {activeTags.length > 0 ? (
-          <span className="hidden font-mono text-[11px] capitalize text-muted-foreground sm:inline">
+          <span className="hidden text-[13px] capitalize text-muted-foreground sm:inline">
             · {activeTags.join(" · ")}
           </span>
         ) : null}
@@ -87,12 +87,12 @@ export function TextOptionsPopover({
         <div
           role="dialog"
           aria-label="Test options"
-          className="absolute left-0 top-full z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] space-y-3.5 rounded-xl border border-border bg-popover p-3.5 text-left text-xs text-popover-foreground shadow-xl sm:left-auto sm:right-0 sm:w-80"
+          className="absolute left-0 top-full z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] space-y-3.5 rounded-xl border border-border bg-popover p-3.5 text-left text-[13px] text-popover-foreground sm:left-auto sm:right-0 sm:w-80"
         >
           {drillMode !== "quote" && !hasCustomText ? (
             <>
               <div>
-                <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="mb-1.5 text-[13px] font-medium text-muted-foreground">
                   Difficulty
                 </div>
                 <div className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-secondary/50 p-1">
@@ -102,7 +102,7 @@ export function TextOptionsPopover({
                       type="button"
                       aria-pressed={settings.difficulty === d}
                       onClick={() => onUpdateSettings({ difficulty: d })}
-                      className={`min-h-11 sm:min-h-8 cursor-pointer rounded-md px-2 py-1 text-xs font-medium capitalize transition-colors ${
+                      className={`min-h-11 sm:min-h-8 cursor-pointer rounded-md px-2 py-1 text-[13px] font-medium capitalize transition-colors ${
                         settings.difficulty === d
                           ? "bg-primary font-semibold text-primary-foreground"
                           : "text-muted-foreground hover:text-foreground"
@@ -115,8 +115,8 @@ export function TextOptionsPopover({
               </div>
 
               <div>
-                <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Text Style
+                <div className="mb-1.5 text-[13px] font-medium text-muted-foreground">
+                  Text style
                 </div>
                 <div className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-secondary/50 p-1">
                   {(["sentences", "words"] as const).map((st) => (
@@ -131,7 +131,7 @@ export function TextOptionsPopover({
                           includeCapitals: st === "sentences",
                         })
                       }
-                      className={`min-h-11 sm:min-h-8 cursor-pointer rounded-md px-2 py-1 text-xs font-medium capitalize transition-colors ${
+                      className={`min-h-11 sm:min-h-8 cursor-pointer rounded-md px-2 py-1 text-[13px] font-medium capitalize transition-colors ${
                         textOpts.style === st
                           ? "bg-secondary font-semibold text-foreground ring-1 ring-border"
                           : "text-muted-foreground hover:text-foreground"
@@ -144,7 +144,7 @@ export function TextOptionsPopover({
               </div>
 
               <div>
-                <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="mb-1.5 text-[13px] font-medium text-muted-foreground">
                   Modifiers
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -152,7 +152,7 @@ export function TextOptionsPopover({
                     type="button"
                     aria-pressed={textOpts.punctuation}
                     onClick={() => onUpdateSettings({ includePunctuation: !textOpts.punctuation })}
-                    className={`min-h-11 sm:min-h-8 cursor-pointer rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+                    className={`min-h-11 sm:min-h-8 cursor-pointer rounded-lg border px-2.5 py-1 text-[13px] font-medium transition-colors ${
                       textOpts.punctuation
                         ? "border-accent/60 bg-accent/20 font-semibold text-foreground"
                         : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
@@ -164,7 +164,7 @@ export function TextOptionsPopover({
                     type="button"
                     aria-pressed={textOpts.numbers}
                     onClick={() => onUpdateSettings({ includeNumbers: !textOpts.numbers })}
-                    className={`min-h-11 sm:min-h-8 cursor-pointer rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+                    className={`min-h-11 sm:min-h-8 cursor-pointer rounded-lg border px-2.5 py-1 text-[13px] font-medium transition-colors ${
                       textOpts.numbers
                         ? "border-accent/60 bg-accent/20 font-semibold text-foreground"
                         : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
@@ -176,7 +176,7 @@ export function TextOptionsPopover({
                     type="button"
                     aria-pressed={textOpts.capitals}
                     onClick={() => onUpdateSettings({ includeCapitals: !textOpts.capitals })}
-                    className={`min-h-11 sm:min-h-8 cursor-pointer rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+                    className={`min-h-11 sm:min-h-8 cursor-pointer rounded-lg border px-2.5 py-1 text-[13px] font-medium transition-colors ${
                       textOpts.capitals
                         ? "border-accent/60 bg-accent/20 font-semibold text-foreground"
                         : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
@@ -188,7 +188,7 @@ export function TextOptionsPopover({
                     type="button"
                     aria-pressed={settings.focusWeakKeys}
                     onClick={() => onUpdateSettings({ focusWeakKeys: !settings.focusWeakKeys })}
-                    className={`min-h-11 sm:min-h-8 cursor-pointer rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+                    className={`min-h-11 sm:min-h-8 cursor-pointer rounded-lg border px-2.5 py-1 text-[13px] font-medium transition-colors ${
                       settings.focusWeakKeys
                         ? "border-primary/60 bg-primary/15 font-semibold text-foreground"
                         : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
@@ -202,9 +202,7 @@ export function TextOptionsPopover({
           ) : null}
 
           <div>
-            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Strict Mode
-            </div>
+            <div className="mb-1.5 text-[13px] font-medium text-muted-foreground">Strict mode</div>
             <div className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-secondary/50 p-1">
               {STRICT_MODES.map((m) => (
                 <button
@@ -213,7 +211,7 @@ export function TextOptionsPopover({
                   title={m.description}
                   aria-pressed={strictMode === m.id}
                   onClick={() => onUpdateSettings({ strictMode: m.id })}
-                  className={`min-h-11 sm:min-h-8 cursor-pointer rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                  className={`min-h-11 sm:min-h-8 cursor-pointer rounded-md px-2 py-1 text-[13px] font-medium transition-colors ${
                     strictMode === m.id
                       ? "bg-primary font-semibold text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground"
@@ -226,9 +224,7 @@ export function TextOptionsPopover({
           </div>
 
           <div>
-            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Pace Caret
-            </div>
+            <div className="mb-1.5 text-[13px] font-medium text-muted-foreground">Pace caret</div>
             <div className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-secondary/50 p-1">
               {PACE_CARET_OPTIONS.map((opt) => (
                 <button
@@ -236,7 +232,7 @@ export function TextOptionsPopover({
                   type="button"
                   aria-pressed={paceCaret === opt.id}
                   onClick={() => onUpdateSettings({ paceCaret: opt.id })}
-                  className={`min-h-11 sm:min-h-8 cursor-pointer rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                  className={`min-h-11 sm:min-h-8 cursor-pointer rounded-md px-2 py-1 text-[13px] font-medium transition-colors ${
                     paceCaret === opt.id
                       ? "bg-accent font-semibold text-accent-foreground"
                       : "text-muted-foreground hover:text-foreground"

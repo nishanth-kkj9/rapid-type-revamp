@@ -91,7 +91,7 @@ export function HistoryDrillView({
 
       {drillAll.length === 0 ? (
         <div className="panel flex flex-col items-center gap-3 px-6 py-10 text-center">
-          <Trophy className="size-8 text-muted-foreground/50" />
+          <Trophy className="size-8 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
             No runs yet. Your first result starts the log.
           </p>
@@ -113,37 +113,27 @@ export function HistoryDrillView({
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
             <div className="rounded-xl border border-border/70 bg-card p-3">
-              <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                Best WPM
-              </div>
+              <div className="text-[13px] text-muted-foreground">Best WPM</div>
               <div className="font-mono text-2xl font-bold tabular-nums text-primary">
                 {bestWpm.toFixed(0)}
               </div>
             </div>
             <div className="rounded-xl border border-border/70 bg-card p-3">
-              <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                Average WPM
-              </div>
+              <div className="text-[13px] text-muted-foreground">Average WPM</div>
               <div className="font-mono text-2xl font-bold tabular-nums">{avgWpm.toFixed(0)}</div>
             </div>
             <div className="rounded-xl border border-border/70 bg-card p-3">
-              <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                Accuracy
-              </div>
+              <div className="text-[13px] text-muted-foreground">Accuracy</div>
               <div className="font-mono text-2xl font-bold tabular-nums text-foreground">
                 {avgAccuracy.toFixed(0)}%
               </div>
             </div>
             <div className="rounded-xl border border-border/70 bg-card p-3">
-              <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                Runs
-              </div>
+              <div className="text-[13px] text-muted-foreground">Runs</div>
               <div className="font-mono text-2xl font-bold tabular-nums">{filtered.length}</div>
             </div>
             <div className="rounded-xl border border-border/70 bg-card p-3">
-              <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                Trend (same type)
-              </div>
+              <div className="text-[13px] text-muted-foreground">Trend (same type)</div>
               {trend ? (
                 <div
                   className={`font-mono text-2xl font-bold tabular-nums ${trend.deltaPercent >= 0 ? "text-primary" : "text-destructive"}`}
@@ -152,7 +142,7 @@ export function HistoryDrillView({
                   {trend.deltaPercent.toFixed(1)}%
                 </div>
               ) : (
-                <div className="mt-1 font-mono text-xs text-muted-foreground">
+                <div className="mt-1 text-[13px] text-muted-foreground">
                   {testType === "all" ? "Select a test type" : "Need 6+ matching runs"}
                 </div>
               )}
@@ -162,9 +152,9 @@ export function HistoryDrillView({
           <HistoryPersonalBestsTable rows={pbTable} />
 
           <div>
-            <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-              <span className="font-semibold uppercase tracking-wider">
-                Run Log ({startIdx + 1}–{Math.min(startIdx + PAGE_SIZE, filtered.length)} of{" "}
+            <div className="mb-2 flex items-center justify-between text-[13px] text-muted-foreground">
+              <span className="font-medium">
+                Run log ({startIdx + 1}–{Math.min(startIdx + PAGE_SIZE, filtered.length)} of{" "}
                 {filtered.length})
               </span>
               <span>Click any run to inspect details</span>
@@ -180,7 +170,7 @@ export function HistoryDrillView({
                     onClick={() => onSelectRun(h)}
                     className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-3 text-left"
                   >
-                    <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
+                    <span className="min-w-0 truncate text-[13px] text-muted-foreground">
                       {new Date(h.date).toLocaleString(undefined, {
                         month: "short",
                         day: "numeric",
@@ -192,10 +182,10 @@ export function HistoryDrillView({
                       {h.strict ? ` · strict: ${h.strict}` : ""}
                       {h.repeated ? " · repeat" : ""}
                     </span>
-                    <span className="shrink-0 font-mono text-xs tabular-nums sm:text-sm">
+                    <span className="shrink-0 font-mono text-[13px] tabular-nums sm:text-sm">
                       <strong className="font-semibold text-primary">{h.wpm.toFixed(0)}</strong> wpm
                       · <span className="text-foreground">{h.accuracy.toFixed(0)}% acc</span> ·{" "}
-                      <span className="hidden text-xs text-muted-foreground sm:inline">
+                      <span className="hidden text-[13px] text-muted-foreground sm:inline">
                         {h.consistency.toFixed(0)}% sync
                       </span>
                     </span>
@@ -214,7 +204,7 @@ export function HistoryDrillView({
             </ul>
 
             {totalPages > 1 ? (
-              <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+              <div className="mt-3 flex items-center justify-between text-[13px] text-muted-foreground">
                 <button
                   type="button"
                   disabled={safePage <= 1}
@@ -223,7 +213,7 @@ export function HistoryDrillView({
                 >
                   <ChevronLeft className="size-3.5" /> Previous
                 </button>
-                <span className="font-mono">
+                <span className="tabular-nums">
                   Page {safePage} of {totalPages}
                 </span>
                 <button

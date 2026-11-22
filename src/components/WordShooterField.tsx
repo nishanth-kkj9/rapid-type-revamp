@@ -10,7 +10,6 @@ interface WordShooterFieldProps {
   phase: ShooterPhase;
   pauseReason: PauseReason;
   resumeCountdown: number | null;
-  reducedMotion: boolean;
   hasDangerEnemy: boolean;
   levelBanner: number | null;
   settings: ShooterSettings;
@@ -37,7 +36,6 @@ export function WordShooterField({
   phase,
   pauseReason,
   resumeCountdown,
-  reducedMotion,
   hasDangerEnemy,
   levelBanner,
   settings,
@@ -114,18 +112,14 @@ export function WordShooterField({
       }}
       style={viewportMaxHeight !== null ? { height: `${viewportMaxHeight}px` } : undefined}
       className={`relative h-[clamp(220px,38dvh,320px)] w-full touch-manipulation overflow-hidden rounded-2xl border transition-colors sm:h-[440px] ${
-        hasDangerEnemy
-          ? "border-destructive/60 bg-card shadow-[0_0_20px_rgba(239,68,68,0.15)]"
-          : "border-border bg-card/80"
+        hasDangerEnemy ? "border-destructive/60 bg-card" : "border-border bg-card/80"
       }`}
     >
       <canvas ref={canvasRef} className="block h-full w-full" />
 
       {levelBanner !== null && (
         <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 rounded border border-primary/60 bg-card px-6 py-3">
-          <span className="font-mono text-xl font-extrabold uppercase tracking-widest text-primary sm:text-2xl">
-            LEVEL {levelBanner}
-          </span>
+          <span className="text-xl font-bold text-primary sm:text-2xl">Level {levelBanner}</span>
         </div>
       )}
 
@@ -136,7 +130,7 @@ export function WordShooterField({
             e.stopPropagation();
             focusInput();
           }}
-          className="absolute bottom-2 left-1/2 z-20 min-h-9 -translate-x-1/2 cursor-pointer rounded-full border border-border bg-card/95 px-3.5 py-1.5 font-mono text-xs font-medium text-foreground shadow-sm hover:bg-secondary"
+          className="absolute bottom-2 left-1/2 z-20 min-h-9 -translate-x-1/2 cursor-pointer rounded-full border border-border bg-card/95 px-3.5 py-1.5 text-[13px] font-medium text-foreground hover:bg-secondary"
         >
           Tap field to focus keyboard
         </button>
@@ -146,7 +140,6 @@ export function WordShooterField({
         phase={phase}
         pauseReason={pauseReason}
         resumeCountdown={resumeCountdown}
-        reducedMotion={reducedMotion}
         settings={settings}
         best={best}
         score={score}

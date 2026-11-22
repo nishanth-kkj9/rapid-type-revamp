@@ -44,9 +44,7 @@ export function HistoryDrillFilters({
   return (
     <div className="flex flex-col gap-2.5 border-b border-border/50 pb-3">
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="mr-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-          Type:
-        </span>
+        <span className="mr-1 text-[13px] font-medium text-muted-foreground">Type:</span>
         {TEST_TYPE_FILTERS.map((t) => {
           const active = testType === t.id;
           return (
@@ -55,7 +53,7 @@ export function HistoryDrillFilters({
               type="button"
               aria-pressed={active}
               onClick={() => onTestTypeChange(t.id)}
-              className={`cursor-pointer rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
+              className={`cursor-pointer rounded-md px-2 py-0.5 text-[13px] font-medium transition-colors ${
                 active
                   ? "bg-primary font-semibold text-primary-foreground"
                   : "bg-secondary text-muted-foreground hover:text-foreground"
@@ -69,9 +67,7 @@ export function HistoryDrillFilters({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Diff:
-          </span>
+          <span className="mr-1 text-[13px] font-medium text-muted-foreground">Diff:</span>
           {DIFFICULTIES.map((diff) => {
             const active = difficulty === diff;
             return (
@@ -80,7 +76,7 @@ export function HistoryDrillFilters({
                 type="button"
                 aria-pressed={active}
                 onClick={() => onDifficultyChange(diff)}
-                className={`cursor-pointer rounded-md px-2 py-0.5 text-xs font-medium capitalize transition-colors ${
+                className={`cursor-pointer rounded-md px-2 py-0.5 text-[13px] font-medium capitalize transition-colors ${
                   active
                     ? "bg-foreground font-semibold text-background"
                     : "bg-secondary text-muted-foreground hover:text-foreground"
@@ -93,9 +89,7 @@ export function HistoryDrillFilters({
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Range:
-          </span>
+          <span className="mr-1 text-[13px] font-medium text-muted-foreground">Range:</span>
           {DATE_RANGES.map((r) => {
             const active = dateRange === r.id;
             return (
@@ -104,7 +98,7 @@ export function HistoryDrillFilters({
                 type="button"
                 aria-pressed={active}
                 onClick={() => onDateRangeChange(r.id)}
-                className={`cursor-pointer rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
+                className={`cursor-pointer rounded-md px-2 py-0.5 text-[13px] font-medium transition-colors ${
                   active
                     ? "bg-accent font-semibold text-accent-foreground"
                     : "bg-secondary text-muted-foreground hover:text-foreground"

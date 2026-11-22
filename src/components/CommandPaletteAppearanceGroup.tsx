@@ -69,7 +69,7 @@ export function CommandPaletteLookAndSettings({
           >
             <span>Layout: {l.label}</span>
             {keyboardLayout === l.id ? (
-              <span className="ml-auto text-xs text-muted-foreground">current</span>
+              <span className="ml-auto text-[13px] text-muted-foreground">current</span>
             ) : null}
           </CommandItem>
         ))}
@@ -84,7 +84,7 @@ export function CommandPaletteLookAndSettings({
           >
             <span>Theme: {THEME_LABELS[t]}</span>
             {theme === t ? (
-              <span className="ml-auto text-xs text-muted-foreground">current</span>
+              <span className="ml-auto text-[13px] text-muted-foreground">current</span>
             ) : null}
           </CommandItem>
         ))}
@@ -93,7 +93,7 @@ export function CommandPaletteLookAndSettings({
           onSelect={() => onRun(onToggleDyslexiaFont)}
         >
           <span>Dyslexia-Friendly Font (OpenDyslexic)</span>
-          <span className="ml-auto text-xs text-muted-foreground">
+          <span className="ml-auto text-[13px] text-muted-foreground">
             {dyslexiaFont ? "on" : "off"}
           </span>
         </CommandItem>

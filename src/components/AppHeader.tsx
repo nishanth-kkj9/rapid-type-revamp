@@ -86,7 +86,7 @@ export function AppHeader({
       >
         <div className="min-w-0 max-w-full">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate font-mono text-xl font-bold tracking-tight sm:text-3xl">
+            <h1 className="truncate text-xl font-bold tracking-tight sm:text-3xl">
               Typing<span className="text-primary">Trainer</span>Pro
             </h1>
             <OfflineIndicator />
@@ -134,7 +134,7 @@ export function AppHeader({
             >
               Restart
               {quickRestart !== "off" ? (
-                <span className="ml-1 hidden font-mono text-xs text-muted-foreground sm:inline">
+                <span className="ml-1 hidden font-mono text-[13px] text-muted-foreground sm:inline">
                   {QUICK_RESTART_LABELS[quickRestart]}
                 </span>
               ) : null}
@@ -156,16 +156,16 @@ export function AppHeader({
               type="button"
               onClick={() => onModeChange(id)}
               aria-pressed={mode === id}
-              className={`flex min-h-11 sm:min-h-9 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors whitespace-nowrap shrink-0 ${
+              className={`flex min-h-11 sm:min-h-9 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors whitespace-nowrap shrink-0 ${
                 mode === id
-                  ? "bg-primary text-primary-foreground shadow-sm"
+                  ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <Icon className="size-3.5" />
               {label}
               {id === "achievements" ? (
-                <span className="font-mono text-xs tabular-nums">
+                <span className="font-mono text-[13px] tabular-nums">
                   {unlockedAchievementsCount}/{ACHIEVEMENTS.length}
                 </span>
               ) : null}
@@ -180,7 +180,7 @@ export function AppHeader({
               onClick={onOpenDailyGoalSettings}
               aria-label={`Daily goal ${goalProgressText}${effDaily.streak > 0 ? `, ${effDaily.streak} day streak` : ""} — configure in Typing settings`}
               title="Daily goal progress · Click to configure in Typing settings"
-              className={`flex min-h-11 sm:min-h-9 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-mono text-xs tabular-nums transition-colors hover:bg-secondary ${
+              className={`flex min-h-11 sm:min-h-9 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[13px] transition-colors hover:bg-secondary ${
                 effDaily.goalMetToday
                   ? "border-accent/50 bg-accent/15 text-foreground"
                   : "border-border bg-card text-muted-foreground hover:text-foreground"
@@ -189,13 +189,15 @@ export function AppHeader({
               <Target
                 className={`size-3.5 shrink-0 ${effDaily.goalMetToday ? "text-accent" : "text-primary"}`}
               />
-              <span className="font-semibold text-foreground">{goalProgressText}</span>
+              <span className="font-mono font-semibold tabular-nums text-foreground">
+                {goalProgressText}
+              </span>
               {effDaily.streak > 0 ? (
                 <>
                   <span aria-hidden="true" className="text-border">
                     ·
                   </span>
-                  <span className="flex items-center gap-0.5 font-semibold text-primary">
+                  <span className="flex items-center gap-0.5 font-mono font-semibold tabular-nums text-primary">
                     <Flame className="size-3 fill-primary/20" />
                     {effDaily.streak}d
                   </span>
@@ -205,7 +207,7 @@ export function AppHeader({
           ) : null}
 
           {mode === "shooter" ? (
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 font-mono text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[13px] text-muted-foreground">
               <span>
                 Diff:{" "}
                 <strong className="capitalize text-foreground">{shooterSettings.difficulty}</strong>
@@ -213,24 +215,32 @@ export function AppHeader({
               <span>·</span>
               <span>
                 Speed:{" "}
-                <strong className="text-primary">
+                <strong className="font-mono tabular-nums text-primary">
                   {shooterSettings.speedMultiplier.toFixed(2)}x
                 </strong>
               </span>
               <span>·</span>
               <span>
                 Lives:{" "}
-                <strong className="text-destructive">{shooterSettings.startingLives} ❤</strong>
+                <strong className="font-mono tabular-nums text-destructive">
+                  {shooterSettings.startingLives} ❤
+                </strong>
               </span>
             </div>
           ) : mode === "learn" ? (
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 font-mono text-xs text-muted-foreground tabular-nums">
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[13px] text-muted-foreground">
               <span>
-                Unlocked: <strong className="text-primary">{learnUnlockedCount}/26</strong>
+                Unlocked:{" "}
+                <strong className="font-mono tabular-nums text-primary">
+                  {learnUnlockedCount}/26
+                </strong>
               </span>
               <span>·</span>
               <span>
-                Target: <strong className="text-foreground">{learnTargetWpm} WPM</strong>
+                Target:{" "}
+                <strong className="font-mono tabular-nums text-foreground">
+                  {learnTargetWpm} WPM
+                </strong>
               </span>
             </div>
           ) : null}

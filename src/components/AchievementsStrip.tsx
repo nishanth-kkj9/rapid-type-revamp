@@ -51,16 +51,20 @@ export function AchievementsStrip({
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}
           aria-expanded={isOpen}
-          className="flex min-w-0 flex-1 cursor-pointer select-none items-center justify-between rounded text-left font-mono text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex min-w-0 flex-1 cursor-pointer select-none items-center justify-between rounded text-left text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <div className="flex items-center gap-2 truncate">
             <Trophy className="size-3.5 shrink-0 text-primary" />
             <span className="truncate">
-              Achievements — {count}/{ACHIEVEMENTS.length} unlocked
+              Achievements —{" "}
+              <span className="font-mono tabular-nums">
+                {count}/{ACHIEVEMENTS.length}
+              </span>{" "}
+              unlocked
             </span>
           </div>
-          <div className="flex shrink-0 items-center gap-1.5 font-mono text-[11px] normal-case tracking-normal">
-            <span className="font-semibold tabular-nums text-primary">
+          <div className="flex shrink-0 items-center gap-1.5 text-[13px]">
+            <span className="font-mono font-semibold tabular-nums text-primary">
               {Math.round((count / ACHIEVEMENTS.length) * 100)}%
             </span>
             <ChevronDown
@@ -76,7 +80,7 @@ export function AchievementsStrip({
           <button
             type="button"
             onClick={onOpenAchievements}
-            className="flex shrink-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 whitespace-nowrap"
+            className="flex shrink-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-[13px] font-semibold text-primary transition-colors hover:bg-primary/10 whitespace-nowrap"
           >
             <span>All</span>
             <ArrowRight className="size-3" />
@@ -101,19 +105,19 @@ export function AchievementsStrip({
                   }`}
                 >
                   <div>
-                    <div className="flex items-center justify-between gap-2 text-xs font-semibold">
+                    <div className="flex items-center justify-between gap-2 text-[13px] font-semibold">
                       <span>{item.def.title}</span>
                       {got ? (
-                        <span className="font-mono text-[10px] font-normal text-muted-foreground">
+                        <span className="text-[13px] font-normal text-muted-foreground">
                           {formatUnlockDate(got)}
                         </span>
                       ) : (
-                        <span className="font-mono text-[10px] font-normal tabular-nums text-muted-foreground">
+                        <span className="font-mono text-[13px] font-normal tabular-nums text-muted-foreground">
                           {item.percent}%
                         </span>
                       )}
                     </div>
-                    <div className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                    <div className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
                       {item.def.description}
                     </div>
                   </div>
@@ -132,7 +136,7 @@ export function AchievementsStrip({
               <button
                 type="button"
                 onClick={onOpenAchievements}
-                className="flex cursor-pointer items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                className="flex cursor-pointer items-center gap-1 text-[13px] font-semibold text-primary hover:underline"
               >
                 <span>Open Achievements Page ({ACHIEVEMENTS.length})</span>
                 <ArrowRight className="size-3.5" />

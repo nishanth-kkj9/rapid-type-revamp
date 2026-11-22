@@ -71,9 +71,9 @@ export function SvgLineChart<T extends Record<string, unknown>>({
   const svgHeight = Math.max(120, size.height - 28);
   const pad = {
     top: 14,
-    right: hasRightAxis ? 38 : 18,
-    bottom: xLabel ? 28 : 22,
-    left: expanded ? 44 : 38,
+    right: hasRightAxis ? 44 : 20,
+    bottom: xLabel ? 32 : 24,
+    left: expanded ? 48 : 42,
   };
   const plotW = Math.max(40, size.width - pad.left - pad.right);
   const plotH = Math.max(40, svgHeight - pad.top - pad.bottom);
@@ -132,8 +132,8 @@ export function SvgLineChart<T extends Record<string, unknown>>({
   );
 
   const xTickIndices = useMemo(() => {
-    if (data.length <= 6) return data.map((_, i) => i);
-    const maxLabels = expanded ? 10 : 6;
+    if (data.length <= 5) return data.map((_, i) => i);
+    const maxLabels = expanded ? 9 : 5;
     const step = Math.ceil((data.length - 1) / (maxLabels - 1));
     const indices: number[] = [];
     for (let i = 0; i < data.length; i += step) indices.push(i);
@@ -162,7 +162,7 @@ export function SvgLineChart<T extends Record<string, unknown>>({
 
   const hoveredRow = hoverIdx !== null ? data[hoverIdx] : undefined;
   const hoverX = hoverIdx !== null ? xPos(hoverIdx) : 0;
-  const fontSize = expanded ? 12 : 11;
+  const fontSize = 13;
   const primaryPoints = seriesPaths[0]?.points ?? [];
   const primarySeries = series[0];
 
@@ -177,7 +177,7 @@ export function SvgLineChart<T extends Record<string, unknown>>({
               e.stopPropagation();
               setShowTable((v) => !v);
             }}
-            className="cursor-pointer rounded border border-border bg-secondary px-2 py-0.5 font-mono text-xs text-foreground transition-colors hover:border-primary"
+            className="cursor-pointer rounded border border-border bg-secondary px-2 py-0.5 text-[13px] text-foreground transition-colors hover:border-primary"
           >
             {showTable ? "Show chart" : "Data table"}
           </button>

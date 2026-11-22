@@ -63,9 +63,9 @@ export function Keyboard({
         (targetLookup.unmapped ||
           targetLookup.altGr ||
           (showFingerZones && targetLookup.finger)) ? (
-          <div className="mb-1 flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-muted-foreground">
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2 px-1 text-[13px] text-muted-foreground">
             {targetLookup.unmapped ? (
-              <span className="rounded bg-accent/15 px-2 py-0.5 font-mono font-semibold text-foreground">
+              <span className="rounded bg-accent/15 px-2 py-0.5 font-semibold text-foreground">
                 Not on {layout.toUpperCase()} layout: &ldquo;{nextChar}&rdquo;
               </span>
             ) : (
@@ -77,8 +77,8 @@ export function Keyboard({
                 {targetLookup.altGr ? " · +AltGr" : ""}
               </span>
             )}
-            <span className="font-mono text-[10px] uppercase">
-              {layout} · {standard}
+            <span className="text-[13px]">
+              {layout.toUpperCase()} · {standard.toUpperCase()}
             </span>
           </div>
         ) : null}
@@ -94,9 +94,9 @@ export function Keyboard({
               const isLocked = Boolean(isAlpha && lockedKeys?.has(baseLower));
               const isFocus = Boolean(isAlpha && focusKey && baseLower === focusKey.toLowerCase());
               const learnState = isLocked ? "locked" : isFocus ? "focus" : undefined;
-              const displayLabel =
-                cell.id === "Space" ? "" : cell.id === "EnterTop" ? "⏎" : cell.base;
-              const shortLabel = SHORT_LABELS[displayLabel];
+              const rawLabel = cell.id === "Space" ? "" : cell.id === "EnterTop" ? "⏎" : cell.base;
+              const displayLabel = rawLabel.length === 1 ? rawLabel.toUpperCase() : rawLabel;
+              const shortLabel = SHORT_LABELS[rawLabel];
 
               return (
                 <div
@@ -107,22 +107,22 @@ export function Keyboard({
                   data-finger={showFingerZones && !cell.isModifier ? cell.finger : undefined}
                   data-home={cell.home ? "true" : undefined}
                   data-learn={learnState}
-                  className={`keycap relative flex h-8 min-w-0 items-center justify-center px-0.5 font-mono text-[10px] sm:h-11 sm:px-1 sm:text-xs ${
+                  className={`keycap relative flex h-9 min-w-0 items-center justify-center px-0.5 font-mono text-[13px] sm:h-12 sm:px-1 ${
                     cell.width ?? "flex-1"
                   }`}
                 >
                   {cell.shift && !cell.isModifier ? (
                     <div className="flex flex-col items-center leading-none">
-                      <span className="text-[8px] opacity-60 sm:text-[9px]">{cell.shift}</span>
-                      <span className="uppercase">{displayLabel}</span>
+                      <span className="hidden text-[13px] opacity-60 sm:inline">{cell.shift}</span>
+                      <span>{displayLabel}</span>
                     </div>
                   ) : shortLabel ? (
                     <>
                       <span className="sm:hidden">{shortLabel}</span>
-                      <span className="hidden truncate uppercase sm:inline">{displayLabel}</span>
+                      <span className="hidden truncate sm:inline">{displayLabel}</span>
                     </>
                   ) : (
-                    <span className="truncate uppercase">{displayLabel}</span>
+                    <span className="truncate">{displayLabel}</span>
                   )}
                 </div>
               );

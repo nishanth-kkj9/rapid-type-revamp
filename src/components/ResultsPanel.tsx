@@ -149,7 +149,7 @@ export function ResultsPanel({
         }${stats.wpm >= targetWpm ? " Target met." : ""}`}
       </p>
       {(isRecord || stats.wpm >= targetWpm || repeated) && (
-        <div className="flex flex-wrap items-center justify-center gap-2 font-mono text-xs font-semibold uppercase tracking-[0.14em]">
+        <div className="flex flex-wrap items-center justify-center gap-2 text-[13px] font-semibold">
           {isRecord ? (
             <span className="text-accent">
               New personal best
@@ -188,7 +188,7 @@ export function ResultsPanel({
         >
           Go again
           {quickRestart !== "off" ? (
-            <span className="ml-1 font-mono text-xs opacity-75">
+            <span className="ml-1 font-mono text-[13px] opacity-75">
               ({QUICK_RESTART_LABELS[quickRestart]})
             </span>
           ) : null}
@@ -200,7 +200,7 @@ export function ResultsPanel({
         >
           <RotateCcw className="size-3.5 text-primary" />
           Repeat this text
-          <span className="ml-0.5 hidden font-mono text-xs text-muted-foreground sm:inline">
+          <span className="ml-0.5 hidden font-mono text-[13px] text-muted-foreground sm:inline">
             (Shift+Enter)
           </span>
         </button>
@@ -217,7 +217,7 @@ export function ResultsPanel({
         <button
           type="button"
           onClick={handleCopyResult}
-          className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2.5 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2.5 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           {copied ? <Check className="size-3.5 text-primary" /> : <Copy className="size-3.5" />}
           {copied ? "Copied" : "Copy result"}
@@ -249,7 +249,7 @@ export function ResultsPanel({
       />
 
       {drillMode === "quote" && quoteAuthor ? (
-        <p className="text-xs italic text-muted-foreground sm:text-sm">— {quoteAuthor}</p>
+        <p className="text-[13px] italic text-muted-foreground sm:text-sm">— {quoteAuthor}</p>
       ) : null}
     </section>
   );

@@ -77,7 +77,7 @@ export function ResultsTabs({
               aria-selected={selected}
               aria-controls={`${baseId}-panel-${tab.id}`}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors ${
                 selected
                   ? "bg-primary/15 font-semibold text-primary"
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -85,7 +85,7 @@ export function ResultsTabs({
             >
               <Icon className="size-3.5" aria-hidden="true" />
               <span>{tab.label}</span>
-              {tab.badge ? <span className="font-mono text-[10px]">({tab.badge})</span> : null}
+              {tab.badge ? <span className="text-[13px] tabular-nums">({tab.badge})</span> : null}
             </button>
           );
         })}
@@ -102,7 +102,7 @@ export function ResultsTabs({
             {Object.keys(mistakes).length > 0 ? (
               <ProblemKeys mistakes={mistakes} label="This run's missed keys" />
             ) : (
-              <p className="text-xs text-muted-foreground">Zero missed keys in this run.</p>
+              <p className="text-[13px] text-muted-foreground">Zero missed keys in this run.</p>
             )}
             {Object.keys(allTimeKeys).length > 0 || Object.keys(allTimeSpeed).length > 0 ? (
               <KeyHeatmap
@@ -123,15 +123,13 @@ export function ResultsTabs({
             className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4 text-left sm:grid-cols-2"
           >
             <div className="rounded-xl border border-border/70 bg-card/70 p-3.5">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Slowest words
-              </h3>
+              <h3 className="text-sm font-medium text-muted-foreground">Slowest words</h3>
               {slowestWords.length === 0 ? (
-                <p className="mt-2 text-xs text-muted-foreground">
+                <p className="mt-2 text-[13px] text-muted-foreground">
                   Complete at least one multi-letter word to see word-level speed.
                 </p>
               ) : (
-                <ul className="mt-2 divide-y divide-border/50 text-xs">
+                <ul className="mt-2 divide-y divide-border/50 text-[13px]">
                   {slowestWords.map((item) => (
                     <li key={item.word} className="flex items-center justify-between py-1.5">
                       <span className="font-mono font-medium text-foreground">{item.word}</span>
@@ -145,15 +143,13 @@ export function ResultsTabs({
             </div>
 
             <div className="rounded-xl border border-border/70 bg-card/70 p-3.5">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Most-missed words
-              </h3>
+              <h3 className="text-sm font-medium text-muted-foreground">Most-missed words</h3>
               {mostMissedWords.length === 0 ? (
-                <p className="mt-2 text-xs text-muted-foreground">
+                <p className="mt-2 text-[13px] text-muted-foreground">
                   No word errors recorded in this run.
                 </p>
               ) : (
-                <ul className="mt-2 divide-y divide-border/50 text-xs">
+                <ul className="mt-2 divide-y divide-border/50 text-[13px]">
                   {mostMissedWords.map((item) => (
                     <li key={item.word} className="flex items-center justify-between py-1.5">
                       <span className="font-mono font-medium text-foreground">{item.word}</span>

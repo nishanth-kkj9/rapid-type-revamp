@@ -110,7 +110,7 @@ export function App() {
             area.scrollIntoView({ block: "nearest" });
           }
         }}
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:border focus:border-primary focus:bg-card focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-foreground focus:shadow-lg"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:border focus:border-primary focus:bg-card focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-foreground"
       >
         Skip to typing area
       </a>
@@ -286,7 +286,7 @@ export function App() {
           </div>
         )}
 
-        <footer className="mt-10 text-center text-xs text-muted-foreground">
+        <footer className="mt-10 text-center text-[13px] text-muted-foreground">
           Typing Trainer Pro · Runs stay locally in your browser · Press{" "}
           <kbd className="rounded border border-border bg-secondary px-1.5 py-0.5 font-mono">
             Ctrl/⌘ K

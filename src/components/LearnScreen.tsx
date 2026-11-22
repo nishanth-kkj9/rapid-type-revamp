@@ -262,24 +262,34 @@ export function LearnScreen({
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2.5">
             <GraduationCap className="size-5 text-primary" aria-hidden="true" />
-            <h2 className="font-mono text-xl font-bold tracking-tight text-foreground">Learn</h2>
+            <h2 className="text-xl font-semibold text-foreground">Learn</h2>
             <span
-              className="rounded-md border border-primary/40 bg-primary/12 px-2 py-0.5 font-mono text-xs font-semibold tabular-nums text-primary"
+              className="rounded-md border border-primary/40 bg-primary/12 px-2 py-0.5 font-mono text-[13px] font-semibold tabular-nums text-primary"
               data-testid="learn-unlocked-count"
             >
               {learnState.unlocked.length}/{LETTER_ORDER.length} letters
             </span>
-            <span className="font-mono text-xs tabular-nums text-muted-foreground">
+            <span className="font-mono text-[13px] tabular-nums text-muted-foreground">
               {learnState.lessons} {learnState.lessons === 1 ? "lesson" : "lessons"}
             </span>
           </div>
-          <p className="text-xs text-muted-foreground sm:text-sm" data-testid="learn-unlock-status">
+          <p
+            className="text-[13px] text-muted-foreground sm:text-sm"
+            data-testid="learn-unlock-status"
+          >
             {nextLocked ? (
               <>
-                Unlock <strong className="font-mono uppercase text-foreground">{nextLocked}</strong>{" "}
+                Unlock{" "}
+                <strong className="font-mono text-foreground">{nextLocked.toUpperCase()}</strong>{" "}
                 when all keys reach{" "}
-                <strong className="font-mono text-primary">{learnState.targetWpm} WPM</strong> and{" "}
-                <strong className="font-mono text-primary">{minAccuracyPct}% accuracy</strong>.
+                <strong className="font-mono tabular-nums text-primary">
+                  {learnState.targetWpm} WPM
+                </strong>{" "}
+                and{" "}
+                <strong className="font-mono tabular-nums text-primary">
+                  {minAccuracyPct}% accuracy
+                </strong>
+                .
               </>
             ) : (
               "All 26 letters unlocked! Keep refining your speed and rhythm across the full alphabet."
@@ -289,12 +299,14 @@ export function LearnScreen({
 
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex flex-col gap-1 rounded-xl border border-border bg-secondary/50 px-3 py-2">
-            <div className="flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center justify-between gap-3 text-[13px]">
               <label htmlFor="learn-target-wpm" className="font-medium text-foreground">
                 Target WPM:{" "}
-                <strong className="font-mono text-primary">{learnState.targetWpm}</strong>
+                <strong className="font-mono tabular-nums text-primary">
+                  {learnState.targetWpm}
+                </strong>
               </label>
-              <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+              <span className="font-mono text-[13px] tabular-nums text-muted-foreground">
                 &le;{Math.round(targetMs)} ms/key
               </span>
             </div>
@@ -314,7 +326,7 @@ export function LearnScreen({
           <button
             type="button"
             onClick={handleNextLesson}
-            className="flex min-h-11 sm:min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+            className="flex min-h-11 sm:min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
           >
             <RefreshCw className="size-3.5" aria-hidden="true" />
             New text
@@ -325,12 +337,12 @@ export function LearnScreen({
       <div
         role="status"
         aria-label="Live lesson metrics"
-        className="flex h-10 items-center justify-between gap-2 overflow-hidden rounded-xl border border-border bg-card/80 px-3 font-mono text-xs tabular-nums sm:px-4"
+        className="flex h-10 items-center justify-between gap-2 overflow-hidden rounded-xl border border-border bg-card/80 px-3 text-[13px] tabular-nums sm:px-4"
       >
         <span className="truncate text-muted-foreground">
           {running || finished ? (
             <>
-              <strong className="text-foreground">
+              <strong className="font-mono text-foreground">
                 {state.typed.length}/{state.text.length}
               </strong>{" "}
               chars · {wordCount} words
@@ -346,20 +358,20 @@ export function LearnScreen({
           {drillSettings.showLiveWpm || finished ? (
             <>
               <span>
-                <strong className="text-primary">
+                <strong className="font-mono text-primary">
                   {finished || (running && stats.elapsed > 1) ? Math.round(stats.wpm) : "—"}
                 </strong>{" "}
                 WPM
               </span>
               <span>
-                <strong className="text-foreground">
+                <strong className="font-mono text-foreground">
                   {running || finished ? `${stats.accuracy.toFixed(0)}%` : "—%"}
                 </strong>
               </span>
             </>
           ) : null}
           <span>
-            Focus <strong className="uppercase text-accent">{focusKey}</strong>
+            Focus <strong className="font-mono text-accent">{focusKey.toUpperCase()}</strong>
           </span>
         </div>
       </div>
@@ -414,16 +426,16 @@ export function LearnScreen({
                 <div>
                   <div className="text-sm font-bold text-foreground">
                     New letter unlocked:{" "}
-                    <span className="font-mono text-base uppercase text-primary">
-                      {lessonResult.update.newlyUnlockedKey}
+                    <span className="font-mono text-base text-primary">
+                      {lessonResult.update.newlyUnlockedKey.toUpperCase()}
                     </span>
                     !
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-[13px] text-muted-foreground">
                     {lessonResult.update.state.unlocked.length}/{LETTER_ORDER.length} letters active
                     · Next focus key:{" "}
-                    <strong className="font-mono uppercase text-foreground">
-                      {lessonResult.nextFocusKey}
+                    <strong className="font-mono text-foreground">
+                      {lessonResult.nextFocusKey.toUpperCase()}
                     </strong>
                   </div>
                 </div>
@@ -432,7 +444,7 @@ export function LearnScreen({
                 <button
                   type="button"
                   onClick={onOpenAchievements}
-                  className="cursor-pointer rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary"
+                  className="cursor-pointer rounded-lg border border-border bg-card px-3 py-1.5 text-[13px] font-medium text-foreground hover:bg-secondary"
                 >
                   View achievements
                 </button>
@@ -441,28 +453,22 @@ export function LearnScreen({
           ) : null}
 
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-baseline gap-6 font-mono tabular-nums">
+            <div className="flex flex-wrap items-baseline gap-6">
               <div>
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                  Lesson WPM
-                </div>
-                <div className="text-3xl font-bold text-primary">
+                <div className="text-[13px] text-muted-foreground">Lesson WPM</div>
+                <div className="font-mono text-3xl font-bold tabular-nums text-primary">
                   {Math.round(lessonResult.wpm)}
                 </div>
               </div>
               <div>
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                  Accuracy
-                </div>
-                <div className="text-3xl font-bold text-foreground">
+                <div className="text-[13px] text-muted-foreground">Accuracy</div>
+                <div className="font-mono text-3xl font-bold tabular-nums text-foreground">
                   {lessonResult.accuracy.toFixed(1)}%
                 </div>
               </div>
               <div>
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                  Time
-                </div>
-                <div className="text-xl font-semibold text-muted-foreground">
+                <div className="text-[13px] text-muted-foreground">Time</div>
+                <div className="font-mono text-xl font-semibold tabular-nums text-muted-foreground">
                   {lessonResult.elapsed.toFixed(1)}s
                 </div>
               </div>
@@ -472,7 +478,7 @@ export function LearnScreen({
               <button
                 type="button"
                 onClick={handleRepeatLesson}
-                className="flex min-h-11 sm:min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
+                className="flex min-h-11 sm:min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-4 py-2 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted"
               >
                 <RotateCcw className="size-3.5" aria-hidden="true" />
                 Repeat
@@ -485,7 +491,7 @@ export function LearnScreen({
               >
                 Next lesson
                 <ArrowRight className="size-4" aria-hidden="true" />
-                <kbd className="ml-1 rounded bg-primary-foreground/15 px-1.5 py-0.5 font-mono text-[10px]">
+                <kbd className="ml-1 rounded bg-primary-foreground/15 px-1.5 py-0.5 font-mono text-[13px]">
                   Enter
                 </kbd>
               </button>
@@ -494,8 +500,8 @@ export function LearnScreen({
 
           {lessonResult.practicedKeys.length > 0 ? (
             <div className="border-t border-border/60 pt-3">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Per-Key Speed Change
+              <div className="mb-2 text-[13px] font-semibold text-muted-foreground">
+                Per-key speed change
               </div>
               <div className="flex flex-wrap gap-2">
                 {lessonResult.practicedKeys.map((ch) => {
@@ -510,13 +516,13 @@ export function LearnScreen({
                   return (
                     <div
                       key={ch}
-                      className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 font-mono text-xs tabular-nums ${
+                      className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 font-mono text-[13px] tabular-nums ${
                         newlyMastered
                           ? "border-accent/60 bg-accent/15 text-foreground"
                           : "border-border bg-secondary/40 text-foreground"
                       }`}
                     >
-                      <span className="font-bold uppercase">{ch}</span>
+                      <span className="font-bold">{ch.toUpperCase()}</span>
                       <span>{nextWpm > 0 ? `${nextWpm} wpm` : "—"}</span>
                       {deltaWpm !== null && deltaWpm !== 0 ? (
                         <span
@@ -568,11 +574,11 @@ export function LearnScreen({
         data-testid="learn-key-progress"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <h3 className="text-sm font-medium text-muted-foreground">
             Key progress ({learnState.unlocked.length}/{LETTER_ORDER.length})
           </h3>
           <span
-            className="font-mono text-xs tabular-nums text-muted-foreground"
+            className="text-[13px] tabular-nums text-muted-foreground"
             data-testid="learn-key-progress-requirements"
           >
             Need {learnState.targetWpm} WPM, {minAccuracyPct}% accuracy, {LEARN_MIN_KEY_HITS} hits
@@ -596,7 +602,7 @@ export function LearnScreen({
                 data-mastered={mastered ? "true" : undefined}
                 aria-current={isFocus ? "step" : undefined}
                 title={`${ch.toUpperCase()}: ${wpm} WPM, ${acc}% accuracy, ${hits}/${LEARN_MIN_KEY_HITS} hits`}
-                className={`inline-flex min-w-8 items-center justify-center gap-1 rounded-lg border px-2 py-1 font-mono text-xs font-semibold uppercase tabular-nums ${
+                className={`inline-flex min-w-8 items-center justify-center gap-1 rounded-lg border px-2 py-1 font-mono text-[13px] font-semibold tabular-nums ${
                   isFocus
                     ? "border-primary bg-primary/15 text-foreground ring-1 ring-primary"
                     : mastered
@@ -604,7 +610,7 @@ export function LearnScreen({
                       : "border-border bg-secondary/35 text-muted-foreground"
                 }`}
               >
-                <span>{ch}</span>
+                <span>{ch.toUpperCase()}</span>
                 {mastered ? (
                   <CheckCircle2 className="size-3 text-accent" aria-hidden="true" />
                 ) : null}
@@ -614,11 +620,17 @@ export function LearnScreen({
         </ol>
 
         <p
-          className="font-mono text-xs tabular-nums text-muted-foreground"
+          className="text-[13px] tabular-nums text-muted-foreground"
           data-testid="learn-key-progress-detail"
         >
-          Working on <strong className="uppercase text-foreground">{focusKey}</strong>: {focusWpm}{" "}
-          WPM, {focusAccPct}% / {minAccuracyPct}% accuracy, {focusHits}/{LEARN_MIN_KEY_HITS} hits
+          Working on <strong className="font-mono text-foreground">{focusKey}</strong>:{" "}
+          <span className="font-mono">{focusWpm}</span> WPM,{" "}
+          <span className="font-mono">{focusAccPct}%</span> /{" "}
+          <span className="font-mono">{minAccuracyPct}%</span> accuracy,{" "}
+          <span className="font-mono">
+            {focusHits}/{LEARN_MIN_KEY_HITS}
+          </span>{" "}
+          hits
         </p>
       </section>
     </section>

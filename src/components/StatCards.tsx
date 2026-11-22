@@ -57,28 +57,30 @@ export function StatCards({
       <div
         role="status"
         aria-label="Live metrics"
-        className="flex h-10 items-center justify-between gap-2 overflow-hidden rounded-xl border border-border/70 bg-card/75 px-3 font-mono text-xs tabular-nums sm:gap-4 sm:px-4 sm:text-sm"
+        className="flex h-10 items-center justify-between gap-2 overflow-hidden rounded-xl border border-border/70 bg-card/75 px-3 text-[13px] sm:gap-4 sm:px-4 sm:text-sm"
       >
         <div className="flex items-baseline gap-1.5 whitespace-nowrap">
-          <span className={`font-bold ${lengthClass}`}>{lengthValue}</span>
-          <span className="text-xs text-muted-foreground">{lengthLabel}</span>
+          <span className={`font-mono font-bold tabular-nums ${lengthClass}`}>{lengthValue}</span>
+          <span className="text-[13px] text-muted-foreground">{lengthLabel}</span>
         </div>
 
         {restartArmed ? (
-          <span className="truncate text-xs font-medium text-accent">press again to restart</span>
+          <span className="truncate text-[13px] font-medium text-accent">
+            press again to restart
+          </span>
         ) : null}
 
         <div className="flex items-center gap-3 whitespace-nowrap sm:gap-4">
           <div className="flex items-baseline gap-1.5">
-            <span className="font-bold text-primary">{wpmText}</span>
-            <span className="text-xs text-muted-foreground">WPM</span>
+            <span className="font-mono font-bold tabular-nums text-primary">{wpmText}</span>
+            <span className="text-[13px] text-muted-foreground">WPM</span>
           </div>
           <span aria-hidden="true" className="text-border">
             ·
           </span>
           <div className="flex items-baseline gap-1.5">
-            <span className="font-bold text-foreground">{accText}</span>
-            <span className="text-xs text-muted-foreground">acc</span>
+            <span className="font-mono font-bold tabular-nums text-foreground">{accText}</span>
+            <span className="text-[13px] text-muted-foreground">acc</span>
           </div>
         </div>
       </div>

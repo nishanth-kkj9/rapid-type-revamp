@@ -94,7 +94,7 @@ export function TypingArea({
           paceCaretIndex={paceCaretIndex}
         />
         {drillMode === "quote" && quoteAuthor ? (
-          <p className="mt-3 text-right font-sans text-xs italic text-muted-foreground">
+          <p className="mt-3 text-right font-sans text-[13px] italic text-muted-foreground">
             — {quoteAuthor}
           </p>
         ) : null}

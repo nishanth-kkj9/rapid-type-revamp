@@ -1,4 +1,4 @@
-import { Gauge, ShieldAlert, Sparkles, Target, Timer } from "lucide-react";
+import { Gauge, Target } from "lucide-react";
 import type { DailyGoalConfig, DailyState } from "@/lib/daily";
 import {
   CUSTOM_DURATION_MAX,
@@ -59,13 +59,10 @@ export function SettingsTypingTab({
     <div className="space-y-6">
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Timer className="size-3.5 text-primary" />
-            Default Test Type &amp; Length
+          <h3 className="text-sm font-medium text-muted-foreground">
+            Default test type &amp; length
           </h3>
-          <span className="font-mono text-xs font-semibold capitalize text-primary">
-            {drillMode}
-          </span>
+          <span className="text-[13px] font-semibold capitalize text-primary">{drillMode}</span>
         </div>
 
         <div className="grid grid-cols-3 gap-2">
@@ -75,7 +72,7 @@ export function SettingsTypingTab({
               type="button"
               aria-pressed={drillMode === m}
               onClick={() => onUpdateDrill({ drillMode: m })}
-              className={`min-h-10 cursor-pointer rounded-lg border px-3 py-2 text-xs font-semibold capitalize transition-colors ${
+              className={`min-h-10 cursor-pointer rounded-lg border px-3 py-2 text-[13px] font-semibold capitalize transition-colors ${
                 drillMode === m
                   ? "border-primary bg-primary/15 text-foreground ring-1 ring-primary"
                   : "border-border bg-secondary text-muted-foreground hover:text-foreground"
@@ -95,7 +92,7 @@ export function SettingsTypingTab({
                   type="button"
                   aria-pressed={drillSettings.duration === sec}
                   onClick={() => onUpdateDrill({ duration: sec })}
-                  className={`min-h-10 cursor-pointer rounded-lg border px-3 py-2 font-mono text-xs font-medium transition-colors ${
+                  className={`min-h-10 cursor-pointer rounded-lg border px-3 py-2 text-[13px] font-medium tabular-nums transition-colors ${
                     drillSettings.duration === sec
                       ? "border-accent bg-accent font-semibold text-accent-foreground"
                       : "border-border bg-secondary text-muted-foreground hover:text-foreground"
@@ -106,7 +103,10 @@ export function SettingsTypingTab({
               ))}
             </div>
             <div className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-secondary/30 px-3 py-2">
-              <label htmlFor="settings-custom-duration" className="text-xs text-muted-foreground">
+              <label
+                htmlFor="settings-custom-duration"
+                className="text-[13px] text-muted-foreground"
+              >
                 Custom duration ({CUSTOM_DURATION_MIN}–{CUSTOM_DURATION_MAX}s, step{" "}
                 {CUSTOM_DURATION_STEP}s)
               </label>
@@ -123,7 +123,7 @@ export function SettingsTypingTab({
                     onUpdateDrill({ duration: clampCustomDuration(parsed) });
                   }
                 }}
-                className="w-24 rounded-md border border-border bg-background px-2.5 py-1 text-right font-mono text-xs tabular-nums text-foreground"
+                className="w-24 rounded-md border border-border bg-background px-2.5 py-1 text-right font-mono text-[13px] tabular-nums text-foreground"
               />
             </div>
           </div>
@@ -136,7 +136,7 @@ export function SettingsTypingTab({
                   type="button"
                   aria-pressed={wordCount === cnt}
                   onClick={() => onUpdateDrill({ wordCount: cnt })}
-                  className={`min-h-10 cursor-pointer rounded-lg border px-3 py-2 font-mono text-xs font-medium transition-colors ${
+                  className={`min-h-10 cursor-pointer rounded-lg border px-3 py-2 text-[13px] font-medium tabular-nums transition-colors ${
                     wordCount === cnt
                       ? "border-accent bg-accent font-semibold text-accent-foreground"
                       : "border-border bg-secondary text-muted-foreground hover:text-foreground"
@@ -147,7 +147,7 @@ export function SettingsTypingTab({
               ))}
             </div>
             <div className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-secondary/30 px-3 py-2">
-              <label htmlFor="settings-custom-words" className="text-xs text-muted-foreground">
+              <label htmlFor="settings-custom-words" className="text-[13px] text-muted-foreground">
                 Custom word count ({CUSTOM_WORD_MIN}–{CUSTOM_WORD_MAX})
               </label>
               <input
@@ -163,7 +163,7 @@ export function SettingsTypingTab({
                     onUpdateDrill({ wordCount: clampCustomWordCount(parsed) });
                   }
                 }}
-                className="w-24 rounded-md border border-border bg-background px-2.5 py-1 text-right font-mono text-xs tabular-nums text-foreground"
+                className="w-24 rounded-md border border-border bg-background px-2.5 py-1 text-right font-mono text-[13px] tabular-nums text-foreground"
               />
             </div>
           </div>
@@ -175,7 +175,7 @@ export function SettingsTypingTab({
                 type="button"
                 aria-pressed={quoteLength === ql}
                 onClick={() => onUpdateDrill({ quoteLength: ql })}
-                className={`min-h-10 cursor-pointer rounded-lg border px-3 py-2 text-xs font-medium capitalize transition-colors ${
+                className={`min-h-10 cursor-pointer rounded-lg border px-3 py-2 text-[13px] font-medium capitalize transition-colors ${
                   quoteLength === ql
                     ? "border-accent bg-accent font-semibold text-accent-foreground"
                     : "border-border bg-secondary text-muted-foreground hover:text-foreground"
@@ -192,12 +192,12 @@ export function SettingsTypingTab({
         <div className="flex items-center justify-between">
           <label
             htmlFor="settings-target-wpm"
-            className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground"
           >
             <Target className="size-3.5 text-primary" />
-            Target WPM Goal
+            Target WPM goal
           </label>
-          <span className="font-mono text-xs font-bold text-primary">
+          <span className="font-mono text-[13px] font-bold tabular-nums text-primary">
             {drillSettings.targetWpm} WPM
           </span>
         </div>
@@ -209,7 +209,7 @@ export function SettingsTypingTab({
               type="button"
               aria-pressed={drillSettings.targetWpm === wpm}
               onClick={() => onUpdateDrill({ targetWpm: wpm })}
-              className={`min-h-10 cursor-pointer rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors ${
+              className={`min-h-10 cursor-pointer rounded-lg border px-2 py-1.5 text-[13px] font-medium tabular-nums transition-colors ${
                 drillSettings.targetWpm === wpm
                   ? "border-primary bg-primary font-semibold text-primary-foreground"
                   : "border-border bg-secondary text-muted-foreground hover:text-foreground"
@@ -221,7 +221,7 @@ export function SettingsTypingTab({
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="font-mono text-xs text-muted-foreground">20</span>
+          <span className="font-mono text-[13px] tabular-nums text-muted-foreground">20</span>
           <input
             id="settings-target-wpm"
             type="range"
@@ -232,19 +232,14 @@ export function SettingsTypingTab({
             onChange={(e) => onUpdateDrill({ targetWpm: parseInt(e.target.value, 10) })}
             className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-secondary accent-primary"
           />
-          <span className="font-mono text-xs text-muted-foreground">160</span>
+          <span className="font-mono text-[13px] tabular-nums text-muted-foreground">160</span>
         </div>
       </div>
 
       <div className="space-y-3 border-t border-border/60 pt-5">
         <div className="flex items-center justify-between">
-          <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <ShieldAlert className="size-3.5 text-primary" />
-            Strict Error Discipline
-          </h3>
-          <span className="font-mono text-xs font-semibold capitalize text-primary">
-            {strictMode}
-          </span>
+          <h3 className="text-sm font-medium text-muted-foreground">Strict error discipline</h3>
+          <span className="text-[13px] font-semibold capitalize text-primary">{strictMode}</span>
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           {STRICT_MODES.map((m) => (
@@ -259,8 +254,8 @@ export function SettingsTypingTab({
                   : "border-border bg-secondary text-muted-foreground hover:text-foreground"
               }`}
             >
-              <span className="text-xs font-semibold">{m.label}</span>
-              <span className="mt-0.5 text-[11px]">{m.description}</span>
+              <span className="text-[13px] font-semibold">{m.label}</span>
+              <span className="mt-0.5 text-[13px]">{m.description}</span>
             </button>
           ))}
         </div>
@@ -268,11 +263,8 @@ export function SettingsTypingTab({
 
       <div className="space-y-3 border-t border-border/60 pt-5">
         <div className="flex items-center justify-between">
-          <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Sparkles className="size-3.5 text-primary" />
-            Caret Style
-          </h3>
-          <span className="font-mono text-xs font-semibold capitalize text-primary">
+          <h3 className="text-sm font-medium text-muted-foreground">Caret style</h3>
+          <span className="text-[13px] font-semibold capitalize text-primary">
             {drillSettings.caretStyle}
           </span>
         </div>
@@ -283,7 +275,7 @@ export function SettingsTypingTab({
               type="button"
               aria-pressed={drillSettings.caretStyle === c.id}
               onClick={() => onUpdateDrill({ caretStyle: c.id })}
-              className={`flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+              className={`flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 py-2 text-[13px] font-medium transition-colors ${
                 drillSettings.caretStyle === c.id
                   ? "border-primary bg-primary/15 font-semibold text-foreground ring-1 ring-primary"
                   : "border-border bg-secondary text-muted-foreground hover:text-foreground"
@@ -297,11 +289,11 @@ export function SettingsTypingTab({
 
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-secondary/40 p-3.5">
           <div>
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+            <div className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
               <Gauge className="size-3.5 text-primary" />
               Live Pace Caret
             </div>
-            <div className="mt-0.5 text-xs text-muted-foreground">
+            <div className="mt-0.5 text-[13px] text-muted-foreground">
               Show a secondary pace marker tracking your personal best run in Time and Words drills
             </div>
           </div>
@@ -312,7 +304,7 @@ export function SettingsTypingTab({
                 type="button"
                 aria-pressed={paceCaret === opt.id}
                 onClick={() => onUpdateDrill({ paceCaret: opt.id })}
-                className={`min-h-9 cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                className={`min-h-9 cursor-pointer rounded-lg border px-3 py-1.5 text-[13px] font-semibold transition-colors ${
                   paceCaret === opt.id
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-secondary text-muted-foreground hover:text-foreground"
@@ -330,8 +322,8 @@ export function SettingsTypingTab({
       <div className="space-y-3 border-t border-border/60 pt-5">
         <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-secondary/40 p-3.5">
           <div>
-            <div className="text-xs font-semibold text-foreground">Live Metrics During Run</div>
-            <div className="mt-0.5 text-xs text-muted-foreground">
+            <div className="text-[13px] font-semibold text-foreground">Live Metrics During Run</div>
+            <div className="mt-0.5 text-[13px] text-muted-foreground">
               Show live WPM and accuracy in the compact strip above the passage while typing (full
               results are always shown when the run finishes)
             </div>
@@ -340,7 +332,7 @@ export function SettingsTypingTab({
             type="button"
             aria-pressed={drillSettings.showLiveWpm}
             onClick={() => onUpdateDrill({ showLiveWpm: !drillSettings.showLiveWpm })}
-            className={`min-h-10 shrink-0 cursor-pointer rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+            className={`min-h-10 shrink-0 cursor-pointer rounded-lg px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
               drillSettings.showLiveWpm
                 ? "bg-primary text-primary-foreground"
                 : "border border-border bg-secondary text-muted-foreground hover:text-foreground"
@@ -352,8 +344,8 @@ export function SettingsTypingTab({
 
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-secondary/40 p-3.5">
           <div>
-            <div className="text-xs font-semibold text-foreground">Quick Restart Key</div>
-            <div className="mt-0.5 text-xs text-muted-foreground">
+            <div className="text-[13px] font-semibold text-foreground">Quick Restart Key</div>
+            <div className="mt-0.5 text-[13px] text-muted-foreground">
               Esc and Enter ask for a second tap within 1s after 10 chars
             </div>
           </div>
@@ -364,7 +356,7 @@ export function SettingsTypingTab({
                 type="button"
                 aria-pressed={quickRestart === opt.id}
                 onClick={() => onUpdateDrill({ quickRestart: opt.id })}
-                className={`min-h-9 cursor-pointer rounded-lg border px-3 py-1.5 font-mono text-xs font-semibold transition-colors ${
+                className={`min-h-9 cursor-pointer rounded-lg border px-3 py-1.5 text-[13px] font-semibold transition-colors ${
                   quickRestart === opt.id
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-secondary text-muted-foreground hover:text-foreground"

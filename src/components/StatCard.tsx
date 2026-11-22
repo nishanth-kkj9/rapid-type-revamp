@@ -10,9 +10,7 @@ interface Props {
 export function StatCard({ label, value, hint, emphasis, warn }: Props) {
   return (
     <div className="panel px-4 py-3">
-      <div className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
-        {label}
-      </div>
+      <div className="text-[13px] font-medium text-muted-foreground">{label}</div>
       <div
         key={value}
         className={`mt-1 inline-block font-mono text-2xl font-semibold tabular-nums sm:text-3xl ${
@@ -22,7 +20,7 @@ export function StatCard({ label, value, hint, emphasis, warn }: Props) {
         {value}
       </div>
 
-      {hint ? <div className="text-xs text-muted-foreground">{hint}</div> : null}
+      {hint ? <div className="text-[13px] text-muted-foreground">{hint}</div> : null}
     </div>
   );
 }

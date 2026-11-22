@@ -154,7 +154,7 @@ export const DrillScreen = forwardRef<DrillScreenHandle, DrillScreenProps>(funct
         onInputChange={c.applyInputDelta}
       />
       {!c.finished && c.quickRestart !== "off" ? (
-        <p className="mt-2 text-center font-mono text-xs text-muted-foreground">
+        <p className="mt-2 text-center text-[13px] text-muted-foreground">
           {QUICK_RESTART_LABELS[c.quickRestart]} to restart
         </p>
       ) : null}

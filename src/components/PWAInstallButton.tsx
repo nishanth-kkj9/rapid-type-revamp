@@ -12,7 +12,7 @@ export function PWAInstallButton({ compact = false, className = "" }: PWAInstall
   if (isInstalled) {
     if (compact) return null;
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-foreground">
+      <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-[13px] font-medium text-foreground">
         <CheckCircle2 className="size-3.5 text-accent" aria-hidden="true" />
         App installed for offline use
       </span>
@@ -25,7 +25,7 @@ export function PWAInstallButton({ compact = false, className = "" }: PWAInstall
     <button
       type="button"
       onClick={() => void promptInstall()}
-      className={`inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-primary/50 bg-primary/15 px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-primary/25 ${className}`}
+      className={`inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-primary/50 bg-primary/15 px-3 py-1.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-primary/25 ${className}`}
     >
       <Download className="size-3.5 text-primary" aria-hidden="true" />
       <span>{compact ? "Install" : "Install App (Offline PWA)"}</span>

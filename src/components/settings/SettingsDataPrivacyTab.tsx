@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Database, Download, Lock, ShieldAlert, Upload } from "lucide-react";
+import { Download, Lock, ShieldAlert, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { DeleteAllDataDialog } from "@/components/DeleteAllDataDialog";
 import type { AchievementState } from "@/lib/achievements";
@@ -77,9 +77,9 @@ export function SettingsDataPrivacyTab({
       <div className="rounded-xl border border-primary/35 bg-primary/10 p-4">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <Lock className="size-4 text-primary" />
-          100% Local-First Privacy Guarantee
+          100% local-first privacy guarantee
         </div>
-        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
           No account, no analytics telemetry, no tracking pixels, and zero third-party font or asset
           CDN requests on load. Every keystroke, chart, custom text, and backup stays inside this
           browser on your device.
@@ -88,23 +88,20 @@ export function SettingsDataPrivacyTab({
 
       <div className="space-y-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Database className="size-3.5 text-primary" />
-            Browser Storage Footprint
-          </h3>
-          <span className="font-mono text-xs text-muted-foreground">
+          <h3 className="text-sm font-medium text-muted-foreground">Browser storage footprint</h3>
+          <span className="text-[13px] tabular-nums text-muted-foreground">
             {history.length} runs · {customTexts.length} custom lists ·{" "}
             {Object.keys(achState.unlocked).length} badges · {storedMissedWordsCount} missed words
           </span>
         </div>
 
-        <ul className="divide-y divide-border/60 rounded-xl border border-border bg-secondary/35 text-xs">
+        <ul className="divide-y divide-border/60 rounded-xl border border-border bg-secondary/35 text-[13px]">
           {STORAGE_INVENTORY.map((item) => (
             <li
               key={item.key}
               className="flex flex-col gap-0.5 px-3.5 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
             >
-              <code className="font-mono text-xs font-semibold text-primary">{item.key}</code>
+              <code className="text-[13px] font-semibold text-primary">{item.key}</code>
               <span className="text-muted-foreground">{item.desc}</span>
             </li>
           ))}
@@ -116,19 +113,19 @@ export function SettingsDataPrivacyTab({
           <button
             type="button"
             onClick={() => void downloadFullBackupJson(appStorage)}
-            className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+            className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
           >
             <Download className="size-3.5" />
-            Export Full Backup (JSON)
+            Export full backup (JSON)
           </button>
 
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-4 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+            className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-4 py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
           >
             <Upload className="size-3.5" />
-            Import Backup
+            Import backup
           </button>
           <input
             ref={fileRef}
@@ -146,10 +143,10 @@ export function SettingsDataPrivacyTab({
         <button
           type="button"
           onClick={() => setDeleteOpen(true)}
-          className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-destructive/60 bg-destructive/10 px-4 py-2 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/20"
+          className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-destructive/60 bg-destructive/10 px-4 py-2 text-[13px] font-semibold text-destructive transition-colors hover:bg-destructive/20"
         >
           <ShieldAlert className="size-3.5" />
-          Delete All Data
+          Delete all data
         </button>
       </div>
 

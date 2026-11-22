@@ -62,18 +62,14 @@ export function ExpandableChartCard({
           {icon}
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-foreground">
-                {title}
-              </span>
+              <span className="text-sm font-medium text-foreground">{title}</span>
               {badge ? (
-                <span
-                  className={`rounded px-1.5 py-0.5 font-mono text-[10px] font-bold ${badgeClass}`}
-                >
+                <span className={`rounded px-1.5 py-0.5 text-[13px] font-semibold ${badgeClass}`}>
                   {badge}
                 </span>
               ) : null}
             </div>
-            <p className="truncate text-[11px] text-muted-foreground">
+            <p className="truncate text-[13px] text-muted-foreground">
               {isExpanded ? expandedSubtitle : subtitle}
             </p>
           </div>
