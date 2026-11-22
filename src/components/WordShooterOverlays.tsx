@@ -62,29 +62,12 @@ export function WordShooterOverlays({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-1.5 text-[13px] text-muted-foreground sm:gap-2">
-          <span className="rounded-md border border-border bg-secondary px-2 py-1">
-            <strong className="capitalize text-primary">{settings.difficulty}</strong>
-          </span>
-          <span className="rounded-md border border-border bg-secondary px-2 py-1">
-            Speed:{" "}
-            <strong className="font-mono tabular-nums text-primary">
-              {settings.speedMultiplier.toFixed(2)}x
-            </strong>
-          </span>
-          <span className="rounded-md border border-border bg-secondary px-2 py-1">
-            {settings.practiceMode ? (
-              <strong className="text-accent">Practice (No lives)</strong>
-            ) : (
-              <>
-                Lives:{" "}
-                <strong className="font-mono tabular-nums text-destructive">
-                  {settings.startingLives} ❤
-                </strong>
-              </>
-            )}
-          </span>
-        </div>
+        <p className="text-[13px] text-muted-foreground">
+          <span className="capitalize">{settings.difficulty}</span>,{" "}
+          {settings.speedMultiplier.toFixed(2)}x speed,{" "}
+          {settings.practiceMode ? "practice (no lives)" : `${settings.startingLives} lives`}.
+          Change in Settings.
+        </p>
 
         {onUpdateSettings ? (
           <div className="flex flex-wrap items-center justify-center gap-2">

@@ -1,48 +1,22 @@
-import {
-  BarChart3,
-  Contrast,
-  Crosshair,
-  Flame,
-  GraduationCap,
-  Moon,
-  Sliders,
-  Sun,
-  Target,
-  Timer,
-  Trophy,
-} from "lucide-react";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
-import { PWAInstallButton } from "@/components/PWAInstallButton";
-import { getNextTheme, THEME_LABELS, type Theme } from "@/lib/useTheme";
-import { QUICK_RESTART_LABELS, getQuickRestart, type DrillSettings } from "@/lib/drillSettings";
-import type { ShooterSettings } from "@/lib/shooterSettings";
-import type { AppMode } from "@/lib/urlState";
-import { ACHIEVEMENTS } from "@/lib/achievements";
 import { getEffectiveDaily, getLocalDateString, type DailyState } from "@/lib/daily";
+import type { AppMode } from "@/lib/urlState";
 
 const NAV_ITEMS = [
-  { id: "drill", label: "Practice", Icon: Timer },
-  { id: "learn", label: "Learn", Icon: GraduationCap },
-  { id: "shooter", label: "Arcade", Icon: Crosshair },
-  { id: "stats", label: "Stats", Icon: BarChart3 },
-  { id: "achievements", label: "Achievements", Icon: Trophy },
+  { id: "drill", label: "Practice" },
+  { id: "learn", label: "Learn" },
+  { id: "shooter", label: "Arcade" },
+  { id: "stats", label: "Stats" },
+  { id: "achievements", label: "Achievements" },
 ] as const;
 
 interface AppHeaderProps {
   mode: AppMode;
   focusDimmed: boolean;
-  theme: Theme;
-  drillSettings: DrillSettings;
-  shooterSettings: ShooterSettings;
   daily?: DailyState | null | undefined;
-  unlockedAchievementsCount?: number;
-  learnUnlockedCount?: number | undefined;
-  learnTargetWpm?: number | undefined;
   onModeChange: (mode: AppMode) => void;
   onOpenSettings: () => void;
   onOpenDailyGoalSettings?: (() => void) | undefined;
-  onToggleTheme: () => void;
-  onRestartDrill: () => void;
 }
 
 function formatGoalMinutes(activeSeconds: number): string {
@@ -56,21 +30,11 @@ function formatGoalMinutes(activeSeconds: number): string {
 export function AppHeader({
   mode,
   focusDimmed,
-  theme,
-  drillSettings,
-  shooterSettings,
   daily = null,
-  unlockedAchievementsCount = 0,
-  learnUnlockedCount = 6,
-  learnTargetWpm = 35,
   onModeChange,
   onOpenSettings,
   onOpenDailyGoalSettings,
-  onToggleTheme,
-  onRestartDrill,
 }: AppHeaderProps) {
-  const quickRestart = getQuickRestart(drillSettings);
-  const nextThemeLabel = THEME_LABELS[getNextTheme(theme)];
   const effDaily = getEffectiveDaily(daily, getLocalDateString());
   const goalProgressText =
     effDaily.goalType === "minutes"
@@ -78,174 +42,66 @@ export function AppHeader({
       : `${effDaily.runsToday}/${effDaily.goalTarget}`;
 
   return (
-    <>
-      <header
-        className={`flex flex-wrap items-center justify-between gap-3 transition-opacity duration-300 sm:items-end sm:gap-4 ${
-          focusDimmed ? "focus-dimmed" : ""
-        }`}
-      >
-        <div className="min-w-0 max-w-full">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-xl font-bold tracking-tight sm:text-3xl">
-              Typing<span className="text-primary">Trainer</span>Pro
-            </h1>
-            <OfflineIndicator />
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <PWAInstallButton compact className="hidden sm:inline-flex" />
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            aria-pressed={mode === "settings"}
-            aria-label="Open unified settings"
-            title="Open Settings"
-            className={`flex min-h-11 min-w-11 sm:min-h-10 sm:min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-              mode === "settings"
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-secondary hover:bg-muted"
-            }`}
-          >
-            <Sliders
-              className={`size-4 ${mode === "settings" ? "text-primary-foreground" : "text-primary"}`}
-            />
-            <span className="hidden sm:inline">Settings</span>
-          </button>
-          <button
-            type="button"
-            onClick={onToggleTheme}
-            aria-label={`Switch to ${nextThemeLabel} theme (current: ${THEME_LABELS[theme]})`}
-            title={`Theme: ${THEME_LABELS[theme]} · Click for ${nextThemeLabel}`}
-            className="flex min-h-11 min-w-11 sm:min-h-10 sm:min-w-10 cursor-pointer items-center justify-center rounded-lg border border-border bg-secondary p-2 transition-colors hover:bg-muted"
-          >
-            {theme === "dark" ? (
-              <Sun className="size-4" />
-            ) : theme === "light" ? (
-              <Contrast className="size-4" />
-            ) : (
-              <Moon className="size-4" />
-            )}
-          </button>
-          {mode === "drill" ? (
-            <button
-              type="button"
-              onClick={onRestartDrill}
-              className="min-h-11 sm:min-h-10 cursor-pointer rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-medium transition-colors hover:bg-muted sm:px-4"
-            >
-              Restart
-              {quickRestart !== "off" ? (
-                <span className="ml-1 hidden font-mono text-[13px] text-muted-foreground sm:inline">
-                  {QUICK_RESTART_LABELS[quickRestart]}
-                </span>
-              ) : null}
-            </button>
-          ) : null}
-        </div>
-      </header>
+    <header
+      className={`border-b border-border pb-3 transition-opacity duration-300 ${
+        focusDimmed ? "focus-dimmed" : ""
+      }`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
+        <h1 className="shrink-0 text-lg font-semibold text-foreground">Typing Trainer</h1>
 
-      <nav
-        aria-label="Primary sections"
-        className={`mt-6 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4 transition-opacity duration-300 ${
-          focusDimmed ? "focus-dimmed" : ""
-        }`}
-      >
-        <div className="flex flex-wrap gap-1 rounded-xl border border-border bg-card p-1">
-          {NAV_ITEMS.map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => onModeChange(id)}
-              aria-pressed={mode === id}
-              className={`flex min-h-11 sm:min-h-9 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors whitespace-nowrap shrink-0 ${
-                mode === id
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Icon className="size-3.5" />
-              {label}
-              {id === "achievements" ? (
-                <span className="font-mono text-[13px] tabular-nums">
-                  {unlockedAchievementsCount}/{ACHIEVEMENTS.length}
-                </span>
-              ) : null}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="order-2 flex items-center gap-x-4 sm:order-3">
           {mode !== "settings" && onOpenDailyGoalSettings ? (
             <button
               type="button"
               onClick={onOpenDailyGoalSettings}
               aria-label={`Daily goal ${goalProgressText}${effDaily.streak > 0 ? `, ${effDaily.streak} day streak` : ""} — configure in Typing settings`}
               title="Daily goal progress · Click to configure in Typing settings"
-              className={`flex min-h-11 sm:min-h-9 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[13px] transition-colors hover:bg-secondary ${
-                effDaily.goalMetToday
-                  ? "border-accent/50 bg-accent/15 text-foreground"
-                  : "border-border bg-card text-muted-foreground hover:text-foreground"
-              }`}
+              className="inline-flex min-h-11 sm:min-h-9 cursor-pointer items-center whitespace-nowrap font-mono text-[13px] tabular-nums text-muted-foreground transition-colors hover:text-foreground"
             >
-              <Target
-                className={`size-3.5 shrink-0 ${effDaily.goalMetToday ? "text-accent" : "text-primary"}`}
-              />
-              <span className="font-mono font-semibold tabular-nums text-foreground">
-                {goalProgressText}
-              </span>
-              {effDaily.streak > 0 ? (
-                <>
-                  <span aria-hidden="true" className="text-border">
-                    ·
-                  </span>
-                  <span className="flex items-center gap-0.5 font-mono font-semibold tabular-nums text-primary">
-                    <Flame className="size-3 fill-primary/20" />
-                    {effDaily.streak}d
-                  </span>
-                </>
-              ) : null}
+              {goalProgressText}
+              {effDaily.streak > 0 ? ` · ${effDaily.streak}d` : ""}
             </button>
           ) : null}
 
-          {mode === "shooter" ? (
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[13px] text-muted-foreground">
-              <span>
-                Diff:{" "}
-                <strong className="capitalize text-foreground">{shooterSettings.difficulty}</strong>
-              </span>
-              <span>·</span>
-              <span>
-                Speed:{" "}
-                <strong className="font-mono tabular-nums text-primary">
-                  {shooterSettings.speedMultiplier.toFixed(2)}x
-                </strong>
-              </span>
-              <span>·</span>
-              <span>
-                Lives:{" "}
-                <strong className="font-mono tabular-nums text-destructive">
-                  {shooterSettings.startingLives} ❤
-                </strong>
-              </span>
-            </div>
-          ) : mode === "learn" ? (
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[13px] text-muted-foreground">
-              <span>
-                Unlocked:{" "}
-                <strong className="font-mono tabular-nums text-primary">
-                  {learnUnlockedCount}/26
-                </strong>
-              </span>
-              <span>·</span>
-              <span>
-                Target:{" "}
-                <strong className="font-mono tabular-nums text-foreground">
-                  {learnTargetWpm} WPM
-                </strong>
-              </span>
-            </div>
-          ) : null}
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            aria-pressed={mode === "settings"}
+            aria-label="Open unified settings"
+            title="Open Settings"
+            className={`inline-flex min-h-11 sm:min-h-9 cursor-pointer items-center whitespace-nowrap border-b-2 text-sm font-medium transition-colors ${
+              mode === "settings"
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Settings
+          </button>
         </div>
-      </nav>
-    </>
+
+        <nav
+          aria-label="Primary sections"
+          className="order-3 flex w-full flex-wrap items-center gap-x-3 gap-y-1 sm:order-2 sm:w-auto sm:gap-x-4"
+        >
+          {NAV_ITEMS.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onModeChange(id)}
+              aria-pressed={mode === id}
+              className={`inline-flex min-h-11 sm:min-h-9 shrink-0 cursor-pointer items-center whitespace-nowrap border-b-2 text-sm font-medium transition-colors ${
+                mode === id
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+      </div>
+      <OfflineIndicator />
+    </header>
   );
 }

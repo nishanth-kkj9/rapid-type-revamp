@@ -56,6 +56,9 @@ test("full typing flow, zero external requests, Learn lesson, export, delete-all
   await expect(liveMetrics).toBeVisible();
   await expect(liveMetrics).toContainText("—");
   await expect(page.getByRole("button", { name: /Daily goal/i })).toBeVisible();
+  const header = page.locator("header");
+  await expect(header.getByRole("button", { name: /Install/i })).toHaveCount(0);
+  await expect(header.getByRole("button", { name: /Switch to .* theme/i })).toHaveCount(0);
 
   // Switch to Words -> 10w and type the generated passage (First run)
   await page

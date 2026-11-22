@@ -84,7 +84,7 @@ export function useAppStore() {
   const [initialUrlPatch] = useState(getInitialUrlPatch);
   const [hydrated, setHydrated] = useState(false);
   const [hydratedTheme, setHydratedTheme] = useState<Theme | undefined>(undefined);
-  const { theme, selectTheme, toggleTheme } = useTheme(hydratedTheme);
+  const { theme, selectTheme } = useTheme(hydratedTheme);
 
   const [mode, setMode] = useState<AppMode>(() => initialUrlPatch.mode ?? "drill");
   const [settingsTab, setSettingsTab] = useState<SettingsTabId>(
@@ -568,7 +568,6 @@ export function useAppStore() {
     hydrated,
     theme,
     selectTheme,
-    toggleTheme,
     mode,
     setMode: navigateMode,
     settingsTab,

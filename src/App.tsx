@@ -87,7 +87,6 @@ export function App() {
   const layout = getKeyboardLayout(store.drillSettings);
   const standard = getKeyboardStandard(store.drillSettings);
   const showFingerZones = getShowFingerZones(store.drillSettings);
-  const unlockedCount = Object.keys(store.achState.unlocked).length;
   const effectiveDaily = getEffectiveDaily(store.daily, getLocalDateString());
 
   return (
@@ -124,7 +123,7 @@ export function App() {
         {store.liveAnnouncement}
       </div>
       <main
-        className="mx-auto min-h-dvh w-full max-w-5xl px-3 py-6 sm:px-6 sm:py-14"
+        className="mx-auto min-h-dvh w-full max-w-4xl px-3 py-6 sm:px-6 sm:py-10"
         data-protonpass-ignore="true"
         data-lpignore="true"
         data-1p-ignore="true"
@@ -132,13 +131,7 @@ export function App() {
         <AppHeader
           mode={store.mode}
           focusDimmed={store.mode === "drill" && focusDimmed}
-          theme={store.theme}
-          drillSettings={store.drillSettings}
-          shooterSettings={store.shooterSettings}
           daily={store.daily}
-          unlockedAchievementsCount={unlockedCount}
-          learnUnlockedCount={store.learnState.unlocked.length}
-          learnTargetWpm={store.learnState.targetWpm}
           onModeChange={(nextMode) => {
             store.setMode(nextMode);
             if (nextMode !== "drill") setFocusDimmed(false);
@@ -155,8 +148,6 @@ export function App() {
             setFocusDimmed(false);
             store.openSettings("typing");
           }}
-          onToggleTheme={store.toggleTheme}
-          onRestartDrill={() => drillRef.current?.restart()}
         />
 
         {store.mode === "drill" ? (
@@ -287,11 +278,7 @@ export function App() {
         )}
 
         <footer className="mt-10 text-center text-[13px] text-muted-foreground">
-          Typing Trainer Pro · Runs stay locally in your browser · Press{" "}
-          <kbd className="rounded border border-border bg-secondary px-1.5 py-0.5 font-mono">
-            Ctrl/⌘ K
-          </kbd>{" "}
-          for the command palette.
+          Runs locally in your browser. Ctrl/⌘ K opens commands.
         </footer>
 
         <Suspense fallback={null}>

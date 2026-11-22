@@ -153,10 +153,19 @@ export const DrillScreen = forwardRef<DrillScreenHandle, DrillScreenProps>(funct
         onFocusChange={c.setFocused}
         onInputChange={c.applyInputDelta}
       />
-      {!c.finished && c.quickRestart !== "off" ? (
-        <p className="mt-2 text-center text-[13px] text-muted-foreground">
-          {QUICK_RESTART_LABELS[c.quickRestart]} to restart
-        </p>
+      {!c.finished ? (
+        <div className="mt-2 flex justify-center">
+          <button
+            type="button"
+            onClick={() => c.restartWithSettings()}
+            className="inline-flex min-h-11 sm:min-h-0 cursor-pointer items-center text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Restart
+            {!coarsePointer && c.quickRestart !== "off"
+              ? ` (${QUICK_RESTART_LABELS[c.quickRestart]})`
+              : ""}
+          </button>
+        </div>
       ) : null}
       {c.resultData ? (
         <ResultsPanel

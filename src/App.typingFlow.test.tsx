@@ -75,7 +75,7 @@ describe("Typing flow, Results, History, Onboarding & Unified Settings integrati
     expect(screen.queryByRole("button", { name: /Drill History/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Timed drills with live WPM/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/^Mode:/i)).not.toBeInTheDocument();
-    expect(screen.getByText("Tab to restart")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restart (Tab)" })).toBeInTheDocument();
     const idleMetrics = screen.getByRole("status", { name: "Live metrics" });
     expect(idleMetrics).toHaveTextContent(/\d+s\s*left/i);
     expect(idleMetrics).toHaveTextContent(/—\s*WPM/i);
@@ -107,16 +107,25 @@ describe("Typing flow, Results, History, Onboarding & Unified Settings integrati
       .join("");
     expect(passageChars.length).toBeGreaterThan(10);
 
-    // 3. Type first char -> slim Live metrics strip appears while active; finish typing passage
+    // 3. Type first char -> slim Live metrics strip stays visible; click Restart button to reset, then finish passage
     await user.click(input);
     await user.type(input, passageChars[0]!);
     expect(await screen.findByRole("status", { name: "Live metrics" })).toBeInTheDocument();
+    expect((input as HTMLInputElement).value).toHaveLength(1);
 
-    await user.type(input, passageChars.slice(1));
+    await user.click(screen.getByRole("button", { name: "Restart (Tab)" }));
+    const resetInput = await screen.findByLabelText("Typing input");
+    await waitFor(() => expect((resetInput as HTMLInputElement).value).toBe(""));
+    const restartedChars = Array.from(document.querySelectorAll("[data-char-index]"))
+      .map((el) => el.textContent ?? "")
+      .join("");
+    await user.click(resetInput);
+    await user.type(resetInput, restartedChars);
 
-    // 4. Verify ResultsPanel appears cleanly and aria-live announcer announced unlocked achievement
+    // 4. Verify ResultsPanel appears cleanly, Restart button hides, and aria-live announcer announced unlocked achievement
     const resultsSection = await screen.findByRole("region", { name: "Run results" });
     expect(resultsSection).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Restart/i })).not.toBeInTheDocument();
     expect(screen.getByText(/Run finished:/i)).toBeInTheDocument();
     expect(screen.getByRole("status", { name: "Live metrics" })).toBeInTheDocument();
     expect(screen.queryByText(/Loosen up in Arcade/i)).not.toBeInTheDocument();
@@ -127,7 +136,7 @@ describe("Typing flow, Results, History, Onboarding & Unified Settings integrati
     const repeatedChars = Array.from(document.querySelectorAll("[data-char-index]"))
       .map((el) => el.textContent ?? "")
       .join("");
-    expect(repeatedChars).toBe(passageChars);
+    expect(repeatedChars).toBe(restartedChars);
 
     const input2 = await screen.findByLabelText("Typing input");
     await user.click(input2);
@@ -166,8 +175,10 @@ describe("Typing flow, Results, History, Onboarding & Unified Settings integrati
     ).toBeInTheDocument();
     expect(document.title).toContain("Stats & Progress");
 
-    // 6. Clicking header daily goal chip opens Settings -> Typing
-    await user.click(within(primaryNav).getByRole("button", { name: /Daily goal/i }));
+    // 6. Clicking header daily goal button opens Settings -> Typing
+    await user.click(
+      within(screen.getByRole("banner")).getByRole("button", { name: /Daily goal/i }),
+    );
     const settingsSection = await screen.findByRole("region", { name: "Settings and privacy" });
     expect(settingsSection).toBeInTheDocument();
     expect(within(settingsSection).getByRole("tab", { name: /Typing/i })).toHaveAttribute(
@@ -248,13 +259,14 @@ describe("Typing flow, Results, History, Onboarding & Unified Settings integrati
     await finishOnboarding(user, /Intermediate/i, /^Start practicing$/i);
 
     await user.click(screen.getByRole("button", { name: "Open unified settings" }));
+    const quickRestartGroup = await screen.findByRole("group", { name: "Quick restart key" });
     await user.click(
-      within(screen.getByRole("group", { name: "Quick restart key" })).getByRole("button", {
+      within(quickRestartGroup).getByRole("button", {
         name: "Esc",
       }),
     );
     await user.click(screen.getByRole("button", { name: /^Done$/i }));
-    expect(screen.getByText("Esc to restart")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restart (Esc)" })).toBeInTheDocument();
 
     const input = await screen.findByLabelText("Typing input");
     const chars = Array.from(
