@@ -16,7 +16,6 @@ import {
 } from "@/lib/drillSettings";
 import type { KeyboardLayoutId } from "@/lib/keyboardLayout";
 import type { Difficulty } from "@/lib/sentenceGenerator";
-import type { ThemeAccent } from "@/lib/uiPrefs";
 import type { AppMode, SettingsTabId } from "@/lib/urlState";
 import type { Theme } from "@/lib/useTheme";
 import { CommandPaletteLookAndSettings } from "./CommandPaletteAppearanceGroup";
@@ -29,7 +28,6 @@ interface Props {
   quoteLength: QuoteLengthOption;
   keyboardLayout: KeyboardLayoutId;
   theme: Theme;
-  accent: ThemeAccent;
   dyslexiaFont: boolean;
   difficulties: Difficulty[];
   durations: readonly number[];
@@ -40,7 +38,6 @@ interface Props {
   onQuoteLength: (len: QuoteLengthOption) => void;
   onKeyboardLayout: (layout: KeyboardLayoutId) => void;
   onSelectTheme: (theme: Theme) => void;
-  onSelectAccent: (accent: ThemeAccent) => void;
   onToggleDyslexiaFont: () => void;
   onRestart: () => void;
   onRepeatSameText?: (() => void) | undefined;
@@ -60,7 +57,6 @@ export function CommandPalette({
   quoteLength,
   keyboardLayout,
   theme,
-  accent,
   dyslexiaFont,
   difficulties,
   durations,
@@ -71,7 +67,6 @@ export function CommandPalette({
   onQuoteLength,
   onKeyboardLayout,
   onSelectTheme,
-  onSelectAccent,
   onToggleDyslexiaFont,
   onRestart,
   onRepeatSameText,
@@ -210,12 +205,10 @@ export function CommandPalette({
         <CommandPaletteLookAndSettings
           keyboardLayout={keyboardLayout}
           theme={theme}
-          accent={accent}
           dyslexiaFont={dyslexiaFont}
           onRun={run}
           onKeyboardLayout={onKeyboardLayout}
           onSelectTheme={onSelectTheme}
-          onSelectAccent={onSelectAccent}
           onToggleDyslexiaFont={onToggleDyslexiaFont}
           onOpenSettingsTab={onOpenSettingsTab}
         />

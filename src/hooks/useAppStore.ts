@@ -18,13 +18,7 @@ import {
   saveShooterSettingsToStorage,
   type ShooterSettings,
 } from "@/lib/shooterSettings";
-import {
-  applyDyslexiaFont,
-  applyThemeAccent,
-  DEFAULT_UI_PREFS,
-  saveUiPrefsToStorage,
-  type ThemeAccent,
-} from "@/lib/uiPrefs";
+import { applyDyslexiaFont, DEFAULT_UI_PREFS, saveUiPrefsToStorage } from "@/lib/uiPrefs";
 import {
   clearHistoryInStorage,
   computeStats,
@@ -103,7 +97,6 @@ export function useAppStore() {
     sanitizeDrillSettings({ ...DEFAULT_DRILL_SETTINGS, ...initialUrlPatch }),
   );
   const [shooterSettings, setShooterSettings] = useState<ShooterSettings>(DEFAULT_SHOOTER_SETTINGS);
-  const [themeAccent, setThemeAccent] = useState<ThemeAccent>(DEFAULT_UI_PREFS.themeAccent);
   const [dyslexiaFont, setDyslexiaFontState] = useState<boolean>(DEFAULT_UI_PREFS.dyslexiaFont);
 
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -152,8 +145,6 @@ export function useAppStore() {
         : sanitizeDrillSettings(data.drillSettings);
       setDrillSettings(mergedDrill);
       setShooterSettings(data.shooterSettings);
-      setThemeAccent(data.uiPrefs.themeAccent);
-      applyThemeAccent(data.uiPrefs.themeAccent);
       setDyslexiaFontState(data.uiPrefs.dyslexiaFont);
       applyDyslexiaFont(data.uiPrefs.dyslexiaFont);
       setHydratedTheme(data.theme);
@@ -162,7 +153,6 @@ export function useAppStore() {
       if (!skipBootWrite) {
         writeBootPrefs({
           theme: data.theme,
-          accent: data.uiPrefs.themeAccent,
           dyslexiaFont: data.uiPrefs.dyslexiaFont,
         });
       }
@@ -264,13 +254,6 @@ export function useAppStore() {
   const saveShooterSettings = useCallback((next: ShooterSettings) => {
     setShooterSettings(next);
     void saveShooterSettingsToStorage(appStorage, next);
-  }, []);
-
-  const selectAccent = useCallback((accent: ThemeAccent) => {
-    setThemeAccent(accent);
-    applyThemeAccent(accent);
-    writeBootPrefs({ accent });
-    void saveUiPrefsToStorage(appStorage, { themeAccent: accent });
   }, []);
 
   const setDyslexiaFont = useCallback((enabled: boolean) => {
@@ -594,7 +577,6 @@ export function useAppStore() {
     closeSettings,
     drillSettings,
     shooterSettings,
-    themeAccent,
     dyslexiaFont,
     setDyslexiaFont,
     history,
@@ -615,7 +597,6 @@ export function useAppStore() {
     updateDrillSettings,
     saveDrillSettings,
     saveShooterSettings,
-    selectAccent,
     saveCustomText,
     deleteCustomText,
     commitDrillRun,

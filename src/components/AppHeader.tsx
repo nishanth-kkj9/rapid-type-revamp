@@ -13,8 +13,6 @@ import {
 } from "lucide-react";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { PWAInstallButton } from "@/components/PWAInstallButton";
-import { ThemeAccentPicker } from "@/components/ThemeAccentPicker";
-import type { ThemeAccent } from "@/lib/uiPrefs";
 import { getNextTheme, THEME_LABELS, type Theme } from "@/lib/useTheme";
 import { QUICK_RESTART_LABELS, getQuickRestart, type DrillSettings } from "@/lib/drillSettings";
 import type { ShooterSettings } from "@/lib/shooterSettings";
@@ -34,7 +32,6 @@ interface AppHeaderProps {
   mode: AppMode;
   focusDimmed: boolean;
   theme: Theme;
-  accent: ThemeAccent;
   drillSettings: DrillSettings;
   shooterSettings: ShooterSettings;
   daily?: DailyState | null | undefined;
@@ -45,7 +42,6 @@ interface AppHeaderProps {
   onOpenSettings: () => void;
   onOpenDailyGoalSettings?: (() => void) | undefined;
   onToggleTheme: () => void;
-  onSelectAccent: (accent: ThemeAccent) => void;
   onRestartDrill: () => void;
 }
 
@@ -61,7 +57,6 @@ export function AppHeader({
   mode,
   focusDimmed,
   theme,
-  accent,
   drillSettings,
   shooterSettings,
   daily = null,
@@ -72,7 +67,6 @@ export function AppHeader({
   onOpenSettings,
   onOpenDailyGoalSettings,
   onToggleTheme,
-  onSelectAccent,
   onRestartDrill,
 }: AppHeaderProps) {
   const quickRestart = getQuickRestart(drillSettings);
@@ -100,7 +94,6 @@ export function AppHeader({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <PWAInstallButton compact className="hidden sm:inline-flex" />
-          <ThemeAccentPicker accent={accent} onSelectAccent={onSelectAccent} />
           <button
             type="button"
             onClick={onOpenSettings}
@@ -172,7 +165,7 @@ export function AppHeader({
               <Icon className="size-3.5" />
               {label}
               {id === "achievements" ? (
-                <span className="font-mono text-xs opacity-90 tabular-nums">
+                <span className="font-mono text-xs tabular-nums">
                   {unlockedAchievementsCount}/{ACHIEVEMENTS.length}
                 </span>
               ) : null}

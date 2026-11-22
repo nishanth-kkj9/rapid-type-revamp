@@ -151,7 +151,7 @@ test("full typing flow, zero external requests, Learn lesson, export, delete-all
   await learnInput.pressSequentially(learnPassage, { delay: 5 });
   await expect(page.getByTestId("learn-results")).toBeVisible();
 
-  // Open unified Settings, switch to Light + Violet accent + OpenDyslexic
+  // Open unified Settings, switch to Light + OpenDyslexic
   await page.getByRole("button", { name: "Open unified settings" }).click();
   const settingsRegion = page.getByRole("region", { name: "Settings and privacy" });
   await expect(settingsRegion).toBeVisible();
@@ -159,27 +159,22 @@ test("full typing flow, zero external requests, Learn lesson, export, delete-all
   await settingsRegion.getByRole("tab", { name: /Appearance/i }).click();
   await settingsRegion.getByRole("button", { name: /^Light\b/i }).click();
   await expect(page.locator("html")).toHaveClass(/light/);
-  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#f8f7f4");
-
-  await settingsRegion.getByRole("radio", { name: /Violet/i }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-accent", "violet");
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#fafafa");
 
   await settingsRegion.getByRole("button", { name: /Off|Enabled/i }).click();
   await expect(page.locator("html")).toHaveAttribute("data-font", "opendyslexic");
 
-  // Reload while OS prefers dark color scheme and verify pre-paint /boot.js sets light/violet/opendyslexic immediately
+  // Reload while OS prefers dark color scheme and verify pre-paint /boot.js sets light/opendyslexic immediately
   await page.emulateMedia({ colorScheme: "dark" });
   await page.reload({ waitUntil: "domcontentloaded" });
   const preHydrationAttrs = await page.evaluate(() => ({
     hasLight: document.documentElement.classList.contains("light"),
     theme: document.documentElement.dataset.theme,
-    accent: document.documentElement.dataset.accent,
     font: document.documentElement.dataset.font,
   }));
   expect(preHydrationAttrs).toEqual({
     hasLight: true,
     theme: "light",
-    accent: "violet",
     font: "opendyslexic",
   });
 
@@ -199,14 +194,13 @@ test("full typing flow, zero external requests, Learn lesson, export, delete-all
     schemaVersion: number;
     history: { repeated?: boolean; mode: string }[];
     theme: string;
-    uiPrefs: { themeAccent: string; dyslexiaFont: boolean };
+    uiPrefs: { dyslexiaFont: boolean };
   };
   expect(backupJson.schemaVersion).toBe(2);
   expect(backupJson.history.length).toBe(3);
   expect(backupJson.history.some((h) => h.repeated === true)).toBe(true);
   expect(backupJson.history.some((h) => h.mode === "learn")).toBe(true);
   expect(backupJson.theme).toBe("light");
-  expect(backupJson.uiPrefs.themeAccent).toBe("violet");
   expect(backupJson.uiPrefs.dyslexiaFont).toBe(true);
 
   // Delete All Data cleanly and verify wiped state + boot prefs removal
@@ -224,7 +218,6 @@ test("full typing flow, zero external requests, Learn lesson, export, delete-all
   await expect(page.getByText(/Restored full backup \(3 runs/i)).toBeVisible();
   await expect(settingsRegion.getByText(/3 runs/i)).toBeVisible();
   await expect(page.locator("html")).toHaveClass(/light/);
-  await expect(page.locator("html")).toHaveAttribute("data-accent", "violet");
   await expect(page.locator("html")).toHaveAttribute("data-font", "opendyslexic");
 
   // Verify PWA manifest is valid

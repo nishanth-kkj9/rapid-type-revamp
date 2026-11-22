@@ -233,4 +233,19 @@ describe("Backup v2 & full deletion", () => {
     const bad = await importAllAppDataToStorage(storage, "{not-valid-json");
     expect(bad).toEqual({ ok: false, reason: "invalid" });
   });
+
+  it("imports legacy v2 backup containing uiPrefs.themeAccent without error", async () => {
+    const storage = new MemoryStorage();
+    const legacyV2 = JSON.stringify({
+      schemaVersion: 2,
+      exportedAt: 1730000000000,
+      history: [sampleEntry],
+      uiPrefs: { heatmapMetric: "speed", themeAccent: "violet", dyslexiaFont: true },
+    });
+    const res = await importAllAppDataToStorage(storage, legacyV2);
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.state.uiPrefs).toEqual({ heatmapMetric: "speed", dyslexiaFont: true });
+    }
+  });
 });

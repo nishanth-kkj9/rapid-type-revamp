@@ -15,7 +15,7 @@ export function StatCard({ label, value, hint, emphasis, warn }: Props) {
       </div>
       <div
         key={value}
-        className={`digit-pop mt-1 inline-block font-mono text-2xl font-semibold tabular-nums sm:text-3xl ${
+        className={`mt-1 inline-block font-mono text-2xl font-semibold tabular-nums sm:text-3xl ${
           warn ? "text-destructive" : emphasis ? "text-primary" : "text-foreground"
         }`}
       >

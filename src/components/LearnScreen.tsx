@@ -400,13 +400,13 @@ export function LearnScreen({
       {finished && lessonResult ? (
         <section
           aria-label="Lesson results"
-          className="panel-raised space-y-4 p-5 sm:p-6"
+          className="panel space-y-4 p-5 sm:p-6"
           data-testid="learn-results"
         >
           {lessonResult.update.newlyUnlockedKey ? (
             <div
               role="status"
-              className="success-ping flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/60 bg-accent/15 px-4 py-3"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/60 bg-accent/15 px-4 py-3"
               data-testid="learn-unlock-celebration"
             >
               <div className="flex items-center gap-2.5">
@@ -521,7 +521,7 @@ export function LearnScreen({
                       {deltaWpm !== null && deltaWpm !== 0 ? (
                         <span
                           className={
-                            deltaWpm > 0 ? "text-success font-semibold" : "text-destructive"
+                            deltaWpm > 0 ? "text-foreground font-semibold" : "text-destructive"
                           }
                         >
                           {deltaWpm > 0 ? `+${deltaWpm}` : deltaWpm}

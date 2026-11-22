@@ -2,27 +2,22 @@ import { z } from "./zodSetup";
 import type { Storage } from "./storage";
 
 /**
- * Persistent micro-preferences for UI features (heatmap metric, theme accent, dyslexia font).
+ * Persistent micro-preferences for UI features (heatmap metric, dyslexia font).
  */
 export const UI_PREFS_KEY = "ttp:uiprefs:v1";
 
-export type ThemeAccent = "amber" | "emerald" | "cyan" | "violet" | "rose";
-
 export interface UiPrefs {
   heatmapMetric: "misses" | "speed";
-  themeAccent: ThemeAccent;
   dyslexiaFont: boolean;
 }
 
 export const DEFAULT_UI_PREFS: UiPrefs = {
   heatmapMetric: "misses",
-  themeAccent: "amber",
   dyslexiaFont: false,
 };
 
 export const UiPrefsSchema = z.object({
   heatmapMetric: z.enum(["misses", "speed"]).optional(),
-  themeAccent: z.enum(["amber", "emerald", "cyan", "violet", "rose"]).optional(),
   dyslexiaFont: z.boolean().optional(),
 });
 
@@ -31,22 +26,12 @@ export function sanitizeUiPrefs(raw: unknown): UiPrefs {
   const r = raw as Record<string, unknown>;
 
   const metricCheck = z.enum(["misses", "speed"]).safeParse(r["heatmapMetric"]);
-  const accentCheck = z
-    .enum(["amber", "emerald", "cyan", "violet", "rose"])
-    .safeParse(r["themeAccent"]);
 
   return {
     heatmapMetric: metricCheck.success ? metricCheck.data : DEFAULT_UI_PREFS.heatmapMetric,
-    themeAccent: accentCheck.success ? accentCheck.data : DEFAULT_UI_PREFS.themeAccent,
     dyslexiaFont:
       typeof r["dyslexiaFont"] === "boolean" ? r["dyslexiaFont"] : DEFAULT_UI_PREFS.dyslexiaFont,
   };
-}
-
-export function applyThemeAccent(accent: ThemeAccent): void {
-  if (typeof document !== "undefined" && document.documentElement) {
-    document.documentElement.dataset["accent"] = accent;
-  }
 }
 
 export function applyDyslexiaFont(enabled: boolean): void {
@@ -75,9 +60,6 @@ export async function saveUiPrefsToStorage(
 ): Promise<UiPrefs> {
   const current = await loadUiPrefsFromStorage(storage);
   const next = sanitizeUiPrefs({ ...current, ...patch });
-  if (patch.themeAccent) {
-    applyThemeAccent(next.themeAccent);
-  }
   if (typeof patch.dyslexiaFont === "boolean") {
     applyDyslexiaFont(next.dyslexiaFont);
   }

@@ -85,9 +85,7 @@ export function ResultsTabs({
             >
               <Icon className="size-3.5" aria-hidden="true" />
               <span>{tab.label}</span>
-              {tab.badge ? (
-                <span className="font-mono text-[10px] opacity-80">({tab.badge})</span>
-              ) : null}
+              {tab.badge ? <span className="font-mono text-[10px]">({tab.badge})</span> : null}
             </button>
           );
         })}

@@ -42,19 +42,8 @@
     if (themeMeta) {
       themeMeta.setAttribute(
         "content",
-        theme === "light" ? "#f8f7f4" : theme === "high-contrast" ? "#000000" : "#1c1917",
+        theme === "light" ? "#fafafa" : theme === "high-contrast" ? "#000000" : "#1b1b1b",
       );
-    }
-
-    var accent = boot && boot.accent;
-    if (
-      accent === "amber" ||
-      accent === "emerald" ||
-      accent === "cyan" ||
-      accent === "violet" ||
-      accent === "rose"
-    ) {
-      root.dataset.accent = accent;
     }
 
     if (boot && boot.dyslexiaFont === true) {

@@ -1,16 +1,13 @@
-import type { ThemeAccent } from "./uiPrefs";
 import type { Theme } from "./useTheme";
 
 export const BOOT_PREFS_KEY = "ttp:boot:v1";
 
 export interface BootPrefs {
   theme: Theme;
-  accent: ThemeAccent;
   dyslexiaFont: boolean;
 }
 
 const VALID_THEMES = new Set<string>(["dark", "light", "high-contrast"]);
-const VALID_ACCENTS = new Set<string>(["amber", "emerald", "cyan", "violet", "rose"]);
 
 function getLocalStorageSafe(): globalThis.Storage | null {
   if (typeof window === "undefined") return null;
@@ -34,9 +31,6 @@ export function readBootPrefs(): Partial<BootPrefs> | null {
     if (typeof record["theme"] === "string" && VALID_THEMES.has(record["theme"])) {
       out.theme = record["theme"] as Theme;
     }
-    if (typeof record["accent"] === "string" && VALID_ACCENTS.has(record["accent"])) {
-      out.accent = record["accent"] as ThemeAccent;
-    }
     if (typeof record["dyslexiaFont"] === "boolean") {
       out.dyslexiaFont = record["dyslexiaFont"];
     }
@@ -54,9 +48,6 @@ export function writeBootPrefs(patch: Partial<BootPrefs>): void {
     const next: Partial<BootPrefs> = { ...current };
     if (patch.theme && VALID_THEMES.has(patch.theme)) {
       next.theme = patch.theme;
-    }
-    if (patch.accent && VALID_ACCENTS.has(patch.accent)) {
-      next.accent = patch.accent;
     }
     if (typeof patch.dyslexiaFont === "boolean") {
       next.dyslexiaFont = patch.dyslexiaFont;

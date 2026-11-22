@@ -162,7 +162,7 @@ export function useShooterLoop({
     });
     obs.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ["class", "data-accent", "style"],
+      attributeFilter: ["class", "data-theme", "style"],
     });
     return () => obs.disconnect();
   }, [drawFrame]);

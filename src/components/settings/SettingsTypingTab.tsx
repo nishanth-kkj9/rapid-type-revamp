@@ -260,7 +260,7 @@ export function SettingsTypingTab({
               }`}
             >
               <span className="text-xs font-semibold">{m.label}</span>
-              <span className="mt-0.5 text-[11px] opacity-80">{m.description}</span>
+              <span className="mt-0.5 text-[11px]">{m.description}</span>
             </button>
           ))}
         </div>

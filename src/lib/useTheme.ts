@@ -8,8 +8,8 @@ export type Theme = "dark" | "light" | "high-contrast";
 export const THEMES: readonly Theme[] = ["dark", "light", "high-contrast"];
 
 export const THEME_COLORS: Record<Theme, string> = {
-  dark: "#1c1917",
-  light: "#f8f7f4",
+  dark: "#1b1b1b",
+  light: "#fafafa",
   "high-contrast": "#000000",
 };
 

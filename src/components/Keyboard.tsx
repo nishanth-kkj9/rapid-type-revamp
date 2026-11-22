@@ -77,7 +77,7 @@ export function Keyboard({
                 {targetLookup.altGr ? " · +AltGr" : ""}
               </span>
             )}
-            <span className="font-mono text-[10px] uppercase opacity-75">
+            <span className="font-mono text-[10px] uppercase">
               {layout} · {standard}
             </span>
           </div>

@@ -144,7 +144,7 @@ export const TypingText = memo(function TypingText({
   const getCaretClass = () => {
     switch (caretStyle) {
       case "block":
-        return "rounded-[2px] bg-primary text-primary-foreground animate-pulse";
+        return "rounded-[2px] bg-primary text-primary-foreground caret";
       case "bar":
         return "shadow-[inset_3px_0_0_0_var(--color-primary)] bg-transparent";
       case "underline":

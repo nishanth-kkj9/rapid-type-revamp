@@ -96,7 +96,7 @@ export function SettingsGameTab({ shooterSettings, onUpdateShooter }: SettingsGa
                 }`}
               >
                 {p.label}
-                <span className="block font-mono text-xs opacity-80">{p.value}x</span>
+                <span className="block font-mono text-xs">{p.value}x</span>
               </button>
             );
           })}

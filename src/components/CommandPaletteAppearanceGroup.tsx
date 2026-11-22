@@ -1,16 +1,7 @@
 import { CommandGroup, CommandItem } from "@/components/ui/command";
 import { KEYBOARD_LAYOUTS, type KeyboardLayoutId } from "@/lib/keyboardLayout";
-import type { ThemeAccent } from "@/lib/uiPrefs";
 import type { SettingsTabId } from "@/lib/urlState";
 import { THEME_LABELS, THEMES, type Theme } from "@/lib/useTheme";
-
-const ACCENT_OPTIONS: { id: ThemeAccent; label: string }[] = [
-  { id: "amber", label: "Amber Gold" },
-  { id: "emerald", label: "Matrix Emerald" },
-  { id: "cyan", label: "Ocean Cyan" },
-  { id: "violet", label: "Cyberpunk Violet" },
-  { id: "rose", label: "Ember Rose" },
-];
 
 const SETTINGS_TAB_ITEMS: { id: SettingsTabId; label: string; keywords: string }[] = [
   {
@@ -37,7 +28,7 @@ const SETTINGS_TAB_ITEMS: { id: SettingsTabId; label: string; keywords: string }
   {
     id: "appearance",
     label: "Settings: Appearance & Accessibility",
-    keywords: "theme accent high contrast opendyslexic font pwa",
+    keywords: "theme high contrast opendyslexic font pwa",
   },
   {
     id: "data",
@@ -49,12 +40,10 @@ const SETTINGS_TAB_ITEMS: { id: SettingsTabId; label: string; keywords: string }
 interface CommandPaletteLookAndSettingsProps {
   keyboardLayout: KeyboardLayoutId;
   theme: Theme;
-  accent: ThemeAccent;
   dyslexiaFont: boolean;
   onRun: (fn: () => void) => void;
   onKeyboardLayout: (layout: KeyboardLayoutId) => void;
   onSelectTheme: (theme: Theme) => void;
-  onSelectAccent: (accent: ThemeAccent) => void;
   onToggleDyslexiaFont: () => void;
   onOpenSettingsTab: (tab: SettingsTabId) => void;
 }
@@ -62,12 +51,10 @@ interface CommandPaletteLookAndSettingsProps {
 export function CommandPaletteLookAndSettings({
   keyboardLayout,
   theme,
-  accent,
   dyslexiaFont,
   onRun,
   onKeyboardLayout,
   onSelectTheme,
-  onSelectAccent,
   onToggleDyslexiaFont,
   onOpenSettingsTab,
 }: CommandPaletteLookAndSettingsProps) {
@@ -88,7 +75,7 @@ export function CommandPaletteLookAndSettings({
         ))}
       </CommandGroup>
 
-      <CommandGroup heading="Theme & Accent Color">
+      <CommandGroup heading="Theme">
         {THEMES.map((t) => (
           <CommandItem
             key={t}
@@ -97,18 +84,6 @@ export function CommandPaletteLookAndSettings({
           >
             <span>Theme: {THEME_LABELS[t]}</span>
             {theme === t ? (
-              <span className="ml-auto text-xs text-muted-foreground">current</span>
-            ) : null}
-          </CommandItem>
-        ))}
-        {ACCENT_OPTIONS.map((a) => (
-          <CommandItem
-            key={a.id}
-            value={`accent color colour ${a.label} ${a.id}`}
-            onSelect={() => onRun(() => onSelectAccent(a.id))}
-          >
-            <span>Accent: {a.label}</span>
-            {accent === a.id ? (
               <span className="ml-auto text-xs text-muted-foreground">current</span>
             ) : null}
           </CommandItem>

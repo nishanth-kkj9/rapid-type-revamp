@@ -51,8 +51,6 @@ export function TypingArea({
   quoteAuthor,
   finished,
   focused,
-  errorFlash,
-  isRecord,
   finalWpm,
   finalAccuracy,
   onFocusChange,
@@ -75,9 +73,7 @@ export function TypingArea({
       id="typing-area"
       tabIndex={-1}
       aria-label="Typing area"
-      className={`panel relative mt-3 p-4 transition-shadow sm:p-8 ${
-        !finished ? "cursor-text" : ""
-      } ${errorFlash ? "shake" : ""} ${isRecord ? "record-glow" : ""}`}
+      className={`panel relative mt-3 p-4 sm:p-8 ${!finished ? "cursor-text" : ""}`}
       onClick={() => {
         if (!finished) inputRef.current?.focus();
       }}

@@ -133,7 +133,6 @@ export function App() {
           mode={store.mode}
           focusDimmed={store.mode === "drill" && focusDimmed}
           theme={store.theme}
-          accent={store.themeAccent}
           drillSettings={store.drillSettings}
           shooterSettings={store.shooterSettings}
           daily={store.daily}
@@ -157,7 +156,6 @@ export function App() {
             store.openSettings("typing");
           }}
           onToggleTheme={store.toggleTheme}
-          onSelectAccent={store.selectAccent}
           onRestartDrill={() => drillRef.current?.restart()}
         />
 
@@ -221,7 +219,6 @@ export function App() {
                   shooterSettings={store.shooterSettings}
                   daily={store.daily}
                   theme={store.theme}
-                  accent={store.themeAccent}
                   dyslexiaFont={store.dyslexiaFont}
                   customTexts={store.customTexts}
                   history={store.history}
@@ -237,7 +234,6 @@ export function App() {
                   onSaveShooter={store.saveShooterSettings}
                   onUpdateDailyGoal={store.updateDailyGoal}
                   onSelectTheme={store.selectTheme}
-                  onSelectAccent={store.selectAccent}
                   onToggleDyslexiaFont={store.setDyslexiaFont}
                   onOpenCustomText={() => setCustomTextOpen(true)}
                   onImportBackup={store.importFullBackup}
@@ -342,7 +338,6 @@ export function App() {
             quoteLength={getQuoteLength(store.drillSettings)}
             keyboardLayout={layout}
             theme={store.theme}
-            accent={store.themeAccent}
             dyslexiaFont={store.dyslexiaFont}
             difficulties={DRILL_DIFFICULTIES}
             durations={DRILL_DURATIONS}
@@ -367,7 +362,6 @@ export function App() {
               store.updateDrillSettings({ keyboardLayout: nextLayout })
             }
             onSelectTheme={store.selectTheme}
-            onSelectAccent={store.selectAccent}
             onToggleDyslexiaFont={() => store.setDyslexiaFont(!store.dyslexiaFont)}
             onRestart={() => drillRef.current?.restart()}
             onRepeatSameText={

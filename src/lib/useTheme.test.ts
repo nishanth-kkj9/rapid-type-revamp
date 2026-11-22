@@ -54,4 +54,12 @@ describe("useTheme", () => {
     });
     expect(readBootPrefs()?.theme).toBe("high-contrast");
   });
+
+  it("reads legacy ttp:boot:v1 payload containing accent without error", () => {
+    window.localStorage.setItem(
+      BOOT_PREFS_KEY,
+      JSON.stringify({ theme: "light", accent: "violet", dyslexiaFont: true }),
+    );
+    expect(readBootPrefs()).toEqual({ theme: "light", dyslexiaFont: true });
+  });
 });

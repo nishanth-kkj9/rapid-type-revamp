@@ -44,7 +44,6 @@ describe("Typing flow, Results, History, Onboarding & Unified Settings integrati
     document.head.innerHTML = '<meta name="theme-color" content="#1c1917" />';
     document.documentElement.className = "";
     document.documentElement.removeAttribute("data-font");
-    document.documentElement.removeAttribute("data-accent");
     window.history.replaceState(null, "", "/");
 
     // Clear all keys from appStorage

@@ -1,7 +1,5 @@
-import { Contrast, Eye, Palette, Smartphone, Type } from "lucide-react";
+import { Contrast, Eye, Smartphone, Type } from "lucide-react";
 import { PWAInstallButton } from "@/components/PWAInstallButton";
-import { ThemeAccentPicker } from "@/components/ThemeAccentPicker";
-import type { ThemeAccent } from "@/lib/uiPrefs";
 import { THEME_LABELS, THEMES, type Theme } from "@/lib/useTheme";
 
 const THEME_DESCRIPTIONS: Record<Theme, string> = {
@@ -12,19 +10,15 @@ const THEME_DESCRIPTIONS: Record<Theme, string> = {
 
 interface SettingsAppearanceTabProps {
   theme: Theme;
-  accent: ThemeAccent;
   dyslexiaFont: boolean;
   onSelectTheme: (theme: Theme) => void;
-  onSelectAccent: (accent: ThemeAccent) => void;
   onToggleDyslexiaFont: (enabled: boolean) => void;
 }
 
 export function SettingsAppearanceTab({
   theme,
-  accent,
   dyslexiaFont,
   onSelectTheme,
-  onSelectAccent,
   onToggleDyslexiaFont,
 }: SettingsAppearanceTabProps) {
   return (
@@ -64,19 +58,6 @@ export function SettingsAppearanceTab({
             );
           })}
         </div>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-secondary/40 p-3.5">
-        <div>
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-            <Palette className="size-3.5 text-primary" />
-            Accent Color
-          </div>
-          <div className="mt-0.5 text-xs text-muted-foreground">
-            Highlights the active caret, next keycap, progress bars, and primary buttons
-          </div>
-        </div>
-        <ThemeAccentPicker accent={accent} onSelectAccent={onSelectAccent} />
       </div>
 
       <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-secondary/40 p-3.5">

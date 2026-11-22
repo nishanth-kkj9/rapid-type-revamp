@@ -122,11 +122,7 @@ export function WordShooterField({
       <canvas ref={canvasRef} className="block h-full w-full" />
 
       {levelBanner !== null && (
-        <div
-          className={`${
-            reducedMotion ? "" : "level-banner "
-          }pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 rounded-xl border border-primary/60 bg-card/95 px-6 py-3 shadow-2xl backdrop-blur-md`}
-        >
+        <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 rounded border border-primary/60 bg-card px-6 py-3">
           <span className="font-mono text-xl font-extrabold uppercase tracking-widest text-primary sm:text-2xl">
             LEVEL {levelBanner}
           </span>

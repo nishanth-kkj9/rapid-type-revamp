@@ -77,7 +77,10 @@ describe("storage adapters & migration", () => {
       "ttp:shooter:settings:v1",
       JSON.stringify({ difficulty: "easy", startingLives: 5 }),
     );
-    window.localStorage.setItem("ttp:uiprefs:v1", JSON.stringify({ themeAccent: "cyan" }));
+    window.localStorage.setItem(
+      "ttp:uiprefs:v1",
+      JSON.stringify({ themeAccent: "cyan", heatmapMetric: "speed" }),
+    );
     window.localStorage.setItem("ttp:theme:v1", "light");
     window.localStorage.setItem("ttp:shooter:best:v1", "9999");
     window.localStorage.setItem("ttp:onboarded:v1", "1");
@@ -108,7 +111,8 @@ describe("storage adapters & migration", () => {
     expect(hydrated.drillSettings.difficulty).toBe("hard");
     expect(hydrated.drillSettings.duration).toBe(60);
     expect(hydrated.shooterSettings.difficulty).toBe("easy");
-    expect(hydrated.uiPrefs.themeAccent).toBe("cyan");
+    expect(hydrated.uiPrefs.heatmapMetric).toBe("speed");
+    expect("themeAccent" in hydrated.uiPrefs).toBe(false);
     expect(hydrated.theme).toBe("light");
     expect(hydrated.shooterBest).toBe(1500);
     expect(hydrated.onboarded).toBe(true);

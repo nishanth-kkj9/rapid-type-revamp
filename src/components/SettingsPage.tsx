@@ -16,7 +16,6 @@ import type { DailyGoalConfig, DailyState } from "@/lib/daily";
 import { DEFAULT_DRILL_SETTINGS, type DrillSettings } from "@/lib/drillSettings";
 import { DEFAULT_SHOOTER_SETTINGS, type ShooterSettings } from "@/lib/shooterSettings";
 import type { HistoryEntry } from "@/lib/typingStats";
-import type { ThemeAccent } from "@/lib/uiPrefs";
 import type { SettingsTabId } from "@/lib/urlState";
 import type { Theme } from "@/lib/useTheme";
 import { SettingsAppearanceTab } from "@/components/settings/SettingsAppearanceTab";
@@ -43,7 +42,6 @@ interface SettingsPageProps {
   shooterSettings: ShooterSettings;
   daily: DailyState | null;
   theme: Theme;
-  accent: ThemeAccent;
   dyslexiaFont: boolean;
   customTexts: CustomTextEntry[];
   history: HistoryEntry[];
@@ -57,7 +55,6 @@ interface SettingsPageProps {
   onSaveShooter: (next: ShooterSettings) => void;
   onUpdateDailyGoal: (config: DailyGoalConfig) => void;
   onSelectTheme: (theme: Theme) => void;
-  onSelectAccent: (accent: ThemeAccent) => void;
   onToggleDyslexiaFont: (enabled: boolean) => void;
   onOpenCustomText: () => void;
   onImportBackup: (rawJson: string) => Promise<BackupImportResult>;
@@ -70,7 +67,6 @@ export function SettingsPage({
   shooterSettings,
   daily,
   theme,
-  accent,
   dyslexiaFont,
   customTexts,
   history,
@@ -84,7 +80,6 @@ export function SettingsPage({
   onSaveShooter,
   onUpdateDailyGoal,
   onSelectTheme,
-  onSelectAccent,
   onToggleDyslexiaFont,
   onOpenCustomText,
   onImportBackup,
@@ -95,7 +90,6 @@ export function SettingsPage({
       onSaveShooter({ ...DEFAULT_SHOOTER_SETTINGS });
     } else if (activeTab === "appearance") {
       onSelectTheme("dark");
-      onSelectAccent("amber");
       onToggleDyslexiaFont(false);
     } else {
       onSaveDrill({ ...DEFAULT_DRILL_SETTINGS });
@@ -200,10 +194,8 @@ export function SettingsPage({
         ) : activeTab === "appearance" ? (
           <SettingsAppearanceTab
             theme={theme}
-            accent={accent}
             dyslexiaFont={dyslexiaFont}
             onSelectTheme={onSelectTheme}
-            onSelectAccent={onSelectAccent}
             onToggleDyslexiaFont={onToggleDyslexiaFont}
           />
         ) : (

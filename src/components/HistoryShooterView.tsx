@@ -156,7 +156,7 @@ export function HistoryShooterView({
                 <Zap className="size-3 text-accent" />
                 Best Level
               </div>
-              <div className="font-mono text-2xl font-bold tabular-nums text-accent-foreground">
+              <div className="font-mono text-2xl font-bold tabular-nums text-foreground">
                 Lvl {bestLevel}
               </div>
             </div>
