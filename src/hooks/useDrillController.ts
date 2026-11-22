@@ -14,7 +14,6 @@ import {
   getQuoteLength,
   getStrictMode,
   getWordCount,
-  QUICK_RESTART_LABELS,
   resolveTextOptions,
   type DrillSettings,
 } from "@/lib/drillSettings";
@@ -169,7 +168,6 @@ export function useDrillController({
   const resultsRef = useRef<HTMLElement>(null);
   const flashTimerRef = useRef<number | null>(null);
   const pressTimerRef = useRef<number | null>(null);
-  const abandonArmedUntilRef = useRef<number>(0);
   const historyRef = useRef(history);
   historyRef.current = history;
   const settingsRef = useRef(drillSettings);
@@ -299,7 +297,6 @@ export function useDrillController({
   const clearTransientFeedback = useCallback(() => {
     if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
     if (pressTimerRef.current) window.clearTimeout(pressTimerRef.current);
-    abandonArmedUntilRef.current = 0;
     setErrorFlash(false);
     setPressedChar(null);
     setLastRecord({ isRecord: false, delta: null });
@@ -328,26 +325,34 @@ export function useDrillController({
     [clearTransientFeedback, restartSession],
   );
 
+  const startDrillPassage = useCallback(
+    (
+      text: string,
+      opts: { quoteAuthor?: string | null; isRepeated?: boolean; keepMissedWords?: boolean } = {},
+    ) => {
+      const s = settingsRef.current;
+      clearTransientFeedback();
+      restartSession({
+        text,
+        quoteAuthor: opts.quoteAuthor ?? null,
+        drillMode: getDrillMode(s),
+        durationSec: s.duration,
+        strictMode: getStrictMode(s),
+        isRepeated: opts.isRepeated ?? false,
+        keepMissedWords: opts.keepMissedWords ?? false,
+      });
+      requestAnimationFrame(() => inputRef.current?.focus());
+    },
+    [clearTransientFeedback, restartSession],
+  );
+
   const repeatSameText = useCallback(() => {
-    const s = settingsRef.current;
-    clearTransientFeedback();
-    restartSession({
-      text: state.text,
+    startDrillPassage(state.text, {
       quoteAuthor: state.quoteAuthor,
-      drillMode: getDrillMode(s),
-      durationSec: s.duration,
-      strictMode: getStrictMode(s),
       isRepeated: true,
       keepMissedWords: state.keepMissedWords,
     });
-    requestAnimationFrame(() => inputRef.current?.focus());
-  }, [
-    state.text,
-    state.quoteAuthor,
-    state.keepMissedWords,
-    clearTransientFeedback,
-    restartSession,
-  ]);
+  }, [state.text, state.quoteAuthor, state.keepMissedWords, startDrillPassage]);
 
   const practiceMissedWords = useCallback(() => {
     const words = mergeMissedWords(storedMissedWords, state.missedWords);
@@ -355,18 +360,8 @@ export function useDrillController({
       toast("No missed words recorded yet.");
       return;
     }
-    clearTransientFeedback();
-    restartSession({
-      text: generateMissedWordsDrill(words, 20),
-      quoteAuthor: null,
-      drillMode: getDrillMode(settingsRef.current),
-      durationSec: settingsRef.current.duration,
-      strictMode: getStrictMode(settingsRef.current),
-      isRepeated: false,
-      keepMissedWords: true,
-    });
-    requestAnimationFrame(() => inputRef.current?.focus());
-  }, [storedMissedWords, state.missedWords, clearTransientFeedback, restartSession]);
+    startDrillPassage(generateMissedWordsDrill(words, 20), { keepMissedWords: true });
+  }, [storedMissedWords, state.missedWords, startDrillPassage]);
 
   const practiceWeakKeys = useCallback(() => {
     const weak = topWeakKeys(allTimeKeysRef.current, 10);
@@ -375,18 +370,8 @@ export function useDrillController({
       toast("No weak keys recorded yet.");
       return;
     }
-    clearTransientFeedback();
-    restartSession({
-      text: generateAdaptiveWeakDrill(weak, weakBg, 45),
-      quoteAuthor: null,
-      drillMode: getDrillMode(settingsRef.current),
-      durationSec: settingsRef.current.duration,
-      strictMode: getStrictMode(settingsRef.current),
-      isRepeated: false,
-      keepMissedWords: false,
-    });
-    requestAnimationFrame(() => inputRef.current?.focus());
-  }, [clearTransientFeedback, restartSession]);
+    startDrillPassage(generateAdaptiveWeakDrill(weak, weakBg, 45));
+  }, [startDrillPassage]);
 
   const practiceSlowKeys = useCallback(() => {
     const slow = topSlowKeys(allTimeSpeedRef.current, 8);
@@ -394,76 +379,26 @@ export function useDrillController({
       toast("No per-key speed data recorded yet.");
       return;
     }
-    clearTransientFeedback();
-    restartSession({
-      text: generateAdaptiveWeakDrill(slow, [], 45),
-      quoteAuthor: null,
-      drillMode: getDrillMode(settingsRef.current),
-      durationSec: settingsRef.current.duration,
-      strictMode: getStrictMode(settingsRef.current),
-      isRepeated: false,
-      keepMissedWords: false,
-    });
-    requestAnimationFrame(() => inputRef.current?.focus());
-  }, [clearTransientFeedback, restartSession]);
+    startDrillPassage(generateAdaptiveWeakDrill(slow, [], 45));
+  }, [startDrillPassage]);
 
-  const prevRelevantRef = useRef({
-    difficulty: drillSettings.difficulty,
-    duration: drillSettings.duration,
+  const relevantKey = [
     drillMode,
-    wordCount,
-    quoteLength,
-    strictMode,
-    style: textOpts.style,
-    punctuation: textOpts.punctuation,
-    numbers: textOpts.numbers,
-    capitals: textOpts.capitals,
-    customKey: activeCustomText ? `${activeCustomText.id}:${activeCustomText.updatedAt}` : "",
-  });
-  useEffect(() => {
-    const customKey = activeCustomText
-      ? `${activeCustomText.id}:${activeCustomText.updatedAt}`
-      : "";
-    const prev = prevRelevantRef.current;
-    prevRelevantRef.current = {
-      difficulty: drillSettings.difficulty,
-      duration: drillSettings.duration,
-      drillMode,
-      wordCount,
-      quoteLength,
-      strictMode,
-      style: textOpts.style,
-      punctuation: textOpts.punctuation,
-      numbers: textOpts.numbers,
-      capitals: textOpts.capitals,
-      customKey,
-    };
-    const changed =
-      prev.drillMode !== drillMode ||
-      prev.difficulty !== drillSettings.difficulty ||
-      prev.strictMode !== strictMode ||
-      prev.style !== textOpts.style ||
-      prev.punctuation !== textOpts.punctuation ||
-      prev.numbers !== textOpts.numbers ||
-      prev.capitals !== textOpts.capitals ||
-      prev.customKey !== customKey ||
-      (drillMode === "time" && prev.duration !== drillSettings.duration) ||
-      (drillMode === "words" && prev.wordCount !== wordCount) ||
-      (drillMode === "quote" && prev.quoteLength !== quoteLength);
-    if (changed) restartWithSettings(drillSettings);
-  }, [
-    drillSettings,
-    drillMode,
-    wordCount,
-    quoteLength,
+    drillSettings.difficulty,
     strictMode,
     textOpts.style,
     textOpts.punctuation,
     textOpts.numbers,
     textOpts.capitals,
-    activeCustomText,
-    restartWithSettings,
-  ]);
+    activeCustomText ? `${activeCustomText.id}:${activeCustomText.updatedAt}` : "",
+    drillMode === "time" ? drillSettings.duration : drillMode === "words" ? wordCount : quoteLength,
+  ].join("|");
+  const prevRelevantKeyRef = useRef(relevantKey);
+  useEffect(() => {
+    if (prevRelevantKeyRef.current === relevantKey) return;
+    prevRelevantKeyRef.current = relevantKey;
+    restartWithSettings(settingsRef.current);
+  }, [relevantKey, restartWithSettings]);
 
   useEffect(() => {
     let cancelled = false;
@@ -505,27 +440,13 @@ export function useDrillController({
       ? Math.min(100, (state.typed.length / (state.text.length || 1)) * 100)
       : Math.min(100, running ? (elapsed / 1000 / drillSettings.duration) * 100 : 0);
 
-  const requestHotkeyRestart = useCallback(() => {
-    const pastThreshold = state.elapsedMs > 10_000 || progress > 50;
-    if (running && !finished && pastThreshold) {
-      const now = performance.now();
-      if (now > abandonArmedUntilRef.current) {
-        abandonArmedUntilRef.current = now + 1500;
-        const keyLabel = QUICK_RESTART_LABELS[quickRestart];
-        toast(`Press ${keyLabel} again to abandon this run`, { duration: 1500 });
-        return;
-      }
-    }
-    abandonArmedUntilRef.current = 0;
-    restartWithSettings();
-  }, [running, finished, state.elapsedMs, progress, quickRestart, restartWithSettings]);
-
-  useDrillHotkeys({
+  const restartArmed = useDrillHotkeys({
     inputRef,
     againRef,
     finished,
     quickRestart,
-    onRestart: requestHotkeyRestart,
+    typedLength: state.typed.length,
+    onRestart: restartWithSettings,
     onRepeatSameText: repeatSameText,
   });
 
@@ -625,6 +546,7 @@ export function useDrillController({
     previousBest,
     paceCaretIndex,
     quickRestart,
+    restartArmed,
     resultData,
     inputRef,
     againRef,

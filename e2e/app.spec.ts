@@ -1,5 +1,12 @@
 import fs from "node:fs";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+const readPassage = (page: Page) =>
+  page.evaluate(() =>
+    Array.from(document.querySelectorAll("[data-char-index]"), (el) => el.textContent ?? "").join(
+      "",
+    ),
+  );
 
 test("full typing flow, zero external requests, Learn lesson, export, delete-all, and import backup", async ({
   page,
@@ -43,9 +50,11 @@ test("full typing flow, zero external requests, Learn lesson, export, delete-all
   await dialog.getByRole("button", { name: /Start practicing/i }).click();
   await expect(dialog).toBeHidden();
 
-  // Practice screen must not show Drill History accordion or idle stat cards, and must show the header daily goal chip
+  // Practice screen must not show Drill History accordion; Live metrics stays visible with fixed height before start
   await expect(page.getByRole("button", { name: /Drill History/i })).toBeHidden();
-  await expect(page.getByRole("status", { name: "Live metrics" })).toBeHidden();
+  const liveMetrics = page.getByRole("status", { name: "Live metrics" });
+  await expect(liveMetrics).toBeVisible();
+  await expect(liveMetrics).toContainText("—");
   await expect(page.getByRole("button", { name: /Daily goal/i })).toBeVisible();
 
   // Switch to Words -> 10w and type the generated passage (First run)
@@ -58,32 +67,33 @@ test("full typing flow, zero external requests, Learn lesson, export, delete-all
   const input = page.getByLabel("Typing input");
   await expect(input).toBeVisible();
 
-  const passageText = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll("[data-char-index]"))
-      .map((el) => el.textContent ?? "")
-      .join("");
-  });
+  const getAreaDocTop = () =>
+    page.evaluate(
+      () => document.getElementById("typing-area")!.getBoundingClientRect().top + window.scrollY,
+    );
+  const areaTopBefore = await getAreaDocTop();
+
+  const passageText = await readPassage(page);
   expect(passageText.length).toBeGreaterThan(15);
 
   await input.click();
   await input.pressSequentially(passageText.slice(0, 3), { delay: 15 });
-  await expect(page.getByRole("status", { name: "Live metrics" })).toBeVisible();
+  await expect(liveMetrics).toBeVisible();
+  expect(await getAreaDocTop()).toBe(areaTopBefore);
+
   await input.pressSequentially(passageText.slice(3), { delay: 15 });
 
-  // Results screen must appear without slim live strip or removed Arcade nudge
+  // Results screen must appear while Live metrics keeps its fixed slot without moving TypingArea
   const results = page.getByRole("region", { name: "Run results" });
   await expect(results).toBeVisible();
   await expect(results.getByText(/WPM/i).first()).toBeVisible();
-  await expect(page.getByRole("status", { name: "Live metrics" })).toBeHidden();
+  await expect(liveMetrics).toBeVisible();
+  expect(await getAreaDocTop()).toBe(areaTopBefore);
   await expect(page.getByText(/Loosen up in Arcade/i)).toBeHidden();
 
   // Repeat this text must reuse the exact same passage and tag result as repeated
   await results.getByRole("button", { name: /Repeat this text/i }).click();
-  const repeatedText = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll("[data-char-index]"))
-      .map((el) => el.textContent ?? "")
-      .join("");
-  });
+  const repeatedText = await readPassage(page);
   expect(repeatedText).toBe(passageText);
 
   await input.click();
@@ -134,11 +144,7 @@ test("full typing flow, zero external requests, Learn lesson, export, delete-all
   await expect(page).toHaveTitle(/Learn Touch Typing/i);
   const learnRegion = page.getByRole("region", { name: "Learn touch typing" });
   await expect(learnRegion).toBeVisible();
-  const learnPassage = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll("[data-char-index]"))
-      .map((el) => el.textContent ?? "")
-      .join("");
-  });
+  const learnPassage = await readPassage(page);
   expect(learnPassage).toMatch(/^[etaoin ]+$/);
   const learnInput = page.getByLabel("Typing input");
   await learnInput.click();
@@ -266,11 +272,7 @@ test("Beginner onboarding launches Learn mode, displays 6/26 unlocked keys, and 
   await expect(learnRegion.getByTestId("learn-unlocked-count")).toHaveText("6/26 letters");
 
   // Type the full generated Learn lesson (unlocked letters only)
-  const passage = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll("[data-char-index]"))
-      .map((el) => el.textContent ?? "")
-      .join("");
-  });
+  const passage = await readPassage(page);
   expect(passage).toMatch(/^[etaoin ]+$/);
 
   const input = page.getByLabel("Typing input");

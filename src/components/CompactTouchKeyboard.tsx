@@ -49,7 +49,7 @@ export function CompactTouchKeyboard({
       aria-hidden="true"
       data-testid="compact-touch-keyboard"
     >
-      <div className="flex items-center justify-between gap-2 px-1 text-[10px] text-muted-foreground">
+      <div className="flex h-5 items-center justify-between gap-2 px-1 text-[10px] text-muted-foreground">
         {lookup.unmapped && nextChar ? (
           <span className="rounded bg-accent/15 px-1.5 py-0.5 font-mono font-semibold text-foreground">
             Not on {layout.toUpperCase()}: &ldquo;{nextChar}&rdquo;

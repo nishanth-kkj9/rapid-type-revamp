@@ -5,6 +5,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
+import { WpmChart } from "@/components/WpmChart";
 import { appStorage } from "@/lib/storage";
 
 beforeAll(() => {
@@ -55,27 +56,32 @@ describe("Typing flow, Results, History, Onboarding & Unified Settings integrati
     cleanup();
   });
 
+  async function finishOnboarding(
+    user: ReturnType<typeof userEvent.setup>,
+    level: RegExp,
+    startBtn: RegExp,
+  ) {
+    render(<App />);
+    const dialog = await screen.findByRole("dialog", {}, { timeout: 4000 });
+    await user.click(within(dialog).getByRole("button", { name: level }));
+    await user.click(within(dialog).getByRole("button", { name: startBtn }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  }
+
   it("renders compact Practice layout, slim live strip, custom length, repeat same text, and unified settings", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    await finishOnboarding(user, /Intermediate/i, /^Start practicing$/i);
 
-    // 1. Accessible Onboarding Radix dialog opens for first-time user
-    const dialog = await screen.findByRole("dialog", {}, { timeout: 4000 });
-    expect(dialog).toBeInTheDocument();
-    expect(screen.getByText(/Current typing pace/i)).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: /Intermediate/i }));
-    await user.click(screen.getByRole("button", { name: /^Start practicing$/i }));
-
-    await waitFor(() => {
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    });
-
-    // Practice screen must NOT render DailyGoal block or Drill History accordion, and must NOT render idle stat cards
+    // Practice screen must NOT render DailyGoal block, Drill History accordion, tagline, or header Mode/Diff/Target chip
     expect(screen.queryByRole("button", { name: /Drill History/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("status", { name: "Live metrics" })).not.toBeInTheDocument();
-    const dailyGoalChip = screen.getByRole("button", { name: /Daily goal/i });
-    expect(dailyGoalChip).toBeInTheDocument();
+    expect(screen.queryByText(/Timed drills with live WPM/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Mode:/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Tab to restart")).toBeInTheDocument();
+    const idleMetrics = screen.getByRole("status", { name: "Live metrics" });
+    expect(idleMetrics).toHaveTextContent(/\d+s\s*left/i);
+    expect(idleMetrics).toHaveTextContent(/—\s*WPM/i);
+    expect(idleMetrics).toHaveTextContent(/—%/i);
+    expect(screen.getByRole("button", { name: /Daily goal/i })).toBeInTheDocument();
 
     // Skip to typing area link focuses typing input
     const skipLink = screen.getByRole("link", { name: /Skip to typing area/i });
@@ -92,11 +98,10 @@ describe("Typing flow, Results, History, Onboarding & Unified Settings integrati
     await user.click(screen.getByRole("button", { name: /^Apply$/i }));
     expect(screen.getByRole("button", { name: /^6w$/i })).toHaveAttribute("aria-pressed", "true");
 
-    // Wait for input and passage characters
     const input = await screen.findByLabelText("Typing input");
-    await waitFor(() => {
-      expect(document.querySelectorAll("[data-char-index]").length).toBeGreaterThan(10);
-    });
+    await waitFor(() =>
+      expect(document.querySelectorAll("[data-char-index]").length).toBeGreaterThan(10),
+    );
 
     const passageChars = Array.from(document.querySelectorAll("[data-char-index]"))
       .map((el) => el.textContent ?? "")
@@ -114,7 +119,7 @@ describe("Typing flow, Results, History, Onboarding & Unified Settings integrati
     const resultsSection = await screen.findByRole("region", { name: "Run results" });
     expect(resultsSection).toBeInTheDocument();
     expect(screen.getByText(/Run finished:/i)).toBeInTheDocument();
-    expect(screen.queryByRole("status", { name: "Live metrics" })).not.toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Live metrics" })).toBeInTheDocument();
     expect(screen.queryByText(/Loosen up in Arcade/i)).not.toBeInTheDocument();
     expect(screen.getByTestId("app-live-announcer")).toHaveTextContent(/achievements? unlocked/i);
 
@@ -170,8 +175,13 @@ describe("Typing flow, Results, History, Onboarding & Unified Settings integrati
       "aria-selected",
       "true",
     );
+    expect(within(settingsSection).queryByText(/Timed Drill/i)).not.toBeInTheDocument();
+    expect(
+      within(settingsSection).getByRole("button", { name: /^Practice$/i }),
+    ).toBeInTheDocument();
 
     await user.click(within(settingsSection).getByRole("tab", { name: /Appearance/i }));
+    expect(within(settingsSection).queryByText(/WCAG/i)).not.toBeInTheDocument();
     await user.click(within(settingsSection).getByRole("button", { name: /High Contrast/i }));
     expect(document.documentElement.classList.contains("high-contrast")).toBe(true);
     expect(document.querySelector('meta[name="theme-color"]')?.getAttribute("content")).toBe(
@@ -198,17 +208,7 @@ describe("Typing flow, Results, History, Onboarding & Unified Settings integrati
 
   it("offers Start Learn mode for Beginner onboarding and saves Learn lessons without altering PBs", async () => {
     const user = userEvent.setup();
-    render(<App />);
-
-    await screen.findByRole("dialog", {}, { timeout: 4000 });
-    await user.click(screen.getByRole("button", { name: /Beginner/i }));
-    const startLearnBtn = screen.getByRole("button", { name: /^Start Learn mode$/i });
-    expect(startLearnBtn).toBeInTheDocument();
-    await user.click(startLearnBtn);
-
-    await waitFor(() => {
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    });
+    await finishOnboarding(user, /Beginner/i, /^Start Learn mode$/i);
 
     const learnSection = await screen.findByRole("region", { name: "Learn touch typing" });
     expect(learnSection).toBeInTheDocument();
@@ -234,7 +234,44 @@ describe("Typing flow, Results, History, Onboarding & Unified Settings integrati
     });
     expect(within(statsSection).getAllByText(/^Learn$/i).length).toBeGreaterThanOrEqual(2);
     expect(within(statsSection).getByLabelText("Summary statistics")).toHaveTextContent(
-      /Best WPM—Standard practice drills/i,
+      /Best WPM\s*—/i,
+    );
+  }, 20000);
+
+  it("renders Practice Progress title without Timed Drill in WpmChart", () => {
+    render(<WpmChart samples={[10, 20, 30]} />);
+    expect(screen.getByText("Practice Progress")).toBeInTheDocument();
+    expect(screen.queryByText(/Timed Drill/i)).not.toBeInTheDocument();
+  });
+
+  it("requires two Esc presses within 1s mid-run (>10 chars) and shows press again to restart in metrics row", async () => {
+    const user = userEvent.setup();
+    await finishOnboarding(user, /Intermediate/i, /^Start practicing$/i);
+
+    await user.click(screen.getByRole("button", { name: "Open unified settings" }));
+    await user.click(
+      within(screen.getByRole("group", { name: "Quick restart key" })).getByRole("button", {
+        name: "Esc",
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: /^Done$/i }));
+    expect(screen.getByText("Esc to restart")).toBeInTheDocument();
+
+    const input = await screen.findByLabelText("Typing input");
+    const chars = Array.from(
+      document.querySelectorAll("[data-char-index]"),
+      (el) => el.textContent ?? "",
+    ).join("");
+    await user.click(input);
+    await user.type(input, chars.slice(0, 11));
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("status", { name: "Live metrics" })).toHaveTextContent(
+      "press again to restart",
+    );
+    expect((input as HTMLInputElement).value).toHaveLength(11);
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect((screen.getByLabelText("Typing input") as HTMLInputElement).value).toBe(""),
     );
   }, 20000);
 });

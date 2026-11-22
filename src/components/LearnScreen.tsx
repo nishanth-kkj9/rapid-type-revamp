@@ -20,8 +20,6 @@ import {
   getFocusKey,
   getKeyRecentAccuracy,
   getNextLockedLetter,
-  isKeyAccurate,
-  isKeyFastEnough,
   isKeyMastered,
   LEARN_ACCURACY_THRESHOLD,
   LEARN_MIN_KEY_HITS,
@@ -246,6 +244,11 @@ export function LearnScreen({
   }, [unlockedSet]);
 
   const focusKey = useMemo(() => getFocusKey(learnState), [learnState]);
+  const focusStats = learnState.perKey[focusKey];
+  const focusHits = focusStats?.hits ?? 0;
+  const focusWpm = focusStats ? wpmFromMs(focusStats.emaMs) : 0;
+  const focusAccPct =
+    focusStats && focusStats.hits > 0 ? Math.round(getKeyRecentAccuracy(focusStats) * 100) : 0;
   const nextLocked = useMemo(() => getNextLockedLetter(learnState.unlocked), [learnState.unlocked]);
   const targetMs = targetMsForWpm(learnState.targetWpm);
   const nextChar = finished ? null : (state.text[state.typed.length] ?? null);
@@ -319,53 +322,47 @@ export function LearnScreen({
         </div>
       </div>
 
-      {/* Slim Active Lesson Strip or Idle Focus Prompt */}
-      {running && !finished ? (
-        <div
-          role="status"
-          aria-label="Live lesson metrics"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card/80 px-4 py-2 font-mono text-xs tabular-nums"
-        >
-          <span className="text-muted-foreground">
-            Progress:{" "}
-            <strong className="text-foreground">
-              {state.typed.length}/{state.text.length}
-            </strong>{" "}
-            chars · {wordCount} words
-          </span>
-          <div className="flex items-center gap-4">
-            {drillSettings.showLiveWpm ? (
-              <>
-                <span>
-                  WPM:{" "}
-                  <strong className="text-primary">
-                    {stats.elapsed > 1 ? Math.round(stats.wpm) : "—"}
-                  </strong>
-                </span>
-                <span>
-                  Accuracy:{" "}
-                  <strong className="text-foreground">{stats.accuracy.toFixed(0)}%</strong>
-                </span>
-              </>
-            ) : null}
-            <span>
-              Focus: <strong className="uppercase text-accent">{focusKey}</strong>
-            </span>
-          </div>
-        </div>
-      ) : !finished ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-muted-foreground">
+      <div
+        role="status"
+        aria-label="Live lesson metrics"
+        className="flex h-10 items-center justify-between gap-2 overflow-hidden rounded-xl border border-border bg-card/80 px-3 font-mono text-xs tabular-nums sm:px-4"
+      >
+        <span className="truncate text-muted-foreground">
+          {running || finished ? (
+            <>
+              <strong className="text-foreground">
+                {state.typed.length}/{state.text.length}
+              </strong>{" "}
+              chars · {wordCount} words
+            </>
+          ) : (
+            <>
+              Lesson {learnState.lessons + 1} · {wordCount} words · {learnState.unlocked.length}{" "}
+              letters
+            </>
+          )}
+        </span>
+        <div className="flex shrink-0 items-center gap-3">
+          {drillSettings.showLiveWpm || finished ? (
+            <>
+              <span>
+                <strong className="text-primary">
+                  {finished || (running && stats.elapsed > 1) ? Math.round(stats.wpm) : "—"}
+                </strong>{" "}
+                WPM
+              </span>
+              <span>
+                <strong className="text-foreground">
+                  {running || finished ? `${stats.accuracy.toFixed(0)}%` : "—%"}
+                </strong>
+              </span>
+            </>
+          ) : null}
           <span>
-            Lesson {learnState.lessons + 1} · {wordCount} words · Focus key:{" "}
-            <strong className="rounded border border-accent/40 bg-accent/15 px-1.5 py-0.5 font-mono uppercase text-foreground">
-              {focusKey}
-            </strong>
-          </span>
-          <span className="font-mono text-[11px]">
-            Only unlocked letters ({learnState.unlocked.map((c) => c.toUpperCase()).join(" ")})
+            Focus <strong className="uppercase text-accent">{focusKey}</strong>
           </span>
         </div>
-      ) : null}
+      </div>
 
       {drillSettings.showKeyboard && coarsePointer ? (
         <MemoCompactTouchKeyboard
@@ -564,92 +561,66 @@ export function LearnScreen({
         />
       ) : null}
 
-      {/* Per-Key Mastery Bars */}
-      <div className="panel p-4 sm:p-5" aria-label="Unlocked keys progress">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      {/* Key progress row */}
+      <section
+        className="panel space-y-2.5 p-3.5 sm:p-4"
+        aria-label="Key progress"
+        data-testid="learn-key-progress"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Unlocked Keys ({learnState.unlocked.length}/{LETTER_ORDER.length})
+            Key progress ({learnState.unlocked.length}/{LETTER_ORDER.length})
           </h3>
-          <span className="text-xs text-muted-foreground">
-            Requires &ge;{learnState.targetWpm} WPM, &ge;{minAccuracyPct}% accuracy, &ge;
-            {LEARN_MIN_KEY_HITS} hits per key
+          <span
+            className="font-mono text-xs tabular-nums text-muted-foreground"
+            data-testid="learn-key-progress-requirements"
+          >
+            Need {learnState.targetWpm} WPM, {minAccuracyPct}% accuracy, {LEARN_MIN_KEY_HITS} hits
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-6">
+        <ol className="flex flex-wrap items-center gap-1.5" aria-label="Unlocked letters in order">
           {learnState.unlocked.map((ch) => {
             const ks = learnState.perKey[ch];
-            const keyWpm = ks ? wpmFromMs(ks.emaMs) : 0;
-            const accRatio = getKeyRecentAccuracy(ks);
-            const accPct = ks && ks.hits > 0 ? Math.round(accRatio * 100) : 0;
-            const hits = ks?.hits ?? 0;
-            const fast = isKeyFastEnough(ks, learnState.targetWpm);
-            const accurate = isKeyAccurate(ks);
             const mastered = isKeyMastered(ks, learnState.targetWpm);
             const isFocus = ch === focusKey;
-            const speedBarPct =
-              keyWpm > 0 ? Math.min(100, Math.round((keyWpm / learnState.targetWpm) * 100)) : 0;
+            const hits = ks?.hits ?? 0;
+            const acc = hits > 0 ? Math.round(getKeyRecentAccuracy(ks) * 100) : 0;
+            const wpm = ks ? wpmFromMs(ks.emaMs) : 0;
 
             return (
-              <div
+              <li
                 key={ch}
                 data-learn-key={ch}
-                className={`rounded-xl border p-2.5 transition-colors ${
-                  mastered
-                    ? "border-accent/55 bg-accent/12"
-                    : isFocus
-                      ? "border-primary/60 bg-primary/10"
-                      : "border-border bg-secondary/35"
+                data-focus={isFocus ? "true" : undefined}
+                data-mastered={mastered ? "true" : undefined}
+                aria-current={isFocus ? "step" : undefined}
+                title={`${ch.toUpperCase()}: ${wpm} WPM, ${acc}% accuracy, ${hits}/${LEARN_MIN_KEY_HITS} hits`}
+                className={`inline-flex min-w-8 items-center justify-center gap-1 rounded-lg border px-2 py-1 font-mono text-xs font-semibold uppercase tabular-nums ${
+                  isFocus
+                    ? "border-primary bg-primary/15 text-foreground ring-1 ring-primary"
+                    : mastered
+                      ? "border-accent/55 bg-accent/12 text-foreground"
+                      : "border-border bg-secondary/35 text-muted-foreground"
                 }`}
               >
-                <div className="flex items-center justify-between gap-1">
-                  <span className="font-mono text-base font-bold uppercase text-foreground">
-                    {ch}
-                  </span>
-                  {mastered ? (
-                    <span className="flex items-center gap-0.5 font-mono text-[11px] font-semibold text-accent">
-                      <CheckCircle2 className="size-3.5" aria-hidden="true" />
-                      Ready
-                    </span>
-                  ) : isFocus ? (
-                    <span className="rounded bg-primary/20 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase text-primary">
-                      Focus
-                    </span>
-                  ) : null}
-                </div>
-
-                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-                  <div
-                    className={`h-full transition-all duration-300 ${
-                      fast ? "bg-accent" : "bg-primary"
-                    }`}
-                    style={{ width: `${speedBarPct}%` }}
-                  />
-                </div>
-
-                <div className="mt-1.5 flex items-center justify-between font-mono text-[11px] tabular-nums">
-                  <span
-                    className={fast ? "font-semibold text-foreground" : "text-muted-foreground"}
-                  >
-                    {keyWpm > 0 ? `${keyWpm} wpm` : "— wpm"}
-                  </span>
-                  <span
-                    className={accurate ? "font-semibold text-foreground" : "text-muted-foreground"}
-                  >
-                    {hits > 0 ? `${accPct}%` : "—%"}
-                  </span>
-                </div>
-
-                <div className="mt-0.5 font-mono text-[10px] tabular-nums text-muted-foreground">
-                  {hits < LEARN_MIN_KEY_HITS
-                    ? `${hits}/${LEARN_MIN_KEY_HITS} hits`
-                    : `${hits} hits`}
-                </div>
-              </div>
+                <span>{ch}</span>
+                {mastered ? (
+                  <CheckCircle2 className="size-3 text-accent" aria-hidden="true" />
+                ) : null}
+              </li>
             );
           })}
-        </div>
-      </div>
+        </ol>
+
+        <p
+          className="font-mono text-xs tabular-nums text-muted-foreground"
+          data-testid="learn-key-progress-detail"
+        >
+          Working on <strong className="uppercase text-foreground">{focusKey}</strong>: {focusWpm}{" "}
+          WPM, {focusAccPct}% / {minAccuracyPct}% accuracy, {focusHits}/{LEARN_MIN_KEY_HITS} hits
+        </p>
+      </section>
     </section>
   );
 }

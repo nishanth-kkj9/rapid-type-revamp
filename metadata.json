@@ -1,6 +1,6 @@
 {
   "name": "Typing Trainer Pro",
-  "description": "Practice typing speed and accuracy with timed drills, Word Shooter arcade mode, problem keys analysis, and live stats.",
+  "description": "Typing practice with timed and word-count tests, an adaptive Learn mode and a Word Shooter side game. Works offline.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

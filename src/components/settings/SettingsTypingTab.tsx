@@ -81,7 +81,7 @@ export function SettingsTypingTab({
                   : "border-border bg-secondary text-muted-foreground hover:text-foreground"
               }`}
             >
-              {m === "time" ? "Timed Drill" : m === "words" ? "Word Count" : "Literary Quote"}
+              {m === "time" ? "Practice" : m === "words" ? "Word Count" : "Literary Quote"}
             </button>
           ))}
         </div>
@@ -354,8 +354,7 @@ export function SettingsTypingTab({
           <div>
             <div className="text-xs font-semibold text-foreground">Quick Restart Key</div>
             <div className="mt-0.5 text-xs text-muted-foreground">
-              Hotkey to reset the active drill (runs over 10s or 50% require a second tap within
-              1.5s)
+              Esc and Enter ask for a second tap within 1s after 10 chars
             </div>
           </div>
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Quick restart key">

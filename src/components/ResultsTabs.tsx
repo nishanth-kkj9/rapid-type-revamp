@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { Award, Keyboard as KeyboardIcon, Target, Type } from "lucide-react";
+import { Award, Keyboard as KeyboardIcon, Type } from "lucide-react";
 import type { AchievementState } from "@/lib/achievements";
 import type { KeyboardLayoutId, KeyboardStandard } from "@/lib/keyboardLayout";
 import type { KeySpeedMap } from "@/lib/keySpeed";
@@ -20,7 +20,6 @@ interface ResultsTabsProps {
   achievementCounters?: AchievementState["counters"] | undefined;
   keyboardLayout: KeyboardLayoutId;
   keyboardStandard: KeyboardStandard;
-  onPracticeMissedWords?: (() => void) | undefined;
   onOpenAchievements?: (() => void) | undefined;
 }
 
@@ -34,7 +33,6 @@ export function ResultsTabs({
   achievementCounters,
   keyboardLayout,
   keyboardStandard,
-  onPracticeMissedWords,
   onOpenAchievements,
 }: ResultsTabsProps) {
   const [activeTab, setActiveTab] = useState<ResultsTabId>("keys");
@@ -149,21 +147,9 @@ export function ResultsTabs({
             </div>
 
             <div className="rounded-xl border border-border/70 bg-card/70 p-3.5">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Most-missed words
-                </h3>
-                {mostMissedWords.length > 0 && onPracticeMissedWords ? (
-                  <button
-                    type="button"
-                    onClick={onPracticeMissedWords}
-                    className="flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
-                  >
-                    <Target className="size-3" />
-                    Practice
-                  </button>
-                ) : null}
-              </div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Most-missed words
+              </h3>
               {mostMissedWords.length === 0 ? (
                 <p className="mt-2 text-xs text-muted-foreground">
                   No word errors recorded in this run.

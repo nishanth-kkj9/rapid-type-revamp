@@ -437,16 +437,6 @@
     0 20px 48px oklch(0 0 0 / 0.4);
 }
 
-@utility insight-banner {
-  border-radius: var(--radius-xl);
-  border: 1px solid oklch(from var(--color-primary) l c h / 0.35);
-  background: linear-gradient(
-    135deg,
-    oklch(from var(--color-primary) l c h / 0.14),
-    transparent 65%
-  );
-}
-
 @keyframes shimmer {
   0% {
     background-position: -200% 0;

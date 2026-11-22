@@ -72,6 +72,9 @@ export function HistoryPanel({
 
   return (
     <section aria-label="Run history and progress" className="panel p-4 sm:p-5">
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        History
+      </h3>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-4">
         <div
           role="group"

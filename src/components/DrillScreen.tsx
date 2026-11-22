@@ -2,6 +2,7 @@ import { forwardRef, memo, useImperativeHandle } from "react";
 import type { AchievementState } from "@/lib/achievements";
 import type { CustomTextEntry } from "@/lib/customTexts";
 import {
+  QUICK_RESTART_LABELS,
   getKeyboardLayout,
   getKeyboardStandard,
   getShowFingerZones,
@@ -121,6 +122,7 @@ export const DrillScreen = forwardRef<DrillScreenHandle, DrillScreenProps>(funct
         typed={c.state.typed}
         textLength={c.state.text.length}
         progress={c.progress}
+        restartArmed={c.restartArmed}
       />
       {drillSettings.showKeyboard && coarsePointer ? (
         <div className="mb-3">
@@ -151,6 +153,11 @@ export const DrillScreen = forwardRef<DrillScreenHandle, DrillScreenProps>(funct
         onFocusChange={c.setFocused}
         onInputChange={c.applyInputDelta}
       />
+      {!c.finished && c.quickRestart !== "off" ? (
+        <p className="mt-2 text-center font-mono text-xs text-muted-foreground">
+          {QUICK_RESTART_LABELS[c.quickRestart]} to restart
+        </p>
+      ) : null}
       {c.resultData ? (
         <ResultsPanel
           resultsRef={c.resultsRef}

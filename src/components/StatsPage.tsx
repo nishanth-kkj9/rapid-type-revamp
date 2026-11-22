@@ -1,21 +1,9 @@
 import { useMemo } from "react";
-import {
-  Activity,
-  Clock,
-  Crosshair,
-  Flame,
-  Gauge,
-  Keyboard,
-  Play,
-  Shield,
-  Target,
-  TrendingUp,
-  Trophy,
-  Zap,
-} from "lucide-react";
+import { Crosshair, Flame, Keyboard, Shield, Trophy, Zap } from "lucide-react";
 import { ActivityCalendar } from "@/components/ActivityCalendar";
 import { DailyGoal } from "@/components/DailyGoal";
 import { HistoryPanel } from "@/components/HistoryPanel";
+import { HistoryProgressChart } from "@/components/HistoryProgressChart";
 import { KeyHeatmap } from "@/components/KeyHeatmap";
 import { PanelSkeleton } from "@/components/Skeletons";
 import type { DailyState } from "@/lib/daily";
@@ -61,9 +49,12 @@ export function StatsPage({
 }: StatsPageProps) {
   const summary = useMemo(() => computeStatsSummary(history), [history]);
   const arcadeBests = useMemo(() => computeArcadePersonalBests(history), [history]);
+  const drillHistory = useMemo(() => history.filter((h) => h.mode !== "shooter"), [history]);
 
   return (
     <section aria-label="Statistics and practice progress" className="mt-4 space-y-6">
+      <h2 className="font-mono text-xl font-bold tracking-tight text-foreground">Stats</h2>
+
       <DailyGoal daily={daily} onOpenGoalSettings={onOpenGoalSettings} />
 
       {!historyReady ? (
@@ -73,135 +64,58 @@ export function StatsPage({
           aria-label="Empty statistics state"
           className="panel flex flex-col items-center gap-4 px-6 py-12 text-center"
         >
-          <div className="flex size-12 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-primary">
-            <TrendingUp className="size-6" aria-hidden="true" />
-          </div>
-          <div className="max-w-md space-y-1.5">
-            <h2 className="font-mono text-lg font-bold tracking-tight text-foreground">
-              No runs recorded yet
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Complete your first typing drill or arcade game to unlock speed trends, personal
-              bests, keyboard heatmaps, and your 26-week activity calendar.
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            No runs yet. Finish one to see your trends.
+          </p>
           <button
             type="button"
             onClick={onStartRun}
-            className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+            className="min-h-10 cursor-pointer rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
           >
-            <Play className="size-4" aria-hidden="true" />
             Start a run
           </button>
         </div>
       ) : (
         <>
-          <div aria-label="Summary statistics" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                <Activity className="size-3.5 text-primary" aria-hidden="true" />
-                Total Runs
-              </div>
-              <div className="mt-1.5 font-mono text-3xl font-bold tabular-nums text-foreground">
+          <div
+            aria-label="Summary statistics"
+            className="panel grid grid-cols-2 gap-x-4 gap-y-2 px-4 py-3 sm:flex sm:flex-wrap sm:items-center sm:justify-between"
+          >
+            <div className="flex items-baseline gap-2">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Runs
+              </span>
+              <span className="font-mono text-lg font-bold tabular-nums text-foreground">
                 {summary.totalRuns.toLocaleString()}
-              </div>
-              <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
-                {summary.drillRuns} practice · {summary.shooterRuns} arcade
-              </p>
+              </span>
             </div>
-
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                <Clock className="size-3.5 text-primary" aria-hidden="true" />
-                Time Typed
-              </div>
-              <div className="mt-1.5 font-mono text-3xl font-bold tabular-nums text-foreground">
+            <div className="flex items-baseline gap-2">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Time typed
+              </span>
+              <span className="font-mono text-lg font-bold tabular-nums text-foreground">
                 {formatTotalDuration(summary.totalElapsedSec)}
-              </div>
-              <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
-                Active practice &amp; arcade time
-              </p>
+              </span>
             </div>
-
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                <Gauge className="size-3.5 text-primary" aria-hidden="true" />
+            <div className="flex items-baseline gap-2">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Best WPM
-              </div>
-              <div className="mt-1.5 font-mono text-3xl font-bold tabular-nums text-primary">
+              </span>
+              <span className="font-mono text-lg font-bold tabular-nums text-primary">
                 {summary.bestWpm > 0 ? summary.bestWpm : "—"}
-              </div>
-              <p className="mt-1 font-mono text-xs text-muted-foreground">
-                Standard practice drills
-              </p>
+              </span>
             </div>
-
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                <Target className="size-3.5 text-primary" aria-hidden="true" />
-                Avg Accuracy
-              </div>
-              <div className="mt-1.5 font-mono text-3xl font-bold tabular-nums text-foreground">
+            <div className="flex items-baseline gap-2">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Avg accuracy (last 20)
+              </span>
+              <span className="font-mono text-lg font-bold tabular-nums text-foreground">
                 {summary.avgAccuracyLast20 !== null ? `${summary.avgAccuracyLast20}%` : "—"}
-              </div>
-              <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
-                Last {Math.min(20, summary.totalRuns)} runs
-              </p>
+              </span>
             </div>
           </div>
 
-          <section aria-label="Arcade personal bests" className="panel p-4 sm:p-5">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <Crosshair className="size-3.5 text-primary" aria-hidden="true" />
-                Arcade
-              </h3>
-              <span className="font-mono text-xs text-muted-foreground">
-                {arcadeBests.totalGames > 0
-                  ? `${arcadeBests.totalGames} Word Shooter game${arcadeBests.totalGames === 1 ? "" : "s"}`
-                  : "No Word Shooter games yet"}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
-                <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  <Trophy className="size-3.5 text-primary" aria-hidden="true" />
-                  Best Score
-                </div>
-                <div className="mt-1 font-mono text-2xl font-bold tabular-nums text-primary">
-                  {arcadeBests.bestScore > 0 ? arcadeBests.bestScore.toLocaleString() : "—"}
-                </div>
-                <p className="mt-0.5 font-mono text-xs text-muted-foreground">Standard runs</p>
-              </div>
-              <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
-                <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  <Zap className="size-3.5 text-accent" aria-hidden="true" />
-                  Best Level
-                </div>
-                <div className="mt-1 font-mono text-2xl font-bold tabular-nums text-foreground">
-                  {arcadeBests.totalGames > 0 ? `Lvl ${arcadeBests.bestLevel}` : "—"}
-                </div>
-              </div>
-              <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
-                <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  <Flame className="size-3.5 text-primary" aria-hidden="true" />
-                  Best Streak
-                </div>
-                <div className="mt-1 font-mono text-2xl font-bold tabular-nums text-foreground">
-                  {arcadeBests.totalGames > 0 ? `${arcadeBests.bestStreak}x` : "—"}
-                </div>
-              </div>
-              <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
-                <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  <Shield className="size-3.5 text-destructive" aria-hidden="true" />
-                  Bosses Defeated
-                </div>
-                <div className="mt-1 font-mono text-2xl font-bold tabular-nums text-foreground">
-                  {arcadeBests.totalGames > 0 ? arcadeBests.bossesDefeated.toLocaleString() : "—"}
-                </div>
-              </div>
-            </div>
-          </section>
+          <HistoryProgressChart entries={drillHistory} />
 
           <ActivityCalendar history={history} />
 
@@ -228,6 +142,59 @@ export function StatsPage({
             onRestoreRun={onRestoreRun}
             onStartRun={onStartRun}
           />
+
+          {arcadeBests.totalGames > 0 ? (
+            <section aria-label="Arcade personal bests" className="panel p-4 sm:p-5">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <Crosshair className="size-3.5 text-primary" aria-hidden="true" />
+                  Arcade
+                </h3>
+                <span className="font-mono text-xs text-muted-foreground">
+                  {arcadeBests.totalGames} Word Shooter game
+                  {arcadeBests.totalGames === 1 ? "" : "s"}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
+                  <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    <Trophy className="size-3.5 text-primary" aria-hidden="true" />
+                    Best Score
+                  </div>
+                  <div className="mt-1 font-mono text-2xl font-bold tabular-nums text-primary">
+                    {arcadeBests.bestScore > 0 ? arcadeBests.bestScore.toLocaleString() : "—"}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
+                  <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    <Zap className="size-3.5 text-accent" aria-hidden="true" />
+                    Best Level
+                  </div>
+                  <div className="mt-1 font-mono text-2xl font-bold tabular-nums text-foreground">
+                    Lvl {arcadeBests.bestLevel}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
+                  <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    <Flame className="size-3.5 text-primary" aria-hidden="true" />
+                    Best Streak
+                  </div>
+                  <div className="mt-1 font-mono text-2xl font-bold tabular-nums text-foreground">
+                    {arcadeBests.bestStreak}x
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
+                  <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    <Shield className="size-3.5 text-destructive" aria-hidden="true" />
+                    Bosses Defeated
+                  </div>
+                  <div className="mt-1 font-mono text-2xl font-bold tabular-nums text-foreground">
+                    {arcadeBests.bossesDefeated.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            </section>
+          ) : null}
         </>
       )}
     </section>

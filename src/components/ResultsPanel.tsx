@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, type RefObject } from "react";
-import { Check, Copy, ImageDown, RotateCcw, Target } from "lucide-react";
+import { Check, Copy, RotateCcw, Target } from "lucide-react";
 import { toast } from "sonner";
 import type { RunSlowWord, RunStats } from "@/lib/typingStats";
 import { QUICK_RESTART_LABELS, type DrillMode, type QuickRestartKey } from "@/lib/drillSettings";
@@ -7,7 +7,7 @@ import type { KeyboardLayoutId, KeyboardStandard } from "@/lib/keyboardLayout";
 import type { KeySpeedMap } from "@/lib/keySpeed";
 import type { AchievementState } from "@/lib/achievements";
 import type { Insight } from "@/lib/insights";
-import { copyResultText, downloadResultCardImage } from "@/lib/shareResult";
+import { copyResultText } from "@/lib/shareResult";
 import { ResultsHeadlineRow } from "@/components/ResultsHeadlineRow";
 import { ResultsTabs } from "@/components/ResultsTabs";
 import { ChartSkeleton } from "@/components/Skeletons";
@@ -100,16 +100,14 @@ export function ResultsPanel({
     keyboardStandard,
   } = result;
 
-  const sharePayload = {
-    stats,
-    modeKey,
-    difficulty,
-    isRecord,
-    quoteAuthor,
-  };
-
   const handleCopyResult = () => {
-    void copyResultText(sharePayload).then((ok) => {
+    void copyResultText({
+      stats,
+      modeKey,
+      difficulty,
+      isRecord,
+      quoteAuthor,
+    }).then((ok) => {
       if (ok) {
         setCopied(true);
         toast.success("Result copied to clipboard.");
@@ -120,12 +118,23 @@ export function ResultsPanel({
     });
   };
 
-  const handleDownloadImage = () => {
-    void downloadResultCardImage(sharePayload).then((ok) => {
-      if (ok) toast.success("Result card PNG downloaded.");
-      else toast.error("Could not render result image.");
-    });
-  };
+  const practiceAction =
+    effectiveMissedWordsCount > 0
+      ? {
+          label: `Practice missed words (${effectiveMissedWordsCount})`,
+          onClick: onPracticeMissedWords,
+        }
+      : weakKeys3.length > 0
+        ? {
+            label: `Practice weak keys (${weakKeys3.join(", ")})`,
+            onClick: onPracticeWeakKeys,
+          }
+        : slowKeys3.length > 0 && onPracticeSlowKeys
+          ? {
+              label: `Practice slow keys (${slowKeys3.join(", ")})`,
+              onClick: onPracticeSlowKeys,
+            }
+          : null;
 
   return (
     <section
@@ -162,29 +171,15 @@ export function ResultsPanel({
       <ResultsHeadlineRow stats={stats} />
 
       {insight ? (
-        <div className="insight-banner panel-raised flex w-full max-w-2xl flex-col items-center gap-2 px-4 py-3">
-          <p className="text-sm leading-relaxed text-foreground sm:text-base">{insight.headline}</p>
-          {insight.action === "practice-weak-keys" ? (
-            <button
-              type="button"
-              onClick={onPracticeWeakKeys}
-              className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-transform hover:scale-[1.02] active:scale-[0.98]"
-            >
-              Fix it now — targeted drill
-            </button>
-          ) : insight.action === "practice-missed-words" ? (
-            <button
-              type="button"
-              onClick={onPracticeMissedWords}
-              className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-transform hover:scale-[1.02] active:scale-[0.98]"
-            >
-              Fix it now — practice missed words
-            </button>
-          ) : null}
-        </div>
+        <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+          {insight.headline}
+        </p>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-center gap-2">
+      <div
+        className="flex flex-wrap items-center justify-center gap-2"
+        data-testid="results-actions"
+      >
         <button
           type="button"
           ref={againRef}
@@ -209,50 +204,23 @@ export function ResultsPanel({
             (Shift+Enter)
           </span>
         </button>
-        {effectiveMissedWordsCount > 0 ? (
+        {practiceAction ? (
           <button
             type="button"
-            onClick={onPracticeMissedWords}
-            className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent/25"
-          >
-            <Target className="size-4 text-accent" />
-            Practice Missed Words ({effectiveMissedWordsCount})
-          </button>
-        ) : weakKeys3.length > 0 ? (
-          <button
-            type="button"
-            onClick={onPracticeWeakKeys}
-            className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent/25"
-          >
-            <Target className="size-4 text-accent" />
-            Target Weak Keys ({weakKeys3.join(", ")})
-          </button>
-        ) : null}
-        {slowKeys3.length > 0 && onPracticeSlowKeys ? (
-          <button
-            type="button"
-            onClick={onPracticeSlowKeys}
-            className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/80"
+            onClick={practiceAction.onClick}
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
           >
             <Target className="size-4 text-primary" />
-            Slow Keys ({slowKeys3.join(", ")})
+            {practiceAction.label}
           </button>
         ) : null}
         <button
           type="button"
           onClick={handleCopyResult}
-          className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2.5 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           {copied ? <Check className="size-3.5 text-primary" /> : <Copy className="size-3.5" />}
           {copied ? "Copied" : "Copy result"}
-        </button>
-        <button
-          type="button"
-          onClick={handleDownloadImage}
-          className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ImageDown className="size-3.5" />
-          Download PNG
         </button>
       </div>
 
@@ -277,7 +245,6 @@ export function ResultsPanel({
         achievementCounters={achievementCounters}
         keyboardLayout={keyboardLayout}
         keyboardStandard={keyboardStandard}
-        onPracticeMissedWords={effectiveMissedWordsCount > 0 ? onPracticeMissedWords : undefined}
         onOpenAchievements={onOpenAchievements}
       />
 

@@ -7,7 +7,6 @@ import {
   normalizeModeKey,
   type HistoryEntry,
 } from "@/lib/typingStats";
-import { HistoryProgressChart } from "@/components/HistoryProgressChart";
 import {
   DATE_RANGES,
   HistoryDrillFilters,
@@ -159,8 +158,6 @@ export function HistoryDrillView({
               )}
             </div>
           </div>
-
-          <HistoryProgressChart entries={filtered} />
 
           <HistoryPersonalBestsTable rows={pbTable} />
 

@@ -6,8 +6,8 @@ import { THEME_LABELS, THEMES, type Theme } from "@/lib/useTheme";
 
 const THEME_DESCRIPTIONS: Record<Theme, string> = {
   dark: "Warm charcoal studio palette calibrated for long practice sessions.",
-  light: "Crisp daylight paper palette meeting WCAG AA contrast (>= 4.5:1).",
-  "high-contrast": "Pure black & white high-contrast palette (>= 7:1 WCAG AAA).",
+  light: "Crisp daylight paper palette (>= 4.5:1 contrast).",
+  "high-contrast": "Pure black and white high-contrast palette (>= 7:1 contrast).",
 };
 
 interface SettingsAppearanceTabProps {

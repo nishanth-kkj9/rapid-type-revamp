@@ -31,7 +31,7 @@ const mkRun = (idx: number, over: Partial<HistoryEntry> = {}): HistoryEntry => (
 });
 
 describe("StatsPage", () => {
-  it("renders inviting empty state with Start a run CTA when history has 0 runs", async () => {
+  it("renders empty state with one button and valid h2 heading when history has 0 runs", async () => {
     const user = userEvent.setup();
     const onStartRun = vi.fn();
     render(
@@ -52,61 +52,86 @@ describe("StatsPage", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Daily goal progress")).toBeInTheDocument();
-    expect(screen.getByLabelText("Empty statistics state")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /Start a run/i }));
+    expect(screen.getByRole("heading", { level: 2, name: "Stats" })).toBeInTheDocument();
+    expect(screen.queryAllByRole("heading").map((h) => h.tagName)).toEqual(["H2"]);
+    const empty = screen.getByLabelText("Empty statistics state");
+    expect(empty).toHaveTextContent("No runs yet. Finish one to see your trends.");
+    const buttons = within(empty).getAllByRole("button");
+    expect(buttons).toHaveLength(1);
+    await user.click(buttons[0]!);
     expect(onStartRun).toHaveBeenCalledTimes(1);
   });
 
-  it("renders summary tiles, Arcade personal bests, calendar, heatmap, progress chart, and history without duplicate import/delete-all controls", () => {
-    const history = [
-      ...Array.from({ length: 4 }, (_, i) => mkRun(i)),
-      mkRun(4, {
-        id: "shooter-pb-1",
-        mode: "shooter",
-        score: 3450,
-        level: 7,
-        maxStreak: 19,
-        bossesDefeated: 2,
-        elapsed: 30,
-      }),
-    ];
-    render(
-      <StatsPage
-        history={history}
-        historyReady={true}
-        daily={null}
-        allTimeKeys={{ e: 4, a: 2 }}
-        allTimeSpeed={{ e: [450, 3], a: [320, 2] }}
-        layout="qwerty"
-        standard="ansi"
-        onClearHistory={vi.fn()}
-        onImportHistory={vi.fn()}
-        onDeleteRun={vi.fn()}
-        onRestoreRun={vi.fn()}
-        onOpenGoalSettings={vi.fn()}
-        onStartRun={vi.fn()}
-      />,
-    );
+  it("renders compact summary row without icons, sections in order, conditional Arcade block, and h2->h3 headings", () => {
+    const drillRuns = Array.from({ length: 4 }, (_, i) => mkRun(i));
+    const shooterRun = mkRun(4, {
+      id: "shooter-pb-1",
+      mode: "shooter",
+      score: 3450,
+      level: 7,
+      maxStreak: 19,
+      bossesDefeated: 2,
+      elapsed: 30,
+    });
+    const baseProps = {
+      historyReady: true,
+      daily: null,
+      allTimeKeys: { e: 4, a: 2 },
+      allTimeSpeed: { e: [450, 3] as [number, number], a: [320, 2] as [number, number] },
+      layout: "qwerty" as const,
+      standard: "ansi" as const,
+      onClearHistory: vi.fn(),
+      onImportHistory: vi.fn(),
+      onDeleteRun: vi.fn(),
+      onRestoreRun: vi.fn(),
+      onOpenGoalSettings: vi.fn(),
+      onStartRun: vi.fn(),
+    };
 
+    const { rerender } = render(<StatsPage history={drillRuns} {...baseProps} />);
+    expect(screen.queryByLabelText("Arcade personal bests")).not.toBeInTheDocument();
+    expect(screen.queryAllByRole("heading").map((h) => h.tagName)).toEqual([
+      "H2",
+      "H3",
+      "H3",
+      "H3",
+      "H3",
+    ]);
+
+    rerender(<StatsPage history={[...drillRuns, shooterRun]} {...baseProps} />);
     const summary = screen.getByLabelText("Summary statistics");
+    expect(summary.querySelectorAll("svg")).toHaveLength(0);
     expect(within(summary).getByText("5")).toBeInTheDocument();
     expect(within(summary).getByText("2m 30s")).toBeInTheDocument();
+    expect(within(summary).getByText(/Avg accuracy \(last 20\)/i)).toBeInTheDocument();
 
     const arcadeSection = screen.getByLabelText("Arcade personal bests");
     expect(within(arcadeSection).getByText("3,450")).toBeInTheDocument();
     expect(within(arcadeSection).getByText("Lvl 7")).toBeInTheDocument();
-    expect(within(arcadeSection).getByText("19x")).toBeInTheDocument();
-    expect(within(arcadeSection).getByText("2")).toBeInTheDocument();
 
-    expect(screen.getByLabelText("Practice activity calendar")).toBeInTheDocument();
-    expect(screen.getByLabelText("Lifetime keyboard heatmap")).toBeInTheDocument();
+    const chart = screen.getByLabelText("WPM over time");
+    const calendar = screen.getByLabelText("Practice activity calendar");
+    const heatmap = screen.getByLabelText("Lifetime keyboard heatmap");
+    const historySec = screen.getByLabelText("Run history and progress");
+    expect(chart.compareDocumentPosition(calendar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      calendar.compareDocumentPosition(heatmap) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      heatmap.compareDocumentPosition(historySec) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    expect(screen.queryAllByRole("heading").map((h) => h.tagName)).toEqual([
+      "H2",
+      "H3",
+      "H3",
+      "H3",
+      "H3",
+      "H3",
+    ]);
     expect(screen.getByRole("button", { name: /Download history as CSV/i })).toBeInTheDocument();
-
-    // Must NOT contain duplicate backup/import or delete-all controls
     expect(screen.queryByRole("button", { name: /Import/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Delete all my data/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Export Full Backup/i })).not.toBeInTheDocument();
   });
 
   it("handles 2,000 imported runs smoothly with paginated history and downsampled progress chart", async () => {

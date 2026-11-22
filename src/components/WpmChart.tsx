@@ -128,7 +128,7 @@ export function WpmChart({
 
   return (
     <ExpandableChartCard
-      title="Timed Drill Progress"
+      title="Practice Progress"
       badge={`${stats.avgWpm} WPM Avg`}
       className={className}
       defaultOpen={defaultOpen}

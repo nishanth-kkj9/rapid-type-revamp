@@ -52,6 +52,7 @@ export const DEFAULT_DRILL_SETTINGS: DrillSettings = {
   showLiveWpm: true,
   showKeyboard: true,
   focusWeakKeys: false,
+  quickRestart: "tab",
 };
 
 export const DRILL_SETTINGS_KEY = "ttp:drill:settings:v1";
@@ -240,19 +241,13 @@ export function sanitizeDrillSettings(raw: unknown): DrillSettings {
   };
 
   const dmCheck = z.enum(["time", "words", "quote"]).safeParse(record["drillMode"]);
-  if (dmCheck.success) {
-    result.drillMode = dmCheck.data;
-  }
+  if (dmCheck.success) result.drillMode = dmCheck.data;
 
   const wcVal = record["wordCount"];
-  if (isValidWordCount(wcVal)) {
-    result.wordCount = wcVal;
-  }
+  if (isValidWordCount(wcVal)) result.wordCount = wcVal;
 
   const qlCheck = z.enum(["short", "medium", "long"]).safeParse(record["quoteLength"]);
-  if (qlCheck.success) {
-    result.quoteLength = qlCheck.data;
-  }
+  if (qlCheck.success) result.quoteLength = qlCheck.data;
 
   const qrCheck = z.enum(["esc", "tab", "enter", "off"]).safeParse(record["quickRestart"]);
   if (qrCheck.success) {
@@ -262,29 +257,20 @@ export function sanitizeDrillSettings(raw: unknown): DrillSettings {
   }
 
   const strictCheck = z.enum(["off", "letter", "word"]).safeParse(record["strictMode"]);
-  if (strictCheck.success) {
-    result.strictMode = strictCheck.data;
-  }
+  if (strictCheck.success) result.strictMode = strictCheck.data;
 
   const paceCheck = z.enum(["off", "pb"]).safeParse(record["paceCaret"]);
-  if (paceCheck.success) {
-    result.paceCaret = paceCheck.data;
-  }
+  if (paceCheck.success) result.paceCaret = paceCheck.data;
 
   const tsCheck = z.enum(["words", "sentences"]).safeParse(record["textStyle"]);
-  if (tsCheck.success) {
-    result.textStyle = tsCheck.data;
-  }
+  if (tsCheck.success) result.textStyle = tsCheck.data;
 
-  if (typeof record["includePunctuation"] === "boolean") {
+  if (typeof record["includePunctuation"] === "boolean")
     result.includePunctuation = record["includePunctuation"];
-  }
-  if (typeof record["includeNumbers"] === "boolean") {
+  if (typeof record["includeNumbers"] === "boolean")
     result.includeNumbers = record["includeNumbers"];
-  }
-  if (typeof record["includeCapitals"] === "boolean") {
+  if (typeof record["includeCapitals"] === "boolean")
     result.includeCapitals = record["includeCapitals"];
-  }
   if (typeof record["customTextId"] === "string" && record["customTextId"].length > 0) {
     result.customTextId = record["customTextId"];
   } else if (record["customTextId"] === null) {
@@ -294,18 +280,13 @@ export function sanitizeDrillSettings(raw: unknown): DrillSettings {
   const layoutCheck = z
     .enum(["qwerty", "dvorak", "colemak", "qwertz", "azerty"])
     .safeParse(record["keyboardLayout"]);
-  if (layoutCheck.success) {
-    result.keyboardLayout = layoutCheck.data;
-  }
+  if (layoutCheck.success) result.keyboardLayout = layoutCheck.data;
 
   const stdCheck = z.enum(["ansi", "iso"]).safeParse(record["keyboardStandard"]);
-  if (stdCheck.success) {
-    result.keyboardStandard = stdCheck.data;
-  }
+  if (stdCheck.success) result.keyboardStandard = stdCheck.data;
 
-  if (typeof record["showFingerZones"] === "boolean") {
+  if (typeof record["showFingerZones"] === "boolean")
     result.showFingerZones = record["showFingerZones"];
-  }
 
   return result;
 }

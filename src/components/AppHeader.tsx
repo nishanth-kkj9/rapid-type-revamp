@@ -16,18 +16,19 @@ import { PWAInstallButton } from "@/components/PWAInstallButton";
 import { ThemeAccentPicker } from "@/components/ThemeAccentPicker";
 import type { ThemeAccent } from "@/lib/uiPrefs";
 import { getNextTheme, THEME_LABELS, type Theme } from "@/lib/useTheme";
-import {
-  QUICK_RESTART_LABELS,
-  drillModeKey,
-  getDrillMode,
-  getQuickRestart,
-  type DrillSettings,
-} from "@/lib/drillSettings";
+import { QUICK_RESTART_LABELS, getQuickRestart, type DrillSettings } from "@/lib/drillSettings";
 import type { ShooterSettings } from "@/lib/shooterSettings";
-import { formatModeLabel } from "@/lib/typingStats";
 import type { AppMode } from "@/lib/urlState";
 import { ACHIEVEMENTS } from "@/lib/achievements";
 import { getEffectiveDaily, getLocalDateString, type DailyState } from "@/lib/daily";
+
+const NAV_ITEMS = [
+  { id: "drill", label: "Practice", Icon: Timer },
+  { id: "learn", label: "Learn", Icon: GraduationCap },
+  { id: "shooter", label: "Arcade", Icon: Crosshair },
+  { id: "stats", label: "Stats", Icon: BarChart3 },
+  { id: "achievements", label: "Achievements", Icon: Trophy },
+] as const;
 
 interface AppHeaderProps {
   mode: AppMode;
@@ -74,9 +75,7 @@ export function AppHeader({
   onSelectAccent,
   onRestartDrill,
 }: AppHeaderProps) {
-  const drillMode = getDrillMode(drillSettings);
   const quickRestart = getQuickRestart(drillSettings);
-  const activeModeLabel = formatModeLabel(drillModeKey(drillSettings));
   const nextThemeLabel = THEME_LABELS[getNextTheme(theme)];
   const effDaily = getEffectiveDaily(daily, getLocalDateString());
   const goalProgressText =
@@ -98,19 +97,6 @@ export function AppHeader({
             </h1>
             <OfflineIndicator />
           </div>
-          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-            {mode === "drill"
-              ? "Timed drills with live WPM, accuracy and a keyboard that shows your next key."
-              : mode === "learn"
-                ? "Step-by-step touch typing: master unlocked letters to unlock the full alphabet."
-                : mode === "shooter"
-                  ? "Word Shooter arcade mode: defend your ship by typing falling words."
-                  : mode === "stats"
-                    ? "Inspect speed trends, personal bests, key heatmaps, 26-week activity, and run history."
-                    : mode === "settings"
-                      ? "Configure typing rules, content, layouts, sound, appearance, and browser data."
-                      : "Track speed, accuracy, streaks, key mastery, and arcade milestones."}
-          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <PWAInstallButton compact className="hidden sm:inline-flex" />
@@ -171,74 +157,27 @@ export function AppHeader({
         }`}
       >
         <div className="flex flex-wrap gap-1 rounded-xl border border-border bg-card p-1">
-          <button
-            type="button"
-            onClick={() => onModeChange("drill")}
-            aria-pressed={mode === "drill"}
-            className={`flex min-h-11 sm:min-h-9 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors whitespace-nowrap shrink-0 ${
-              mode === "drill"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Timer className="size-3.5" />
-            Practice
-          </button>
-          <button
-            type="button"
-            onClick={() => onModeChange("learn")}
-            aria-pressed={mode === "learn"}
-            className={`flex min-h-11 sm:min-h-9 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors whitespace-nowrap shrink-0 ${
-              mode === "learn"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <GraduationCap className="size-3.5" />
-            Learn
-          </button>
-          <button
-            type="button"
-            onClick={() => onModeChange("shooter")}
-            aria-pressed={mode === "shooter"}
-            className={`flex min-h-11 sm:min-h-9 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors whitespace-nowrap shrink-0 ${
-              mode === "shooter"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Crosshair className="size-3.5" />
-            Arcade
-          </button>
-          <button
-            type="button"
-            onClick={() => onModeChange("stats")}
-            aria-pressed={mode === "stats"}
-            className={`flex min-h-11 sm:min-h-9 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors whitespace-nowrap shrink-0 ${
-              mode === "stats"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <BarChart3 className="size-3.5" />
-            Stats
-          </button>
-          <button
-            type="button"
-            onClick={() => onModeChange("achievements")}
-            aria-pressed={mode === "achievements"}
-            className={`flex min-h-11 sm:min-h-9 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors whitespace-nowrap shrink-0 ${
-              mode === "achievements"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Trophy className="size-3.5" />
-            Achievements
-            <span className="font-mono text-xs opacity-90 tabular-nums">
-              {unlockedAchievementsCount}/{ACHIEVEMENTS.length}
-            </span>
-          </button>
+          {NAV_ITEMS.map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onModeChange(id)}
+              aria-pressed={mode === id}
+              className={`flex min-h-11 sm:min-h-9 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors whitespace-nowrap shrink-0 ${
+                mode === id
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Icon className="size-3.5" />
+              {label}
+              {id === "achievements" ? (
+                <span className="font-mono text-xs opacity-90 tabular-nums">
+                  {unlockedAchievementsCount}/{ACHIEVEMENTS.length}
+                </span>
+              ) : null}
+            </button>
+          ))}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -272,28 +211,7 @@ export function AppHeader({
             </button>
           ) : null}
 
-          {mode === "drill" ? (
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 font-mono text-xs text-muted-foreground">
-              <span>
-                Mode: <strong className="text-foreground">{activeModeLabel}</strong>
-              </span>
-              {drillMode !== "quote" ? (
-                <>
-                  <span>·</span>
-                  <span>
-                    Diff:{" "}
-                    <strong className="capitalize text-foreground">
-                      {drillSettings.difficulty}
-                    </strong>
-                  </span>
-                </>
-              ) : null}
-              <span>·</span>
-              <span>
-                Target: <strong className="text-primary">{drillSettings.targetWpm} WPM</strong>
-              </span>
-            </div>
-          ) : mode === "shooter" ? (
+          {mode === "shooter" ? (
             <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 font-mono text-xs text-muted-foreground">
               <span>
                 Diff:{" "}

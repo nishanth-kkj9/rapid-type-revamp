@@ -47,7 +47,7 @@ export function HistoryProgressChart({ entries, className = "" }: HistoryProgres
   if (seriesData.length < 2) return null;
 
   return (
-    <div className={`rounded-xl border border-border/70 bg-card/70 p-4 ${className}`}>
+    <section aria-label="WPM over time" className={`panel p-4 sm:p-5 ${className}`}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -91,6 +91,6 @@ export function HistoryProgressChart({ entries, className = "" }: HistoryProgres
           }
         />
       </div>
-    </div>
+    </section>
   );
 }

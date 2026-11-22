@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_DRILL_SETTINGS,
   DRILL_SETTINGS_KEY,
+  getQuickRestart,
   loadDrillSettingsFromStorage,
   sanitizeDrillSettings,
   saveDrillSettingsToStorage,
@@ -113,23 +114,18 @@ describe("drillSettings", () => {
     expect(sanitized.paceCaret).toBeUndefined();
   });
 
-  it("persists quickRestart and migrates legacy tabToRestart booleans cleanly", async () => {
+  it("defaults quickRestart to tab for new users while preserving saved and legacy choices", async () => {
     const storage = new MemoryStorage();
-    expect((await loadDrillSettingsFromStorage(storage)).quickRestart).toBeUndefined();
-    await saveDrillSettingsToStorage(storage, {
-      ...DEFAULT_DRILL_SETTINGS,
-      quickRestart: "enter",
-    });
+    expect((await loadDrillSettingsFromStorage(storage)).quickRestart).toBe("tab");
+
+    await storage.set(DRILL_SETTINGS_KEY, { difficulty: "medium", duration: 30 });
+    expect(getQuickRestart(await loadDrillSettingsFromStorage(storage))).toBe("esc");
+
+    await saveDrillSettingsToStorage(storage, { ...DEFAULT_DRILL_SETTINGS, quickRestart: "enter" });
     expect((await loadDrillSettingsFromStorage(storage)).quickRestart).toBe("enter");
 
-    expect(
-      sanitizeDrillSettings({ ...DEFAULT_DRILL_SETTINGS, tabToRestart: true }).quickRestart,
-    ).toBe("tab");
-    expect(
-      sanitizeDrillSettings({ ...DEFAULT_DRILL_SETTINGS, tabToRestart: false }).quickRestart,
-    ).toBe("esc");
-    expect(
-      sanitizeDrillSettings({ ...DEFAULT_DRILL_SETTINGS, quickRestart: "space" }).quickRestart,
-    ).toBeUndefined();
+    expect(sanitizeDrillSettings({ tabToRestart: true }).quickRestart).toBe("tab");
+    expect(sanitizeDrillSettings({ tabToRestart: false }).quickRestart).toBe("esc");
+    expect(sanitizeDrillSettings({ quickRestart: "space" }).quickRestart).toBeUndefined();
   });
 });

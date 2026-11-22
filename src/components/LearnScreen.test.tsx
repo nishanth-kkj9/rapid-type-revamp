@@ -4,7 +4,13 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { DEFAULT_DRILL_SETTINGS } from "@/lib/drillSettings";
-import { applyLearnLessonUpdate, LETTER_ORDER, type LearnState } from "@/lib/learn";
+import {
+  applyLearnLessonUpdate,
+  LEARN_ACCURACY_THRESHOLD,
+  LEARN_MIN_KEY_HITS,
+  LETTER_ORDER,
+  type LearnState,
+} from "@/lib/learn";
 import { KEYBOARD_LAYOUTS, KEYBOARD_STANDARDS } from "@/lib/keyboardLayout";
 import { LearnScreen } from "./LearnScreen";
 import { Keyboard } from "./Keyboard";
@@ -106,6 +112,21 @@ describe("LearnScreen", () => {
     expect(screen.getByTestId("learn-unlocked-count")).toHaveTextContent("6/26 letters");
     expect(screen.getByTestId("learn-unlock-status")).toHaveTextContent(
       /Unlock\s+s\s+when all keys reach\s+35 WPM\s+and\s+94% accuracy/i,
+    );
+
+    const progressRow = screen.getByTestId("learn-key-progress");
+    const keysInOrder = Array.from(progressRow.querySelectorAll("[data-learn-key]")).map((el) =>
+      el.getAttribute("data-learn-key"),
+    );
+    expect(keysInOrder).toEqual(["e", "t", "a", "o", "i", "n"]);
+    const activeKeyEl = progressRow.querySelector('[data-learn-key="n"]');
+    expect(activeKeyEl).toHaveAttribute("data-focus", "true");
+    expect(activeKeyEl).toHaveAttribute("aria-current", "step");
+    expect(screen.getByTestId("learn-key-progress-requirements")).toHaveTextContent(
+      `Need 35 WPM, ${Math.round(LEARN_ACCURACY_THRESHOLD * 100)}% accuracy, ${LEARN_MIN_KEY_HITS} hits`,
+    );
+    expect(screen.getByTestId("learn-key-progress-detail")).toHaveTextContent(
+      `Working on n: 55 WPM, 100% / ${Math.round(LEARN_ACCURACY_THRESHOLD * 100)}% accuracy, 25/${LEARN_MIN_KEY_HITS} hits`,
     );
 
     const slider = screen.getByLabelText("Target WPM");

@@ -13,6 +13,7 @@ interface StatCardsProps {
   typed: string;
   textLength: number;
   progress: number;
+  restartArmed?: boolean | undefined;
 }
 
 export function StatCards({
@@ -27,57 +28,56 @@ export function StatCards({
   typed,
   textLength,
   progress,
+  restartArmed = false,
 }: StatCardsProps) {
-  if (!running || finished) return null;
-
-  const hideLive = !showLiveWpm;
+  const hideLive = !showLiveWpm && !finished;
   const wordsDone = Math.min(wordCount, typed.split(/\s+/).filter(Boolean).length);
   const quotePct = Math.min(100, Math.round((typed.length / (textLength || 1)) * 100));
+  const showActive = running || finished;
+  const wpmText = hideLive ? "•••" : finished || (running && settled) ? shown.wpm.toFixed(0) : "—";
+  const accText = hideLive ? "•••" : showActive ? `${shown.accuracy.toFixed(0)}%` : "—%";
+  const timeLeft = finished ? 0 : Math.ceil(remaining);
+  const barWidth = finished && drillMode === "time" ? 100 : progress;
+  const lengthValue =
+    drillMode === "words"
+      ? `${wordsDone} / ${wordCount}`
+      : drillMode === "quote"
+        ? `${quotePct}%`
+        : `${timeLeft}s`;
+  const lengthLabel = drillMode === "words" ? "words" : drillMode === "quote" ? "progress" : "left";
+  const lengthClass =
+    drillMode === "time"
+      ? running && !finished && timeLeft <= 5
+        ? "text-destructive"
+        : "text-primary"
+      : "text-foreground";
 
   return (
     <div className="mt-4">
       <div
         role="status"
         aria-label="Live metrics"
-        className="flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-card/75 px-4 py-2 font-mono text-sm tabular-nums"
+        className="flex h-10 items-center justify-between gap-2 overflow-hidden rounded-xl border border-border/70 bg-card/75 px-3 font-mono text-xs tabular-nums sm:gap-4 sm:px-4 sm:text-sm"
       >
-        <div className="flex items-baseline gap-1.5">
-          {drillMode === "words" ? (
-            <>
-              <span className="font-bold text-foreground">
-                {wordsDone} / {wordCount}
-              </span>
-              <span className="text-xs text-muted-foreground">words</span>
-            </>
-          ) : drillMode === "quote" ? (
-            <>
-              <span className="font-bold text-foreground">{quotePct}%</span>
-              <span className="text-xs text-muted-foreground">progress</span>
-            </>
-          ) : (
-            <>
-              <span className={`font-bold ${remaining <= 5 ? "text-destructive" : "text-primary"}`}>
-                {Math.ceil(remaining)}s
-              </span>
-              <span className="text-xs text-muted-foreground">left</span>
-            </>
-          )}
+        <div className="flex items-baseline gap-1.5 whitespace-nowrap">
+          <span className={`font-bold ${lengthClass}`}>{lengthValue}</span>
+          <span className="text-xs text-muted-foreground">{lengthLabel}</span>
         </div>
 
-        <div className="flex items-center gap-4">
+        {restartArmed ? (
+          <span className="truncate text-xs font-medium text-accent">press again to restart</span>
+        ) : null}
+
+        <div className="flex items-center gap-3 whitespace-nowrap sm:gap-4">
           <div className="flex items-baseline gap-1.5">
-            <span className="font-bold text-primary">
-              {hideLive ? "•••" : settled ? shown.wpm.toFixed(0) : "—"}
-            </span>
+            <span className="font-bold text-primary">{wpmText}</span>
             <span className="text-xs text-muted-foreground">WPM</span>
           </div>
           <span aria-hidden="true" className="text-border">
             ·
           </span>
           <div className="flex items-baseline gap-1.5">
-            <span className="font-bold text-foreground">
-              {hideLive ? "•••" : `${shown.accuracy.toFixed(0)}%`}
-            </span>
+            <span className="font-bold text-foreground">{accText}</span>
             <span className="text-xs text-muted-foreground">acc</span>
           </div>
         </div>
@@ -86,7 +86,7 @@ export function StatCards({
       <div className="mt-2 h-1 overflow-hidden rounded-full bg-secondary">
         <div
           className="h-full rounded-full bg-primary transition-[width] duration-100 ease-linear"
-          style={{ width: `${progress}%` }}
+          style={{ width: `${barWidth}%` }}
         />
       </div>
     </div>
