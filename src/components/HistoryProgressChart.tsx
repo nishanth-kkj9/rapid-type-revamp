@@ -4,6 +4,7 @@ import { downsampleProgressPoints } from "@/lib/statsAnalytics";
 import {
   computeHistoryProgressSeries,
   formatModeLabel,
+  formatWordListLabel,
   type HistoryEntry,
   type HistoryProgressPoint,
 } from "@/lib/typingStats";
@@ -85,7 +86,7 @@ export function HistoryProgressChart({ entries, className = "" }: HistoryProgres
             `${new Date(row.date).toLocaleDateString(undefined, {
               month: "short",
               day: "numeric",
-            })} · ${formatModeLabel(row.mode)} (${row.difficulty})`
+            })} · ${formatModeLabel(row.mode)} (${formatWordListLabel(row.difficulty)})`
           }
         />
       </div>

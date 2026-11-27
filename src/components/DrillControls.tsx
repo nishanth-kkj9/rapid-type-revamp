@@ -79,7 +79,6 @@ export function DrillControls({
   const setDrillMode = (m: DrillMode) =>
     onUpdateSettings({
       drillMode: m,
-      textStyle: undefined,
       includePunctuation: undefined,
       includeNumbers: undefined,
       includeCapitals: undefined,

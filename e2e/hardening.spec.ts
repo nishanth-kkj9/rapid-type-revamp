@@ -1,12 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
-
-async function dismissOnboarding(page: Page): Promise<void> {
-  const dialog = page.getByRole("dialog", { name: /Welcome to TypingTrainerPro/i });
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: /Start practicing/i }).click();
-  await expect(dialog).toBeHidden();
-}
+import { expect, test } from "@playwright/test";
 
 test.describe("Phase 6 Hardening: CSP, Lazy Loading, Accessibility & Mobile", () => {
   test("fails on any CSP violation and verifies strict preview Content-Security-Policy header", async ({
@@ -37,11 +30,11 @@ test.describe("Phase 6 Hardening: CSP, Lazy Loading, Accessibility & Mobile", ()
     expect(csp).toContain("object-src 'none'");
     expect(csp).toContain("frame-ancestors 'self'");
 
-    await dismissOnboarding(page);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
 
-    // Exercise Practice, Learn, Arcade, Stats, Achievements, Settings
+    // Exercise Practice, Learn, Stats, Settings
     const nav = page.getByRole("navigation", { name: "Primary sections" });
-    for (const label of ["Learn", "Arcade", "Stats", "Achievements"]) {
+    for (const label of ["Learn", "Stats"]) {
       await nav.getByRole("button", { name: new RegExp(`^${label}`, "i") }).click();
     }
     await page.getByRole("button", { name: "Open unified settings" }).click();
@@ -55,9 +48,7 @@ test.describe("Phase 6 Hardening: CSP, Lazy Loading, Accessibility & Mobile", ()
     expect(pageErrors).toEqual([]);
   });
 
-  test("lazy-loads Stats, Learn, and Arcade chunks only when their tab is opened", async ({
-    page,
-  }) => {
+  test("lazy-loads Stats and Learn chunks only when their tab is opened", async ({ page }) => {
     const loadedScripts: string[] = [];
     page.on("response", (res) => {
       const url = res.url();
@@ -66,19 +57,14 @@ test.describe("Phase 6 Hardening: CSP, Lazy Loading, Accessibility & Mobile", ()
       }
     });
 
-    // Skip onboarding so initial Practice load renders directly without loading Onboarding chunk
-    await page.addInitScript(() => {
-      window.localStorage.setItem("ttp:onboarded:v1", "1");
-    });
-
     await page.goto("/?mode=drill");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.getByRole("navigation", { name: "Primary sections" })).toBeVisible();
     await expect(page.getByLabel("Typing input")).toBeVisible();
 
     const initialJoined = loadedScripts.join("\n");
     expect(initialJoined).not.toMatch(/StatsPage/i);
     expect(initialJoined).not.toMatch(/LearnScreen/i);
-    expect(initialJoined).not.toMatch(/ShooterScreen/i);
 
     const nav = page.getByRole("navigation", { name: "Primary sections" });
 
@@ -95,19 +81,13 @@ test.describe("Phase 6 Hardening: CSP, Lazy Loading, Accessibility & Mobile", ()
     await expect(page.getByRole("region", { name: "Learn touch typing" })).toBeVisible();
     expect(loadedScripts.length).toBeGreaterThan(beforeLearn);
     expect(loadedScripts.slice(beforeLearn).join("\n")).toMatch(/LearnScreen/i);
-
-    const beforeArcade = loadedScripts.length;
-    await nav.getByRole("button", { name: /^Arcade$/i }).click();
-    await expect(page.getByRole("button", { name: /Start Game|Launch/i })).toBeVisible();
-    expect(loadedScripts.length).toBeGreaterThan(beforeArcade);
-    expect(loadedScripts.slice(beforeArcade).join("\n")).toMatch(/ShooterScreen/i);
   });
 
-  test("passes @axe-core/playwright across Practice, Learn, Arcade, Stats, Achievements, and Settings in dark, light, and high-contrast themes + Skip link focus", async ({
+  test("passes @axe-core/playwright across Practice, Learn, Stats, and Settings in dark, light, and high-contrast themes + Skip link focus", async ({
     page,
   }) => {
     await page.goto("/?mode=drill");
-    await dismissOnboarding(page);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
 
     // Verify Skip to typing area link moves focus to Typing input
     const skipLink = page.getByRole("link", { name: /Skip to typing area/i });
@@ -138,23 +118,12 @@ test.describe("Phase 6 Hardening: CSP, Lazy Loading, Accessibility & Mobile", ()
             expect(page.getByRole("region", { name: "Learn touch typing" })).toBeVisible(),
         },
         {
-          name: "Arcade",
-          open: () => nav.getByRole("button", { name: /^Arcade$/i }).click(),
-          waitFor: () =>
-            expect(page.getByRole("button", { name: /Start Game|Launch/i })).toBeVisible(),
-        },
-        {
           name: "Stats",
           open: () => nav.getByRole("button", { name: /^Stats$/i }).click(),
           waitFor: () =>
             expect(
               page.getByRole("region", { name: "Statistics and practice progress" }),
             ).toBeVisible(),
-        },
-        {
-          name: "Achievements",
-          open: () => nav.getByRole("button", { name: /^Achievements/i }).click(),
-          waitFor: () => expect(page.getByRole("heading", { name: /Achievements/i })).toBeVisible(),
         },
         {
           name: "Settings",
@@ -190,7 +159,7 @@ test.describe("Phase 6 Hardening: CSP, Lazy Loading, Accessibility & Mobile", ()
       page,
     }) => {
       await page.goto("/?mode=drill");
-      await dismissOnboarding(page);
+      await expect(page.getByRole("dialog")).toHaveCount(0);
 
       // Check Practice viewport overflow
       const practiceOverflow = await page.evaluate(

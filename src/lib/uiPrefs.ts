@@ -2,23 +2,26 @@ import { z } from "./zodSetup";
 import type { Storage } from "./storage";
 
 /**
- * Persistent micro-preferences for UI features (heatmap metric, dyslexia font).
+ * Persistent micro-preferences for UI features (heatmap metric, dyslexia font, learn prompt dismissal).
  */
 export const UI_PREFS_KEY = "ttp:uiprefs:v1";
 
 export interface UiPrefs {
   heatmapMetric: "misses" | "speed";
   dyslexiaFont: boolean;
+  learnPromptDismissed: boolean;
 }
 
 export const DEFAULT_UI_PREFS: UiPrefs = {
   heatmapMetric: "misses",
   dyslexiaFont: false,
+  learnPromptDismissed: false,
 };
 
 export const UiPrefsSchema = z.object({
   heatmapMetric: z.enum(["misses", "speed"]).optional(),
   dyslexiaFont: z.boolean().optional(),
+  learnPromptDismissed: z.boolean().optional(),
 });
 
 export function sanitizeUiPrefs(raw: unknown): UiPrefs {
@@ -31,6 +34,10 @@ export function sanitizeUiPrefs(raw: unknown): UiPrefs {
     heatmapMetric: metricCheck.success ? metricCheck.data : DEFAULT_UI_PREFS.heatmapMetric,
     dyslexiaFont:
       typeof r["dyslexiaFont"] === "boolean" ? r["dyslexiaFont"] : DEFAULT_UI_PREFS.dyslexiaFont,
+    learnPromptDismissed:
+      typeof r["learnPromptDismissed"] === "boolean"
+        ? r["learnPromptDismissed"]
+        : DEFAULT_UI_PREFS.learnPromptDismissed,
   };
 }
 

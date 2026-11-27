@@ -4,6 +4,7 @@ import {
   computePersonalBestsTable,
   computeSameTypeTrend,
   formatModeLabel,
+  formatWordListLabel,
   normalizeModeKey,
   type HistoryEntry,
 } from "@/lib/typingStats";
@@ -11,8 +12,8 @@ import {
   DATE_RANGES,
   HistoryDrillFilters,
   type DateRangeFilter,
-  type DifficultyFilter,
   type TestTypeFilter,
+  type WordListFilter,
 } from "@/components/HistoryDrillFilters";
 import { HistoryPersonalBestsTable } from "@/components/HistoryPersonalBestsTable";
 
@@ -32,7 +33,7 @@ export function HistoryDrillView({
   onStartRun,
 }: HistoryDrillViewProps) {
   const [testType, setTestType] = useState<TestTypeFilter>("all");
-  const [difficulty, setDifficulty] = useState<DifficultyFilter>("all");
+  const [wordList, setWordList] = useState<WordListFilter>("all");
   const [dateRange, setDateRange] = useState<DateRangeFilter>("all");
   const [page, setPage] = useState(1);
 
@@ -43,11 +44,11 @@ export function HistoryDrillView({
 
     return drillAll.filter((h) => {
       if (testType !== "all" && normalizeModeKey(h.mode || "30s") !== testType) return false;
-      if (difficulty !== "all" && h.difficulty.toLowerCase() !== difficulty) return false;
+      if (wordList !== "all" && h.difficulty.toLowerCase() !== wordList) return false;
       if (cutoffMs !== null && h.date < cutoffMs) return false;
       return true;
     });
-  }, [drillAll, testType, difficulty, dateRange]);
+  }, [drillAll, testType, wordList, dateRange]);
 
   const bestWpm = useMemo(() => filtered.reduce((m, h) => Math.max(m, h.wpm), 0), [filtered]);
   const avgWpm = useMemo(
@@ -59,8 +60,8 @@ export function HistoryDrillView({
     [filtered],
   );
   const trend = useMemo(
-    () => computeSameTypeTrend(filtered, testType, difficulty),
-    [filtered, testType, difficulty],
+    () => computeSameTypeTrend(filtered, testType, wordList),
+    [filtered, testType, wordList],
   );
   const pbTable = useMemo(() => computePersonalBestsTable(drillAll), [drillAll]);
 
@@ -73,14 +74,14 @@ export function HistoryDrillView({
     <div className="mt-4 space-y-5">
       <HistoryDrillFilters
         testType={testType}
-        difficulty={difficulty}
+        wordList={wordList}
         dateRange={dateRange}
         onTestTypeChange={(val) => {
           setTestType(val);
           setPage(1);
         }}
-        onDifficultyChange={(val) => {
-          setDifficulty(val);
+        onWordListChange={(val) => {
+          setWordList(val);
           setPage(1);
         }}
         onDateRangeChange={(val) => {
@@ -177,7 +178,8 @@ export function HistoryDrillView({
                         hour: "2-digit",
                         minute: "2-digit",
                       })}{" "}
-                      · <span className="capitalize text-foreground">{h.difficulty}</span> ·{" "}
+                      · <span className="text-foreground">{formatWordListLabel(h.difficulty)}</span>{" "}
+                      ·{" "}
                       <span className="font-semibold text-primary">{formatModeLabel(h.mode)}</span>
                       {h.strict ? ` · strict: ${h.strict}` : ""}
                       {h.repeated ? " · repeat" : ""}

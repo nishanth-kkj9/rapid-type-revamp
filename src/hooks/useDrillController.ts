@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { didImproveWeakKey, type AchievementState } from "@/lib/achievements";
-import { playDrillKeySound } from "@/lib/arcadeAudio";
+import { playDrillKeySound } from "@/lib/drillSound";
 import { buildCustomPassage, type CustomTextEntry } from "@/lib/customTexts";
 import {
   drillModeKey,
   getDrillMode,
-  type DrillMode,
   getKeyboardLayout,
   getKeyboardStandard,
   getPaceCaret,
@@ -19,7 +17,7 @@ import {
 } from "@/lib/drillSettings";
 import { buildInsight } from "@/lib/insights";
 import { topSlowKeys, type KeySpeedMap } from "@/lib/keySpeed";
-import { pickWeakKeyPassage, topWeakBigrams, topWeakKeys } from "@/lib/keyStats";
+import { topWeakBigrams, topWeakKeys } from "@/lib/keyStats";
 import { mergeMissedWords } from "@/lib/missedWords";
 import { getRandomQuote } from "@/lib/quotes";
 import {
@@ -52,12 +50,7 @@ export interface DrillRunCommitPayload {
   keySpeed: KeySpeedMap;
   missedWords: string[];
   cleanWordsInRun: string[];
-  focused: boolean;
-  drillMode: DrillMode;
-  durationSec: number;
   activeSeconds: number;
-  improvedWeakKey: boolean;
-  repeated: boolean;
 }
 
 interface UseDrillControllerOptions {
@@ -68,7 +61,6 @@ interface UseDrillControllerOptions {
   allTimeSpeed: KeySpeedMap;
   storedMissedWords: string[];
   customTexts: CustomTextEntry[];
-  achievements: AchievementState;
   onCommitRun: (payload: DrillRunCommitPayload) => void;
   onFocusDimmedChange: (dimmed: boolean) => void;
 }
@@ -100,27 +92,21 @@ function buildDrillText(
   const textOpts = resolveTextOptions(settings);
   if (drillMode === "words") {
     return {
-      text: generateWordQuota(wordCount, settings.difficulty, textOpts),
+      text: generateWordQuota(wordCount, settings.wordList, textOpts),
       author: null,
     };
   }
 
   if (!settings.focusWeakKeys) {
-    return { text: generatePassage(settings.difficulty, 320, textOpts), author: null };
+    return { text: generatePassage(settings.wordList, 320, textOpts), author: null };
   }
 
   const weak = topWeakKeys(allTimeKeys, 12);
   const weakBg = topWeakBigrams(allTimeBigrams, 8);
   if (weak.length === 0 && weakBg.length === 0) {
-    return { text: generatePassage(settings.difficulty, 320, textOpts), author: null };
+    return { text: generatePassage(settings.wordList, 320, textOpts), author: null };
   }
-  if (textOpts.style === "words") {
-    return { text: generateAdaptiveWeakDrill(weak, weakBg, 45), author: null };
-  }
-  const candidates = Array.from({ length: 6 }, () =>
-    generatePassage(settings.difficulty, 320, textOpts),
-  );
-  return { text: pickWeakKeyPassage(candidates, weak, weakBg), author: null };
+  return { text: generateAdaptiveWeakDrill(weak, weakBg, 45), author: null };
 }
 
 export function useDrillController({
@@ -131,7 +117,6 @@ export function useDrillController({
   allTimeSpeed,
   storedMissedWords,
   customTexts,
-  achievements,
   onCommitRun,
   onFocusDimmedChange,
 }: UseDrillControllerOptions) {
@@ -198,13 +183,13 @@ export function useDrillController({
         const entry = customTextsRef.current.find((c) => c.id === s.customTextId);
         if (entry) return buildCustomPassage(entry.text, "time");
       }
-      return generatePassage(s.difficulty, 320, resolveTextOptions(s));
+      return generatePassage(s.wordList, 320, resolveTextOptions(s));
     },
     onRunFinished: (finishedState, finalStats) => {
       const s = settingsRef.current;
       const finishedModeKey = drillModeKey(s);
       const isRepeated = finishedState.isRepeated;
-      const prevBest = getPersonalBestWpm(historyRef.current, finishedModeKey, s.difficulty);
+      const prevBest = getPersonalBestWpm(historyRef.current, finishedModeKey, s.wordList);
       const newRecord = !isRepeated && finalStats.wpm > prevBest && finalStats.wpm > 0;
       setLastRecord({
         isRecord: newRecord,
@@ -216,7 +201,7 @@ export function useDrillController({
             appStorage,
             finishedModeKey,
             finishedState.samples,
-            s.difficulty,
+            s.wordList,
           );
         }
         const wordSummary = computeRunWordSummary(
@@ -227,20 +212,21 @@ export function useDrillController({
           finalStats.elapsed,
           Math.max(0, Math.round((finishedState.activeTypingMs / 1000) * 10) / 10),
         );
-        const topWeak = topWeakKeys(allTimeKeysRef.current, 5);
-        const improvedWeakKey = didImproveWeakKey(
-          topWeak,
-          finishedState.text.slice(0, finishedState.typed.length),
-          finishedState.mistakes,
-          finalStats.accuracy,
-        );
+        const finishedDrillMode = getDrillMode(s);
+        const finishedTextOpts = resolveTextOptions(s);
         onCommitRun({
           entry: {
             ...finalStats,
             id: newRunId(),
             date: Date.now(),
-            difficulty: s.difficulty,
+            difficulty: s.wordList,
             mode: finishedModeKey,
+            ...(finishedDrillMode === "quote"
+              ? { quoteLength: getQuoteLength(s) }
+              : {
+                  punctuation: finishedTextOpts.punctuation,
+                  numbers: finishedTextOpts.numbers,
+                }),
             samples: finishedState.samples,
             ...(finishedState.strictMode !== "off" ? { strict: finishedState.strictMode } : {}),
             ...(isRepeated ? { repeated: true } : {}),
@@ -267,12 +253,7 @@ export function useDrillController({
             finishedState.typed,
             finishedState.missedWords,
           ),
-          focused: s.focusWeakKeys,
-          drillMode: getDrillMode(s),
-          durationSec: s.duration,
           activeSeconds,
-          improvedWeakKey,
-          repeated: isRepeated,
         });
       }
     },
@@ -384,9 +365,8 @@ export function useDrillController({
 
   const relevantKey = [
     drillMode,
-    drillSettings.difficulty,
+    drillSettings.wordList,
     strictMode,
-    textOpts.style,
     textOpts.punctuation,
     textOpts.numbers,
     textOpts.capitals,
@@ -402,15 +382,13 @@ export function useDrillController({
 
   useEffect(() => {
     let cancelled = false;
-    void loadBestSamplesFromStorage(appStorage, modeKey, drillSettings.difficulty).then(
-      (loaded) => {
-        if (!cancelled) setGhostSamples(loaded);
-      },
-    );
+    void loadBestSamplesFromStorage(appStorage, modeKey, drillSettings.wordList).then((loaded) => {
+      if (!cancelled) setGhostSamples(loaded);
+    });
     return () => {
       cancelled = true;
     };
-  }, [modeKey, drillSettings.difficulty, finished]);
+  }, [modeKey, drillSettings.wordList, finished]);
 
   useEffect(() => {
     const evt = state.lastKeyEvent;
@@ -456,8 +434,8 @@ export function useDrillController({
       : null;
 
   const previousBest = useMemo(
-    () => getPersonalBestWpm(history, modeKey, drillSettings.difficulty),
-    [history, modeKey, drillSettings.difficulty],
+    () => getPersonalBestWpm(history, modeKey, drillSettings.wordList),
+    [history, modeKey, drillSettings.wordList],
   );
   const weakKeys3 = useMemo(() => topWeakKeys(allTimeKeys, 3), [allTimeKeys]);
   const slowKeys3 = useMemo(() => topSlowKeys(allTimeSpeed, 3), [allTimeSpeed]);
@@ -478,7 +456,7 @@ export function useDrillController({
         ? buildInsight(stats, history, allTimeSpeed, state.mistakes, {
             isRecord: lastRecord.isRecord,
             modeKey,
-            difficulty: drillSettings.difficulty,
+            difficulty: drillSettings.wordList,
             targetWpm: drillSettings.targetWpm,
           })
         : null,
@@ -490,7 +468,7 @@ export function useDrillController({
       state.mistakes,
       lastRecord.isRecord,
       modeKey,
-      drillSettings.difficulty,
+      drillSettings.wordList,
       drillSettings.targetWpm,
     ],
   );
@@ -516,11 +494,9 @@ export function useDrillController({
         mostMissedWords: wordSummary.mostMissedWords,
         allTimeKeys,
         allTimeSpeed,
-        unlockedAchievements: achievements.unlocked,
-        achievementCounters: achievements.counters,
         drillMode,
         modeKey,
-        difficulty: drillSettings.difficulty,
+        difficulty: drillSettings.wordList,
         quoteAuthor: state.quoteAuthor,
         keyboardLayout: getKeyboardLayout(drillSettings),
         keyboardStandard: getKeyboardStandard(drillSettings),

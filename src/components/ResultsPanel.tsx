@@ -5,7 +5,6 @@ import type { RunSlowWord, RunStats } from "@/lib/typingStats";
 import { QUICK_RESTART_LABELS, type DrillMode, type QuickRestartKey } from "@/lib/drillSettings";
 import type { KeyboardLayoutId, KeyboardStandard } from "@/lib/keyboardLayout";
 import type { KeySpeedMap } from "@/lib/keySpeed";
-import type { AchievementState } from "@/lib/achievements";
 import type { Insight } from "@/lib/insights";
 import { copyResultText } from "@/lib/shareResult";
 import { ResultsHeadlineRow } from "@/components/ResultsHeadlineRow";
@@ -36,8 +35,6 @@ export interface DrillResultData {
   mostMissedWords: { word: string; errors: number }[];
   allTimeKeys: Record<string, number>;
   allTimeSpeed: KeySpeedMap;
-  unlockedAchievements: AchievementState["unlocked"];
-  achievementCounters?: AchievementState["counters"] | undefined;
   drillMode: DrillMode;
   modeKey: string;
   difficulty: string;
@@ -55,7 +52,6 @@ export interface ResultsPanelProps {
   onPracticeWeakKeys: () => void;
   onPracticeSlowKeys?: (() => void) | undefined;
   onPracticeMissedWords: () => void;
-  onOpenAchievements?: (() => void) | undefined;
 }
 
 export function ResultsPanel({
@@ -67,7 +63,6 @@ export function ResultsPanel({
   onPracticeWeakKeys,
   onPracticeSlowKeys,
   onPracticeMissedWords,
-  onOpenAchievements,
 }: ResultsPanelProps) {
   const [copied, setCopied] = useState(false);
   const {
@@ -90,8 +85,6 @@ export function ResultsPanel({
     mostMissedWords,
     allTimeKeys,
     allTimeSpeed,
-    unlockedAchievements,
-    achievementCounters,
     drillMode,
     modeKey,
     difficulty,
@@ -241,11 +234,8 @@ export function ResultsPanel({
         allTimeSpeed={allTimeSpeed}
         slowestWords={slowestWords}
         mostMissedWords={mostMissedWords}
-        unlockedAchievements={unlockedAchievements}
-        achievementCounters={achievementCounters}
         keyboardLayout={keyboardLayout}
         keyboardStandard={keyboardStandard}
-        onOpenAchievements={onOpenAchievements}
       />
 
       {drillMode === "quote" && quoteAuthor ? (

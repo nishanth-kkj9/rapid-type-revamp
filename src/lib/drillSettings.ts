@@ -1,6 +1,6 @@
 import { z } from "./zodSetup";
 import type { KeyboardLayoutId, KeyboardStandard } from "@/lib/keyboardLayout";
-import type { Difficulty, TextStyle } from "@/lib/sentenceGenerator";
+import type { WordListId } from "@/lib/sentenceGenerator";
 import type { Storage } from "./storage";
 
 export type CaretStyle = "smooth" | "block" | "bar" | "underline";
@@ -19,7 +19,7 @@ export const CUSTOM_WORD_MIN = 5;
 export const CUSTOM_WORD_MAX = 500;
 
 export interface DrillSettings {
-  difficulty: Difficulty;
+  wordList: WordListId;
   duration: number; // 5..600 step 5 (presets: 15, 30, 60, 120)
   sound: DrillSound;
   caretStyle: CaretStyle;
@@ -33,18 +33,16 @@ export interface DrillSettings {
   quickRestart?: QuickRestartKey | undefined;
   strictMode?: StrictMode | undefined;
   paceCaret?: PaceCaretMode | undefined;
-  textStyle?: TextStyle | undefined;
   includePunctuation?: boolean | undefined;
   includeNumbers?: boolean | undefined;
   includeCapitals?: boolean | undefined;
   customTextId?: string | null | undefined;
   keyboardLayout?: KeyboardLayoutId | undefined;
   keyboardStandard?: KeyboardStandard | undefined;
-  showFingerZones?: boolean | undefined;
 }
 
 export const DEFAULT_DRILL_SETTINGS: DrillSettings = {
-  difficulty: "medium",
+  wordList: "200",
   duration: 30,
   sound: "click",
   caretStyle: "smooth",
@@ -57,7 +55,10 @@ export const DEFAULT_DRILL_SETTINGS: DrillSettings = {
 
 export const DRILL_SETTINGS_KEY = "ttp:drill:settings:v1";
 
-export const DRILL_DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
+export const WORD_LIST_OPTIONS: { id: WordListId; label: string }[] = [
+  { id: "200", label: "Common 200" },
+  { id: "1000", label: "Common 1000" },
+];
 export const DRILL_DURATIONS = [15, 30, 60, 120] as const;
 export const DRILL_WORD_COUNTS = [10, 25, 50, 100] as const;
 export const DRILL_QUOTE_LENGTHS: QuoteLengthOption[] = ["short", "medium", "long"];
@@ -115,7 +116,7 @@ export function clampCustomWordCount(val: number): number {
 }
 
 export const DrillSettingsSchema = z.object({
-  difficulty: z.enum(["easy", "medium", "hard"]).optional(),
+  wordList: z.enum(["200", "1000"]).optional(),
   duration: z
     .number()
     .int()
@@ -135,14 +136,12 @@ export const DrillSettingsSchema = z.object({
   quickRestart: z.enum(["esc", "tab", "enter", "off"]).optional(),
   strictMode: z.enum(["off", "letter", "word"]).optional(),
   paceCaret: z.enum(["off", "pb"]).optional(),
-  textStyle: z.enum(["words", "sentences"]).optional(),
   includePunctuation: z.boolean().optional(),
   includeNumbers: z.boolean().optional(),
   includeCapitals: z.boolean().optional(),
   customTextId: z.string().nullable().optional(),
   keyboardLayout: z.enum(["qwerty", "dvorak", "colemak", "qwertz", "azerty"]).optional(),
   keyboardStandard: z.enum(["ansi", "iso"]).optional(),
-  showFingerZones: z.boolean().optional(),
 });
 
 export function getDrillMode(settings: DrillSettings): DrillMode {
@@ -177,24 +176,15 @@ export function getKeyboardStandard(settings: DrillSettings): KeyboardStandard {
   return settings.keyboardStandard ?? "ansi";
 }
 
-export function getShowFingerZones(settings: DrillSettings): boolean {
-  return settings.showFingerZones ?? true;
-}
-
 export function resolveTextOptions(settings: DrillSettings): {
-  style: TextStyle;
   punctuation: boolean;
   numbers: boolean;
   capitals: boolean;
 } {
-  const mode = getDrillMode(settings);
-  const style: TextStyle = settings.textStyle ?? (mode === "words" ? "words" : "sentences");
-  const isWordsStyle = style === "words";
   return {
-    style,
-    punctuation: settings.includePunctuation ?? !isWordsStyle,
+    punctuation: settings.includePunctuation ?? false,
     numbers: settings.includeNumbers ?? false,
-    capitals: settings.includeCapitals ?? !isWordsStyle,
+    capitals: settings.includeCapitals ?? false,
   };
 }
 
@@ -205,11 +195,21 @@ export function drillModeKey(settings: DrillSettings): string {
   return `${settings.duration}s`;
 }
 
+function legacyDifficultyToWordList(rawDiff: unknown): WordListId | null {
+  if (rawDiff === "easy") return "200";
+  if (rawDiff === "medium" || rawDiff === "hard") return "1000";
+  return null;
+}
+
 export function sanitizeDrillSettings(raw: unknown): DrillSettings {
   if (!raw || typeof raw !== "object") return { ...DEFAULT_DRILL_SETTINGS };
   const record = raw as Record<string, unknown>;
 
-  const diffCheck = z.enum(["easy", "medium", "hard"]).safeParse(record["difficulty"]);
+  const listCheck = z.enum(["200", "1000"]).safeParse(record["wordList"]);
+  const wordList: WordListId = listCheck.success
+    ? listCheck.data
+    : (legacyDifficultyToWordList(record["difficulty"]) ?? DEFAULT_DRILL_SETTINGS.wordList);
+
   const durVal = record["duration"];
   const soundCheck = z.enum(["off", "click", "beep"]).safeParse(record["sound"]);
   const caretCheck = z
@@ -218,7 +218,7 @@ export function sanitizeDrillSettings(raw: unknown): DrillSettings {
   const targetVal = record["targetWpm"];
 
   const result: DrillSettings = {
-    difficulty: diffCheck.success ? diffCheck.data : DEFAULT_DRILL_SETTINGS.difficulty,
+    wordList,
     duration: isValidDuration(durVal) ? durVal : DEFAULT_DRILL_SETTINGS.duration,
     sound: soundCheck.success ? soundCheck.data : DEFAULT_DRILL_SETTINGS.sound,
     caretStyle: caretCheck.success ? caretCheck.data : DEFAULT_DRILL_SETTINGS.caretStyle,
@@ -262,9 +262,6 @@ export function sanitizeDrillSettings(raw: unknown): DrillSettings {
   const paceCheck = z.enum(["off", "pb"]).safeParse(record["paceCaret"]);
   if (paceCheck.success) result.paceCaret = paceCheck.data;
 
-  const tsCheck = z.enum(["words", "sentences"]).safeParse(record["textStyle"]);
-  if (tsCheck.success) result.textStyle = tsCheck.data;
-
   if (typeof record["includePunctuation"] === "boolean")
     result.includePunctuation = record["includePunctuation"];
   if (typeof record["includeNumbers"] === "boolean")
@@ -284,9 +281,6 @@ export function sanitizeDrillSettings(raw: unknown): DrillSettings {
 
   const stdCheck = z.enum(["ansi", "iso"]).safeParse(record["keyboardStandard"]);
   if (stdCheck.success) result.keyboardStandard = stdCheck.data;
-
-  if (typeof record["showFingerZones"] === "boolean")
-    result.showFingerZones = record["showFingerZones"];
 
   return result;
 }

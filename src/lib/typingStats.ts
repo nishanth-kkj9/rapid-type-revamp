@@ -8,7 +8,7 @@ export interface RunStats {
   adjustedWpm: number;
   accuracy: number;
   correct: number;
-  /** Total incorrect keystrokes (or errors in legacy/shooter runs). */
+  /** Total incorrect keystrokes (or errors in legacy runs). */
   incorrect: number;
   /** Errors still present in the final typed text at the end of the run. */
   uncorrectedErrors?: number | undefined;
@@ -154,16 +154,6 @@ export interface HistoryEntry extends RunStats {
   date: number;
   difficulty: string;
   mode: string;
-  score?: number | undefined;
-  wordsDestroyed?: number | undefined;
-  wordsSpawned?: number | undefined;
-  hitRate?: number | undefined;
-  maxStreak?: number | undefined;
-  strayKeys?: number | undefined;
-  bossesDefeated?: number | undefined;
-  practiceMode?: boolean | undefined;
-  dailyChallengeDate?: string | undefined;
-  level?: number | undefined;
   samples?: number[] | undefined;
   errorSeconds?: number[] | undefined;
   mistakes?: Record<string, number> | undefined;
@@ -172,27 +162,9 @@ export interface HistoryEntry extends RunStats {
   wordMistakes?: Record<string, number> | undefined;
   strict?: "letter" | "word" | undefined;
   repeated?: boolean | undefined;
-}
-
-export interface ShooterRunSummary {
-  score: number;
-  wordsDestroyed: number;
-  wordsSpawned?: number | undefined;
-  charsDestroyed?: number | undefined;
-  accuracy: number;
-  hitRate?: number | undefined;
-  maxStreak?: number | undefined;
-  durationSec: number;
-  activeDurationSec?: number | undefined;
-  difficulty: string;
-  misses?: number | undefined;
-  wrongKeys?: number | undefined;
-  strayKeys?: number | undefined;
-  bossesDefeated?: number | undefined;
-  practiceMode?: boolean | undefined;
-  dailyChallengeDate?: string | undefined;
-  level?: number | undefined;
-  samples?: number[] | undefined;
+  punctuation?: boolean | undefined;
+  numbers?: boolean | undefined;
+  quoteLength?: "short" | "medium" | "long" | undefined;
 }
 
 /** Normalize time modes e.g. "30" -> "30s" */
@@ -205,10 +177,20 @@ export function normalizeModeKey(modeKey: string): string {
   return trimmed;
 }
 
-/** Human-readable label for a mode key ("30" / "30s" -> "30s", "25w" -> "25 words", "quote" -> "Quote", "shooter" -> "Shooter"). */
+/** Legacy removed modes whose saved IndexedDB entries stay preserved on disk but hidden from UI and stats. */
+const LEGACY_HIDDEN_MODES = new Set(["shooter"]);
+
+export function isVisibleHistoryEntry(entry: { mode: string }): boolean {
+  return !LEGACY_HIDDEN_MODES.has(normalizeModeKey(entry.mode));
+}
+
+export function filterVisibleHistory(history: readonly HistoryEntry[]): HistoryEntry[] {
+  return history.filter(isVisibleHistoryEntry);
+}
+
+/** Human-readable label for a mode key ("30" / "30s" -> "30s", "25w" -> "25 words", "quote" -> "Quote"). */
 export function formatModeLabel(mode: string): string {
   const normalized = normalizeModeKey(mode);
-  if (normalized === "shooter") return "Shooter";
   if (normalized === "quote") return "Quote";
   if (
     normalized === "learn" ||
@@ -228,6 +210,19 @@ export function formatModeLabel(mode: string): string {
   return mode || "30s";
 }
 
+/** Human-readable label for a word list ("200" / "1000") or legacy difficulty string. */
+export function formatWordListLabel(value: string): string {
+  const norm = value.trim().toLowerCase();
+  if (norm === "200") return "Common 200";
+  if (norm === "1000") return "Common 1000";
+  if (norm === "any") return "Any";
+  if (norm === "learn") return "Learn";
+  if (norm === "easy" || norm === "medium" || norm === "hard") {
+    return `${norm[0]!.toUpperCase()}${norm.slice(1)}`;
+  }
+  return value;
+}
+
 /** Filter history entries belonging to the same test type (mode + length, and difficulty where relevant). */
 export function getModeHistory(
   history: readonly HistoryEntry[],
@@ -235,9 +230,9 @@ export function getModeHistory(
   difficulty?: string,
 ): HistoryEntry[] {
   const normalized = normalizeModeKey(modeKey);
-  const compareDifficulty =
-    difficulty !== undefined && normalized !== "quote" && normalized !== "shooter";
+  const compareDifficulty = difficulty !== undefined && normalized !== "quote";
   return history.filter((h) => {
+    if (!isVisibleHistoryEntry(h)) return false;
     if (normalizeModeKey(h.mode) !== normalized) return false;
     if (compareDifficulty && h.difficulty.toLowerCase() !== difficulty.toLowerCase()) return false;
     return true;
@@ -247,15 +242,15 @@ export function getModeHistory(
 function isExcludedFromPb(h: HistoryEntry): boolean {
   const mode = normalizeModeKey(h.mode);
   return (
+    !isVisibleHistoryEntry(h) ||
     Boolean(h.repeated) ||
-    mode === "shooter" ||
     mode === "learn" ||
     mode.startsWith("learn-") ||
     mode.startsWith("learn:")
   );
 }
 
-/** Personal best WPM for a specific test type (mode + length, and difficulty where relevant). Excludes shooter, learn, and repeated runs. */
+/** Personal best WPM for a specific test type (mode + length, and difficulty where relevant). Excludes learn and repeated runs. */
 export function getPersonalBestWpm(
   history: readonly HistoryEntry[],
   modeKey: string,
@@ -265,14 +260,6 @@ export function getPersonalBestWpm(
     (m, h) => (isExcludedFromPb(h) ? m : Math.max(m, h.wpm)),
     0,
   );
-}
-
-/** Single source of truth for Word Shooter best score, derived directly from run history. */
-export function getShooterBestScore(history: readonly HistoryEntry[]): number {
-  return history.reduce((best, h) => {
-    if (normalizeModeKey(h.mode) !== "shooter" || h.practiceMode) return best;
-    return Math.max(best, h.score ?? 0);
-  }, 0);
 }
 
 export interface HistoryProgressPoint extends Record<string, unknown> {
@@ -333,15 +320,19 @@ export interface PersonalBestRow {
   bestAccuracy: number;
   runs: number;
   lastDate: number;
+  punctuation?: boolean | undefined;
+  numbers?: boolean | undefined;
+  quoteLength?: "short" | "medium" | "long" | undefined;
 }
 
 /**
  * Aggregate personal bests per test type (never mixing time lengths, word counts, quotes, or difficulties).
- * Excludes shooter, repeated, and learn runs.
+ * Excludes repeated, learn, and hidden legacy runs.
  */
 export function computePersonalBestsTable(history: readonly HistoryEntry[]): PersonalBestRow[] {
   const drillEntries = history.filter((h) => !isExcludedFromPb(h));
   const groups = new Map<string, PersonalBestRow>();
+  const bestRawWpm = new Map<string, number>();
 
   for (const h of drillEntries) {
     const modeKey = normalizeModeKey(h.mode || "30s");
@@ -349,6 +340,7 @@ export function computePersonalBestsTable(history: readonly HistoryEntry[]): Per
     const key = `${modeKey}:${difficulty}`;
     const existing = groups.get(key);
     if (!existing) {
+      bestRawWpm.set(key, h.wpm);
       groups.set(key, {
         key,
         modeKey,
@@ -358,8 +350,18 @@ export function computePersonalBestsTable(history: readonly HistoryEntry[]): Per
         bestAccuracy: round(h.accuracy),
         runs: 1,
         lastDate: h.date,
+        ...(h.punctuation !== undefined ? { punctuation: h.punctuation } : {}),
+        ...(h.numbers !== undefined ? { numbers: h.numbers } : {}),
+        ...(h.quoteLength !== undefined ? { quoteLength: h.quoteLength } : {}),
       });
     } else {
+      const prevRaw = bestRawWpm.get(key) ?? -1;
+      if (h.wpm > prevRaw || (h.wpm === prevRaw && h.date > existing.lastDate)) {
+        bestRawWpm.set(key, h.wpm);
+        existing.punctuation = h.punctuation;
+        existing.numbers = h.numbers;
+        existing.quoteLength = h.quoteLength;
+      }
       existing.bestWpm = Math.max(existing.bestWpm, round(h.wpm));
       existing.bestAccuracy = Math.max(existing.bestAccuracy, round(h.accuracy));
       existing.runs += 1;
@@ -384,7 +386,7 @@ export interface SameTypeTrend {
 /**
  * Compute WPM trend percentage comparing like with like ONLY.
  * Never mixes test types or difficulties: requires a concrete modeKey (never "all")
- * and (for non-quote/non-shooter modes) either an explicit difficulty or uniform difficulty across runs.
+ * and (for non-quote modes) either an explicit difficulty or uniform difficulty across runs.
  */
 export function computeSameTypeTrend(
   history: readonly HistoryEntry[],
@@ -394,7 +396,7 @@ export function computeSameTypeTrend(
   const normalized = normalizeModeKey(modeKey);
   if (!normalized || normalized === "all") return null;
 
-  const isDifficultyInvariant = normalized === "quote" || normalized === "shooter";
+  const isDifficultyInvariant = normalized === "quote";
   const normalizedDiff = difficulty?.trim().toLowerCase();
   if (!isDifficultyInvariant && (!normalizedDiff || normalizedDiff === "all")) {
     const modeRuns = getModeHistory(history, normalized);
@@ -436,7 +438,7 @@ export function computeSameTypeTrend(
 /** Uniform storage key for personal best velocity samples */
 export function bestSamplesKey(modeKey: string, difficulty?: string): string {
   const normalized = normalizeModeKey(modeKey);
-  if (difficulty && normalized !== "quote" && normalized !== "shooter") {
+  if (difficulty && normalized !== "quote") {
     return `ttp:best:samples:v1:${normalized}:${difficulty.toLowerCase()}`;
   }
   return `ttp:best:samples:v1:${normalized}`;
@@ -471,7 +473,7 @@ export const HistoryEntrySchema = z.object({
   id: z.union([z.string(), z.number()]).transform(String),
   date: z.number().finite().min(0),
   difficulty: z.string(),
-  /** Legacy (pre-shooter) entries have no mode; they were standard 30s drills. */
+  /** Legacy entries have no mode; they were standard 30s drills. */
   mode: z.string().default("30"),
   wpm: z.number().finite().min(0).max(5000),
   rawWpm: z.number().finite().min(0).max(5000).default(0),
@@ -483,16 +485,6 @@ export const HistoryEntrySchema = z.object({
   typed: z.number().int().min(0).max(200000).default(0),
   elapsed: z.number().finite().min(0).max(86400).default(0),
   consistency: z.number().finite().min(0).max(100).default(100),
-  score: z.number().finite().min(0).optional(),
-  wordsDestroyed: z.number().int().min(0).optional(),
-  wordsSpawned: z.number().int().min(0).optional(),
-  hitRate: z.number().finite().min(0).max(100).optional(),
-  maxStreak: z.number().int().min(0).optional(),
-  strayKeys: z.number().int().min(0).optional(),
-  bossesDefeated: z.number().int().min(0).optional(),
-  practiceMode: z.boolean().optional(),
-  dailyChallengeDate: z.string().max(20).optional(),
-  level: z.number().int().min(1).optional(),
   samples: z.array(z.number().finite().min(0)).max(3600).optional(),
   errorSeconds: z.array(z.number().finite().min(0).max(86400)).max(500).optional(),
   mistakes: z.record(z.string().min(1).max(4), z.number().int().min(1).max(100000)).optional(),
@@ -501,6 +493,9 @@ export const HistoryEntrySchema = z.object({
   wordMistakes: z.record(z.string().min(1).max(128), z.number().int().min(1).max(1000)).optional(),
   strict: z.enum(["letter", "word"]).optional(),
   repeated: z.boolean().optional(),
+  punctuation: z.boolean().optional(),
+  numbers: z.boolean().optional(),
+  quoteLength: z.enum(["short", "medium", "long"]).optional(),
 });
 
 export const SamplesSchema = z.array(z.number().finite().min(0)).max(3600);
@@ -763,7 +758,7 @@ export async function saveRunToStorage(
 
 export async function clearHistoryInStorage(
   storage: Storage,
-  mode?: "all" | "drill" | "shooter",
+  mode?: "all" | "drill",
 ): Promise<HistoryEntry[]> {
   if (!mode || mode === "all") {
     try {
@@ -780,7 +775,7 @@ export async function clearHistoryInStorage(
   const retained: HistoryEntry[] = [];
   const removedKeys: string[] = [];
   for (const h of current) {
-    const keep = mode === "drill" ? h.mode === "shooter" : h.mode !== "shooter";
+    const keep = !isVisibleHistoryEntry(h);
     if (keep) retained.push(h);
     else removedKeys.push(runStorageKey(h.id));
   }

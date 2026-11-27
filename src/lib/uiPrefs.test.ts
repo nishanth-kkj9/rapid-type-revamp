@@ -22,6 +22,7 @@ describe("uiPrefs", () => {
     expect("smoothCaret" in loaded).toBe(false);
     expect("themeAccent" in loaded).toBe(false);
     expect(loaded.dyslexiaFont).toBe(false);
+    expect(loaded.learnPromptDismissed).toBe(false);
   });
 
   it("reads old saved values containing legacy themeAccent and smoothCaret without error", async () => {
@@ -33,7 +34,11 @@ describe("uiPrefs", () => {
       dyslexiaFont: true,
     });
     const loaded = await loadUiPrefsFromStorage(storage);
-    expect(loaded).toEqual({ heatmapMetric: "speed", dyslexiaFont: true });
+    expect(loaded).toEqual({
+      heatmapMetric: "speed",
+      dyslexiaFont: true,
+      learnPromptDismissed: false,
+    });
     expect("themeAccent" in loaded).toBe(false);
     expect("smoothCaret" in sanitizeUiPrefs({ smoothCaret: true })).toBe(false);
   });
@@ -44,6 +49,7 @@ describe("uiPrefs", () => {
       heatmapMetric: "invalid_metric",
       themeAccent: "neon-yellow",
       dyslexiaFont: "yes",
+      learnPromptDismissed: "yes",
     });
     expect(await loadUiPrefsFromStorage(storage)).toEqual(DEFAULT_UI_PREFS);
   });
@@ -53,11 +59,13 @@ describe("uiPrefs", () => {
     const saved = await saveUiPrefsToStorage(storage, { heatmapMetric: "speed" });
     expect(saved.heatmapMetric).toBe("speed");
     expect(saved.dyslexiaFont).toBe(false);
+    expect(saved.learnPromptDismissed).toBe(false);
 
-    await saveUiPrefsToStorage(storage, { dyslexiaFont: true });
+    await saveUiPrefsToStorage(storage, { dyslexiaFont: true, learnPromptDismissed: true });
     const finalState = await loadUiPrefsFromStorage(storage);
     expect(finalState.heatmapMetric).toBe("speed");
     expect(finalState.dyslexiaFont).toBe(true);
+    expect(finalState.learnPromptDismissed).toBe(true);
     expect(document.documentElement.dataset["font"]).toBe("opendyslexic");
   });
 

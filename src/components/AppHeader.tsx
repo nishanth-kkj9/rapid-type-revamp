@@ -5,9 +5,7 @@ import type { AppMode } from "@/lib/urlState";
 const NAV_ITEMS = [
   { id: "drill", label: "Practice" },
   { id: "learn", label: "Learn" },
-  { id: "shooter", label: "Arcade" },
   { id: "stats", label: "Stats" },
-  { id: "achievements", label: "Achievements" },
 ] as const;
 
 interface AppHeaderProps {
@@ -36,10 +34,7 @@ export function AppHeader({
   onOpenDailyGoalSettings,
 }: AppHeaderProps) {
   const effDaily = getEffectiveDaily(daily, getLocalDateString());
-  const goalProgressText =
-    effDaily.goalType === "minutes"
-      ? `${formatGoalMinutes(effDaily.activeSecondsToday)}/${effDaily.goalTarget}m`
-      : `${effDaily.runsToday}/${effDaily.goalTarget}`;
+  const goalProgressText = `${formatGoalMinutes(effDaily.activeSecondsToday)}/${effDaily.goalTarget}m`;
 
   return (
     <header

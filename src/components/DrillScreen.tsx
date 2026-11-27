@@ -1,11 +1,9 @@
 import { forwardRef, memo, useImperativeHandle } from "react";
-import type { AchievementState } from "@/lib/achievements";
 import type { CustomTextEntry } from "@/lib/customTexts";
 import {
   QUICK_RESTART_LABELS,
   getKeyboardLayout,
   getKeyboardStandard,
-  getShowFingerZones,
   type DrillSettings,
 } from "@/lib/drillSettings";
 import type { KeySpeedMap } from "@/lib/keySpeed";
@@ -41,11 +39,12 @@ interface DrillScreenProps {
   allTimeSpeed: KeySpeedMap;
   storedMissedWords: string[];
   customTexts: CustomTextEntry[];
-  achievements: AchievementState;
+  showLearnPrompt?: boolean | undefined;
   onUpdateDrillSettings: (patch: Partial<DrillSettings>) => void;
   onOpenCustomText: () => void;
+  onOpenLearn?: (() => void) | undefined;
+  onDismissLearnPrompt?: (() => void) | undefined;
   onCommitRun: (payload: DrillRunCommitPayload) => void;
-  onOpenAchievements?: (() => void) | undefined;
   onFocusDimmedChange: (dimmed: boolean) => void;
 }
 
@@ -58,11 +57,12 @@ export const DrillScreen = forwardRef<DrillScreenHandle, DrillScreenProps>(funct
     allTimeSpeed,
     storedMissedWords,
     customTexts,
-    achievements,
+    showLearnPrompt = false,
     onUpdateDrillSettings,
     onOpenCustomText,
+    onOpenLearn,
+    onDismissLearnPrompt,
     onCommitRun,
-    onOpenAchievements,
     onFocusDimmedChange,
   },
   ref,
@@ -70,7 +70,6 @@ export const DrillScreen = forwardRef<DrillScreenHandle, DrillScreenProps>(funct
   const coarsePointer = useCoarsePointer();
   const layout = getKeyboardLayout(drillSettings);
   const standard = getKeyboardStandard(drillSettings);
-  const showFingerZones = getShowFingerZones(drillSettings);
 
   const c = useDrillController({
     drillSettings,
@@ -80,7 +79,6 @@ export const DrillScreen = forwardRef<DrillScreenHandle, DrillScreenProps>(funct
     allTimeSpeed,
     storedMissedWords,
     customTexts,
-    achievements,
     onCommitRun,
     onFocusDimmedChange,
   });
@@ -102,6 +100,32 @@ export const DrillScreen = forwardRef<DrillScreenHandle, DrillScreenProps>(funct
 
   return (
     <>
+      {showLearnPrompt ? (
+        <div
+          className={`mt-4 flex flex-wrap items-center justify-between gap-2 text-[13px] text-muted-foreground transition-opacity duration-300 ${
+            c.running && !c.finished ? "focus-dimmed" : ""
+          }`}
+        >
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+            <span>New to touch typing?</span>
+            <button
+              type="button"
+              onClick={onOpenLearn}
+              className="inline-flex min-h-11 sm:min-h-0 cursor-pointer items-center font-medium text-primary underline underline-offset-4 transition-colors hover:text-foreground"
+            >
+              Try Learn.
+            </button>
+          </div>
+          <button
+            type="button"
+            aria-label="Dismiss new to touch typing prompt"
+            onClick={onDismissLearnPrompt}
+            className="inline-flex min-h-11 sm:min-h-0 cursor-pointer items-center text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
       <DrillControls
         settings={drillSettings}
         focusDimmed={c.running && !c.finished}
@@ -131,7 +155,6 @@ export const DrillScreen = forwardRef<DrillScreenHandle, DrillScreenProps>(funct
             errorFlash={c.errorFlash}
             layout={layout}
             standard={standard}
-            showFingerZones={showFingerZones}
           />
         </div>
       ) : null}
@@ -177,7 +200,6 @@ export const DrillScreen = forwardRef<DrillScreenHandle, DrillScreenProps>(funct
           onPracticeWeakKeys={c.practiceWeakKeys}
           onPracticeSlowKeys={c.practiceSlowKeys}
           onPracticeMissedWords={c.practiceMissedWords}
-          onOpenAchievements={onOpenAchievements}
         />
       ) : null}
       {drillSettings.showKeyboard && !coarsePointer ? (
@@ -188,7 +210,6 @@ export const DrillScreen = forwardRef<DrillScreenHandle, DrillScreenProps>(funct
             pressedChar={c.pressedChar}
             layout={layout}
             standard={standard}
-            showFingerZones={showFingerZones}
           />
         </div>
       ) : null}

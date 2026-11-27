@@ -37,7 +37,6 @@ function makeResult(overrides: Partial<DrillResultData> = {}): DrillResultData {
     mostMissedWords: [],
     allTimeKeys: {},
     allTimeSpeed: {},
-    unlockedAchievements: {},
     drillMode: "time",
     modeKey: "30s",
     difficulty: "medium",

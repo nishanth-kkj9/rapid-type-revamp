@@ -30,20 +30,20 @@ describe("historyExport CSV", () => {
     expect(escapeCsvCell(undefined)).toBe("");
   });
 
-  it("produces one header row plus one row per run with escaped special characters", () => {
+  it("produces one header row plus one row per visible run with escaped special characters", () => {
     const entries: HistoryEntry[] = [
       mkEntry({ id: 'run,"special"', mode: "custom,list", strict: "word", repeated: true }),
-      mkEntry({ id: "shooter-1", mode: "shooter", score: 2450, wordsDestroyed: 31, level: 4 }),
+      mkEntry({ id: "learn-1", mode: "learn", wpm: 45, consistency: 92 }),
     ];
 
     const csv = buildHistoryCsv(entries);
     const lines = csv.split("\n");
     expect(lines).toHaveLength(entries.length + 1);
     expect(lines[0]).toContain("id,date_iso,mode,difficulty,wpm,raw_wpm");
+    expect(lines[0]).not.toContain("words_destroyed");
     expect(lines[1]).toContain('"run,""special"""');
     expect(lines[1]).toContain('"custom,list"');
-    expect(lines[1]).toContain(",word,true,");
-    expect(lines[2]).toContain(",shooter,");
-    expect(lines[2]).toContain(",2450,31,4");
+    expect(lines[1]).toContain(",word,true");
+    expect(lines[2]).toContain(",learn,");
   });
 });

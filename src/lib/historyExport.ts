@@ -1,6 +1,6 @@
 import { exportAllAppDataFromStorage } from "./backup";
 import type { Storage } from "./storage";
-import type { HistoryEntry } from "./typingStats";
+import { filterVisibleHistory, type HistoryEntry } from "./typingStats";
 
 function triggerDownload(filename: string, content: string, mimeType: string): void {
   const blob = new Blob([content], { type: mimeType });
@@ -38,15 +38,13 @@ const CSV_HEADERS = [
   "elapsed_sec",
   "strict",
   "repeated",
-  "score",
-  "words_destroyed",
-  "level",
 ] as const;
 
-/** Build RFC-4180 CSV string with one header row plus one row per run entry. */
+/** Build RFC-4180 CSV string with one header row plus one row per visible run entry. */
 export function buildHistoryCsv(entries: readonly HistoryEntry[]): string {
+  const visible = filterVisibleHistory(entries);
   const rows: string[] = [CSV_HEADERS.join(",")];
-  for (const h of entries) {
+  for (const h of visible) {
     const dateIso = Number.isFinite(h.date) ? new Date(h.date).toISOString() : "";
     const row = [
       h.id,
@@ -65,9 +63,6 @@ export function buildHistoryCsv(entries: readonly HistoryEntry[]): string {
       Math.round(h.elapsed * 10) / 10,
       h.strict ?? "",
       h.repeated ? "true" : "",
-      h.score ?? "",
-      h.wordsDestroyed ?? "",
-      h.level ?? "",
     ].map(escapeCsvCell);
     rows.push(row.join(","));
   }

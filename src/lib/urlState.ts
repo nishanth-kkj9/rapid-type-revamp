@@ -7,44 +7,24 @@ import {
   type WordCountOption,
 } from "./drillSettings";
 import type { KeyboardLayoutId } from "./keyboardLayout";
-import type { Difficulty } from "./sentenceGenerator";
+import type { WordListId } from "./sentenceGenerator";
 
-export type AppMode = "drill" | "learn" | "shooter" | "stats" | "achievements" | "settings";
-
-export type SettingsTabId =
-  "typing" | "content" | "keyboard" | "sound" | "game" | "appearance" | "data";
+export type AppMode = "drill" | "learn" | "stats" | "settings";
 
 export interface UrlStatePatch {
   mode?: AppMode;
-  settingsTab?: SettingsTabId;
   drillMode?: DrillMode;
   duration?: number;
   wordCount?: WordCountOption;
   quoteLength?: QuoteLengthOption;
-  difficulty?: Difficulty;
+  wordList?: WordListId;
   keyboardLayout?: KeyboardLayoutId;
 }
 
-const VALID_MODES = new Set<AppMode>([
-  "drill",
-  "learn",
-  "shooter",
-  "stats",
-  "achievements",
-  "settings",
-]);
-const VALID_SETTINGS_TABS = new Set<SettingsTabId>([
-  "typing",
-  "content",
-  "keyboard",
-  "sound",
-  "game",
-  "appearance",
-  "data",
-]);
+const VALID_MODES = new Set<AppMode>(["drill", "learn", "stats", "settings"]);
 const VALID_DRILL_MODES = new Set<DrillMode>(["time", "words", "quote"]);
 const VALID_QUOTE_LENGTHS = new Set<QuoteLengthOption>(["short", "medium", "long"]);
-const VALID_DIFFICULTIES = new Set<Difficulty>(["easy", "medium", "hard"]);
+const VALID_WORD_LISTS = new Set<WordListId>(["200", "1000"]);
 const VALID_LAYOUTS = new Set<KeyboardLayoutId>([
   "qwerty",
   "dvorak",
@@ -60,11 +40,6 @@ export function parseUrlState(search: string): UrlStatePatch {
   const mode = params.get("mode");
   if (mode && VALID_MODES.has(mode as AppMode)) {
     patch.mode = mode as AppMode;
-  }
-
-  const tab = params.get("tab");
-  if (tab && VALID_SETTINGS_TABS.has(tab as SettingsTabId)) {
-    patch.settingsTab = tab as SettingsTabId;
   }
 
   const test = params.get("test");
@@ -93,9 +68,13 @@ export function parseUrlState(search: string): UrlStatePatch {
     patch.quoteLength = quote as QuoteLengthOption;
   }
 
-  const diff = params.get("diff");
-  if (diff && VALID_DIFFICULTIES.has(diff as Difficulty)) {
-    patch.difficulty = diff as Difficulty;
+  const list = params.get("list");
+  if (list && VALID_WORD_LISTS.has(list as WordListId)) {
+    patch.wordList = list as WordListId;
+  } else {
+    const legacyDiff = params.get("diff");
+    if (legacyDiff === "easy") patch.wordList = "200";
+    else if (legacyDiff === "medium" || legacyDiff === "hard") patch.wordList = "1000";
   }
 
   const layout = params.get("layout");
@@ -106,24 +85,18 @@ export function parseUrlState(search: string): UrlStatePatch {
   return patch;
 }
 
-export function buildUrlSearch(
-  mode: AppMode,
-  settings: DrillSettings,
-  settingsTab?: SettingsTabId,
-): string {
+export function buildUrlSearch(mode: AppMode, settings: DrillSettings): string {
   const params = new URLSearchParams();
   params.set("mode", mode);
-  if (mode === "settings" && settingsTab && settingsTab !== "typing") {
-    params.set("tab", settingsTab);
-  } else if (mode === "drill") {
+  if (mode === "drill") {
     const dm = settings.drillMode ?? "time";
     params.set("test", dm);
     if (dm === "time") {
       params.set("duration", String(settings.duration));
-      params.set("diff", settings.difficulty);
+      params.set("list", settings.wordList);
     } else if (dm === "words") {
       params.set("words", String(settings.wordCount ?? 25));
-      params.set("diff", settings.difficulty);
+      params.set("list", settings.wordList);
     } else {
       params.set("quote", settings.quoteLength ?? "medium");
     }
@@ -134,14 +107,10 @@ export function buildUrlSearch(
   return `?${params.toString()}`;
 }
 
-export function syncUrlState(
-  mode: AppMode,
-  settings: DrillSettings,
-  settingsTab?: SettingsTabId,
-): void {
+export function syncUrlState(mode: AppMode, settings: DrillSettings): void {
   if (typeof window === "undefined") return;
   try {
-    const nextSearch = buildUrlSearch(mode, settings, settingsTab);
+    const nextSearch = buildUrlSearch(mode, settings);
     if (window.location.search === nextSearch) return;
     const nextUrl = `${window.location.pathname}${nextSearch}${window.location.hash}`;
     window.history.replaceState(null, "", nextUrl);

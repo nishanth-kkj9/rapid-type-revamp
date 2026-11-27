@@ -1,4 +1,5 @@
 import {
+  filterVisibleHistory,
   formatModeLabel,
   getModeHistory,
   getPersonalBestWpm,
@@ -62,7 +63,7 @@ export function buildInsight(
   const scopedRuns = (
     modeKey !== undefined
       ? getModeHistory(history, modeKey, options?.difficulty)
-      : history.filter((h) => h.mode !== "shooter")
+      : filterVisibleHistory(history)
   )
     .filter((h) => h.id !== options?.currentRunId)
     .slice(0, 10);
@@ -123,7 +124,7 @@ export function buildInsight(
         ? ` Closing that gap helps bridge the ${Math.round(targetWpm - stats.wpm)} WPM to your ${targetWpm} WPM target.`
         : "";
     return {
-      headline: `Your "${slowest.key === " " ? "space" : slowest.key}" key is ${slowest.pctSlower}% slower than your average — speed is there, one key isn't.${targetClause}`,
+      headline: `Your "${slowest.key === " " ? "space" : slowest.key}" key is ${slowest.pctSlower}% slower than your average.${targetClause}`,
       tone: "coach",
       action: "practice-weak-keys",
     };
@@ -132,7 +133,7 @@ export function buildInsight(
   // 4. Low consistency (erratic rhythm)
   if (stats.consistency < 70) {
     return {
-      headline: `Fast bursts, uneven pace — consistency ${stats.consistency.toFixed(0)}%. Smooth, steady rhythm beats sprinting.`,
+      headline: `Fast bursts, uneven pace — consistency ${stats.consistency.toFixed(0)}%. Keep a steadier rhythm.`,
       tone: "coach",
       action: "none",
     };
@@ -183,8 +184,8 @@ export function buildInsight(
     const drop = (peerAvgWpm - stats.wpm).toFixed(0);
     const accNote =
       stats.accuracy >= 97
-        ? "Accuracy is sharp, so trust your rhythm and push earlier transitions."
-        : "Focus on smooth lookahead across common words.";
+        ? "Accuracy is high; try picking up your pace slightly."
+        : "Focus on reading one word ahead across common words.";
     return {
       headline: `${drop} WPM below your last-${peerCount} ${modeLabel} average (${peerAvgWpm.toFixed(0)} WPM). ${accNote}`,
       tone: "coach",

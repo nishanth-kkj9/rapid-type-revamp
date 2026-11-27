@@ -614,6 +614,15 @@ function pickNonRepeatingWord(
   return source[Math.floor(rng() * source.length)]!;
 }
 
+function shuffleWithRng<T>(items: readonly T[], rng: () => number): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [copy[i], copy[j]] = [copy[j]!, copy[i]!];
+  }
+  return copy;
+}
+
 export function generateLearnLesson(
   state: LearnState,
   seed: number,
@@ -626,49 +635,90 @@ export function generateLearnLesson(
       : LETTER_ORDER.slice(0, INITIAL_UNLOCKED_COUNT);
   const focusKey = getFocusKey(state).toLowerCase();
 
-  const realCandidates = getUnlockedCandidateWords(unlocked);
-  const needsPseudo = realCandidates.length < 40;
-  let combinedPool = [...realCandidates];
-
-  if (needsPseudo) {
-    const pseudo = generatePseudoWords(
-      unlocked,
-      Math.max(48 - realCandidates.length, 24),
-      seed,
-      new Set(realCandidates),
-    );
-    combinedPool = [...realCandidates, ...pseudo];
-  }
-
-  let focusPool = combinedPool.filter((w) => w.includes(focusKey));
-  if (focusPool.length < 22) {
-    const extraFocusPseudo = generatePseudoWords(
-      unlocked,
-      28 - focusPool.length,
-      seed + 7919,
-      new Set(combinedPool),
-      focusKey,
-    );
-    focusPool = [...focusPool, ...extraFocusPseudo];
-    combinedPool = [...combinedPool, ...extraFocusPseudo];
-  }
-
   const wordCount =
     LEARN_LESSON_MIN_WORDS +
     Math.floor(rng() * (LEARN_LESSON_MAX_WORDS - LEARN_LESSON_MIN_WORDS + 1));
 
   // Ensure focusKey appears in >= 45% of slots cleanly (above the 40% minimum)
   const targetFocusSlots = Math.ceil(wordCount * 0.45);
-  const slotIsFocus: boolean[] = Array.from({ length: wordCount }, (_, i) => i < targetFocusSlots);
-  for (let i = slotIsFocus.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [slotIsFocus[i], slotIsFocus[j]] = [slotIsFocus[j]!, slotIsFocus[i]!];
+  const generalSlots = wordCount - targetFocusSlots;
+
+  const realCandidates = getUnlockedCandidateWords(unlocked);
+  const realFocus = shuffleWithRng(
+    realCandidates.filter((w) => w.includes(focusKey)),
+    rng,
+  );
+  const realNonFocus = shuffleWithRng(
+    realCandidates.filter((w) => !w.includes(focusKey)),
+    rng,
+  );
+
+  // Use all available real words first before introducing made-up pseudo-words.
+  const chosenRealFocus = realFocus.slice(0, targetFocusSlots);
+  const excessRealFocus = realFocus.slice(chosenRealFocus.length);
+  const chosenRealGeneral = [
+    ...realNonFocus.slice(0, generalSlots),
+    ...excessRealFocus.slice(0, Math.max(0, generalSlots - realNonFocus.length)),
+  ];
+
+  const needPseudoFocus = Math.max(0, targetFocusSlots - chosenRealFocus.length);
+  const needPseudoGeneral = Math.max(0, generalSlots - chosenRealGeneral.length);
+
+  const pseudoFocus =
+    needPseudoFocus > 0
+      ? generatePseudoWords(
+          unlocked,
+          Math.max(needPseudoFocus + 6, 22),
+          seed + 7919,
+          new Set(realCandidates),
+          focusKey,
+        )
+      : [];
+  const pseudoGeneral =
+    needPseudoGeneral > 0
+      ? generatePseudoWords(
+          unlocked,
+          Math.max(needPseudoGeneral + 8, 24),
+          seed,
+          new Set([...realCandidates, ...pseudoFocus]),
+        )
+      : [];
+  const pseudoSet = new Set([...pseudoFocus, ...pseudoGeneral]);
+
+  // Phase 1: emit real words first (focus + general interleaved)
+  const realSlotOrder = shuffleWithRng(
+    [
+      ...Array.from({ length: chosenRealFocus.length }, () => true),
+      ...Array.from({ length: chosenRealGeneral.length }, () => false),
+    ],
+    rng,
+  );
+  const baseWords: string[] = [];
+  let rfIdx = 0;
+  let rgIdx = 0;
+  for (const isFocus of realSlotOrder) {
+    baseWords.push(isFocus ? chosenRealFocus[rfIdx++]! : chosenRealGeneral[rgIdx++]!);
   }
 
-  const baseWords: string[] = [];
-  for (let i = 0; i < wordCount; i++) {
+  // Phase 2: only after real words are used up, fill remaining slots with pseudo-words
+  const pseudoSlotOrder = shuffleWithRng(
+    [
+      ...Array.from({ length: needPseudoFocus }, () => true),
+      ...Array.from({ length: needPseudoGeneral }, () => false),
+    ],
+    rng,
+  );
+  const fallbackFocusPool = [...pseudoFocus, ...realFocus];
+  const fallbackGeneralPool = [...pseudoGeneral, ...realCandidates];
+  for (const isFocus of pseudoSlotOrder) {
     const recent = baseWords.slice(-LEARN_REPEAT_WINDOW);
-    const pool = slotIsFocus[i] ? focusPool : combinedPool;
+    const pool = isFocus
+      ? pseudoFocus.length > 0
+        ? pseudoFocus
+        : fallbackFocusPool
+      : pseudoGeneral.length > 0
+        ? pseudoGeneral
+        : fallbackGeneralPool;
     baseWords.push(pickNonRepeatingWord(pool, recent, rng));
   }
 
@@ -699,7 +749,7 @@ export function generateLearnLesson(
     words: formattedWords,
     focusKey,
     focusWordRatio: baseWords.length > 0 ? focusHits / baseWords.length : 0,
-    usedPseudoWords: needsPseudo,
+    usedPseudoWords: baseWords.some((w) => pseudoSet.has(w)),
     unlockedCount: unlocked.length,
     seed,
   };

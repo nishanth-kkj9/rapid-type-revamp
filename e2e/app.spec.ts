@@ -43,12 +43,11 @@ test("full typing flow, zero external requests, Learn lesson, export, delete-all
   const navRes = await page.goto("/");
   expect(navRes?.headers()["content-security-policy"]).toContain("default-src 'self'");
 
-  // Verify accessible Onboarding Radix Dialog opens & can configure choices
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: /Intermediate/i }).click();
-  await dialog.getByRole("button", { name: /Start practicing/i }).click();
-  await expect(dialog).toBeHidden();
+  // Verify no modal dialog opens on first launch and the dismissible Learn prompt appears
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByText(/New to touch typing\?/i)).toBeVisible();
+  await page.getByRole("button", { name: /Dismiss new to touch typing prompt/i }).click();
+  await expect(page.getByText(/New to touch typing\?/i)).toHaveCount(0);
 
   // Practice screen must not show Drill History accordion; Live metrics stays visible with fixed height before start
   await expect(page.getByRole("button", { name: /Drill History/i })).toBeHidden();
@@ -92,7 +91,6 @@ test("full typing flow, zero external requests, Learn lesson, export, delete-all
   await expect(results.getByText(/WPM/i).first()).toBeVisible();
   await expect(liveMetrics).toBeVisible();
   expect(await getAreaDocTop()).toBe(areaTopBefore);
-  await expect(page.getByText(/Loosen up in Arcade/i)).toBeHidden();
 
   // Repeat this text must reuse the exact same passage and tag result as repeated
   await results.getByRole("button", { name: /Repeat this text/i }).click();
@@ -104,14 +102,13 @@ test("full typing flow, zero external requests, Learn lesson, export, delete-all
   await expect(results).toBeVisible();
   await expect(results.getByText(/Repeated text · excluded from PBs/i)).toBeVisible();
 
-  // Verify Primary nav has Practice · Learn · Arcade · Stats · Achievements
+  // Verify Primary nav has Practice · Learn · Stats
   const primaryNav = page.getByRole("navigation", { name: "Primary sections" });
   const practiceBtn = primaryNav.getByRole("button", { name: /^Practice$/i });
   await expect(practiceBtn).toHaveAttribute("aria-pressed", "true");
   await expect(primaryNav.getByRole("button", { name: /^Learn$/i })).toBeVisible();
-  await expect(primaryNav.getByRole("button", { name: /^Arcade$/i })).toBeVisible();
   await expect(primaryNav.getByRole("button", { name: /^Stats$/i })).toBeVisible();
-  await expect(primaryNav.getByRole("button", { name: /^Achievements/i })).toBeVisible();
+  await expect(primaryNav.getByRole("button", { name: /^Achievements/i })).toHaveCount(0);
 
   // Navigate to Stats page and check DailyGoal, 26-week calendar, heatmap, and CSV export
   await primaryNav.getByRole("button", { name: /^Stats$/i }).click();
@@ -154,17 +151,16 @@ test("full typing flow, zero external requests, Learn lesson, export, delete-all
   await learnInput.pressSequentially(learnPassage, { delay: 5 });
   await expect(page.getByTestId("learn-results")).toBeVisible();
 
-  // Open unified Settings, switch to Light + OpenDyslexic
+  // Open unified Settings, switch to Light + OpenDyslexic on the single scrolling page
   await page.getByRole("button", { name: "Open unified settings" }).click();
   const settingsRegion = page.getByRole("region", { name: "Settings and privacy" });
   await expect(settingsRegion).toBeVisible();
 
-  await settingsRegion.getByRole("tab", { name: /Appearance/i }).click();
   await settingsRegion.getByRole("button", { name: /^Light\b/i }).click();
   await expect(page.locator("html")).toHaveClass(/light/);
   await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#fafafa");
 
-  await settingsRegion.getByRole("button", { name: /Off|Enabled/i }).click();
+  await settingsRegion.getByRole("button", { name: /Dyslexia-friendly font/i }).click();
   await expect(page.locator("html")).toHaveAttribute("data-font", "opendyslexic");
 
   // Reload while OS prefers dark color scheme and verify pre-paint /boot.js sets light/opendyslexic immediately
@@ -181,9 +177,8 @@ test("full typing flow, zero external requests, Learn lesson, export, delete-all
     font: "opendyslexic",
   });
 
-  // Reloaded at ?mode=settings — verify Settings remains open, then switch to Data & privacy tab
+  // Reloaded at ?mode=settings — verify Settings remains open and Data section is present
   await expect(settingsRegion).toBeVisible();
-  await settingsRegion.getByRole("tab", { name: /Data & privacy/i }).click();
   await expect(settingsRegion.getByText(/ttp:history:index:v1/)).toBeVisible();
 
   const [download] = await Promise.all([
@@ -241,7 +236,7 @@ test("full typing flow, zero external requests, Learn lesson, export, delete-all
   expect(pageErrors).toEqual([]);
 });
 
-test("Beginner onboarding launches Learn mode, displays 6/26 unlocked keys, and completes a lesson", async ({
+test("New to touch typing prompt opens Learn mode, displays 6/26 unlocked keys, and completes a lesson", async ({
   page,
 }) => {
   const consoleErrors: string[] = [];
@@ -254,13 +249,9 @@ test("Beginner onboarding launches Learn mode, displays 6/26 unlocked keys, and 
   });
 
   await page.goto("/");
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: /Beginner/i }).click();
-  const startLearn = dialog.getByRole("button", { name: /Start Learn mode/i });
-  await expect(startLearn).toBeVisible();
-  await startLearn.click();
-  await expect(dialog).toBeHidden();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByText(/New to touch typing\?/i)).toBeVisible();
+  await page.getByRole("button", { name: /Try Learn/i }).click();
 
   await expect(page).toHaveTitle(/Learn Touch Typing/i);
   const learnRegion = page.getByRole("region", { name: "Learn touch typing" });

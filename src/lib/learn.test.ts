@@ -160,19 +160,36 @@ describe("learn seeded lesson generation", () => {
     }
   });
 
-  it("falls back to pronounceable bigram pseudo-words when < 40 dictionary words exist", () => {
-    const initial6 = createInitialLearnState(1000);
-    const realCount = getUnlockedCandidateWords(initial6.unlocked).length;
-    const pseudo = generatePseudoWords(initial6.unlocked, 30, 1234);
-    expect(pseudo.length).toBe(30);
-    for (const p of pseudo) {
-      expect(p).toMatch(/^[etaoin]+$/);
+  it("uses all real words first before falling back to pseudo-words", () => {
+    for (const count of [6, 7, 8]) {
+      const state = {
+        ...createInitialLearnState(1000),
+        unlocked: LETTER_ORDER.slice(0, count),
+      };
+      const realWords = getUnlockedCandidateWords(state.unlocked);
+      const realSet = new Set(realWords);
+      const lesson = generateLearnLesson(state, 98765 + count);
+
+      expect(lesson.usedPseudoWords).toBe(true);
+      expect(lesson.words.length).toBeGreaterThanOrEqual(35);
+      expect(lesson.words.length).toBeLessThanOrEqual(40);
+      // Every real word must appear before any made-up pseudo-word
+      expect(lesson.words.slice(0, realWords.length).sort()).toEqual([...realWords].sort());
+      expect(lesson.words.slice(realWords.length).every((w) => !realSet.has(w))).toBe(true);
     }
 
-    const lesson = generateLearnLesson(initial6, 98765);
-    expect(lesson.usedPseudoWords).toBe(realCount < 40);
-    expect(lesson.words.length).toBeGreaterThanOrEqual(35);
-    expect(lesson.words.length).toBeLessThanOrEqual(40);
+    // Stage 23 ('j') has 19 real focus words for <=18 focus slots -> 0 pseudo-words needed
+    const stage23 = {
+      ...createInitialLearnState(1000),
+      unlocked: LETTER_ORDER.slice(0, 23),
+    };
+    const lesson23 = generateLearnLesson(stage23, 98765);
+    expect(lesson23.usedPseudoWords).toBe(false);
+
+    // Direct pseudo-word helper only uses unlocked letters
+    const pseudo = generatePseudoWords(LETTER_ORDER.slice(0, 6), 12, 1234);
+    expect(pseudo).toHaveLength(12);
+    expect(pseudo.every((w) => /^[etaoin]+$/.test(w))).toBe(true);
   });
 
   it("enforces >= 40% focus-key word density and avoids repeats within 20 words across stages", () => {

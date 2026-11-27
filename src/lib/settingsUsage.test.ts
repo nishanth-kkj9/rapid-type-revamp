@@ -3,11 +3,10 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { DailyGoalConfigSchema } from "./daily";
 import { DrillSettingsSchema } from "./drillSettings";
-import { ShooterSettingsSchema } from "./shooterSettings";
 import { UiPrefsSchema } from "./uiPrefs";
 
 /**
- * G4: Every stored settings field across DrillSettings, ShooterSettings, UiPrefs,
+ * G4: Every stored settings field across DrillSettings, UiPrefs,
  * and DailyGoalConfig must actually be read in runtime app code (no dead settings).
  */
 
@@ -32,7 +31,6 @@ function collectRuntimeFiles(dir: string): string[] {
 // storage schemas and backup serializers cannot pass without an actual consumer.
 const PLUMBING_ONLY_BASENAMES = new Set([
   "drillSettings.ts",
-  "shooterSettings.ts",
   "uiPrefs.ts",
   "backup.ts",
   "appHydration.ts",
@@ -49,8 +47,6 @@ const FIELD_ACCESSOR_ALIASES: Record<string, string[]> = {
   paceCaret: ["getPaceCaret"],
   keyboardLayout: ["getKeyboardLayout"],
   keyboardStandard: ["getKeyboardStandard"],
-  showFingerZones: ["getShowFingerZones"],
-  textStyle: ["resolveTextOptions"],
   includePunctuation: ["resolveTextOptions"],
   includeNumbers: ["resolveTextOptions"],
   includeCapitals: ["resolveTextOptions"],
@@ -99,16 +95,6 @@ describe("stored settings runtime usage audit (G4)", () => {
     for (const field of fields) {
       const consumers = checkFieldReadInRuntime(field);
       expect(consumers.length, `DrillSettings.${field} has no runtime consumer`).toBeGreaterThan(0);
-    }
-  });
-
-  it("ensures every ShooterSettings field is read in runtime app code", () => {
-    const fields = Object.keys(ShooterSettingsSchema.shape);
-    for (const field of fields) {
-      const consumers = checkFieldReadInRuntime(field);
-      expect(consumers.length, `ShooterSettings.${field} has no runtime consumer`).toBeGreaterThan(
-        0,
-      );
     }
   });
 

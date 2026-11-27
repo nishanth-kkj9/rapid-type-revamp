@@ -1,10 +1,9 @@
 import { getLocalDateString, addDays, daysBetween } from "./daily";
-import { getShooterBestScore, normalizeModeKey, type HistoryEntry } from "./typingStats";
+import { filterVisibleHistory, normalizeModeKey, type HistoryEntry } from "./typingStats";
 
 export interface StatsSummary {
   totalRuns: number;
   drillRuns: number;
-  shooterRuns: number;
   totalElapsedSec: number;
   bestWpm: number;
   avgAccuracyLast20: number | null;
@@ -16,87 +15,41 @@ export function isLearnMode(mode: string): boolean {
 }
 
 export function computeStatsSummary(history: readonly HistoryEntry[]): StatsSummary {
-  if (history.length === 0) {
+  const visible = filterVisibleHistory(history);
+  if (visible.length === 0) {
     return {
       totalRuns: 0,
       drillRuns: 0,
-      shooterRuns: 0,
       totalElapsedSec: 0,
       bestWpm: 0,
       avgAccuracyLast20: null,
     };
   }
 
-  let drillRuns = 0;
-  let shooterRuns = 0;
   let totalElapsedSec = 0;
   let bestWpm = 0;
 
-  for (const h of history) {
+  for (const h of visible) {
     const mode = normalizeModeKey(h.mode);
-    if (mode === "shooter") {
-      shooterRuns += 1;
-    } else {
-      drillRuns += 1;
-      if (!h.repeated && !isLearnMode(mode) && h.wpm > bestWpm) {
-        bestWpm = h.wpm;
-      }
+    if (!h.repeated && !isLearnMode(mode) && h.wpm > bestWpm) {
+      bestWpm = h.wpm;
     }
     if (Number.isFinite(h.elapsed) && h.elapsed > 0) {
       totalElapsedSec += h.elapsed;
     }
   }
 
-  const sortedRecent = [...history].sort((a, b) => b.date - a.date).slice(0, 20);
+  const sortedRecent = [...visible].sort((a, b) => b.date - a.date).slice(0, 20);
   const accSum = sortedRecent.reduce((sum, h) => sum + h.accuracy, 0);
   const avgAccuracyLast20 =
     sortedRecent.length > 0 ? Math.round((accSum / sortedRecent.length) * 10) / 10 : null;
 
   return {
-    totalRuns: history.length,
-    drillRuns,
-    shooterRuns,
+    totalRuns: visible.length,
+    drillRuns: visible.length,
     totalElapsedSec: Math.round(totalElapsedSec),
     bestWpm: Math.round(bestWpm),
     avgAccuracyLast20,
-  };
-}
-
-export interface ArcadePersonalBests {
-  totalGames: number;
-  bestScore: number;
-  bestLevel: number;
-  bestStreak: number;
-  bossesDefeated: number;
-}
-
-export function computeArcadePersonalBests(history: readonly HistoryEntry[]): ArcadePersonalBests {
-  const shooterRuns = history.filter((h) => normalizeModeKey(h.mode) === "shooter");
-  if (shooterRuns.length === 0) {
-    return {
-      totalGames: 0,
-      bestScore: 0,
-      bestLevel: 0,
-      bestStreak: 0,
-      bossesDefeated: 0,
-    };
-  }
-
-  let bestLevel = 0;
-  let bestStreak = 0;
-  let bossesDefeated = 0;
-  for (const run of shooterRuns) {
-    bestLevel = Math.max(bestLevel, run.level ?? 1);
-    bestStreak = Math.max(bestStreak, run.maxStreak ?? 0);
-    bossesDefeated += Math.max(0, run.bossesDefeated ?? 0);
-  }
-
-  return {
-    totalGames: shooterRuns.length,
-    bestScore: getShooterBestScore(shooterRuns),
-    bestLevel,
-    bestStreak,
-    bossesDefeated,
   };
 }
 
@@ -182,7 +135,7 @@ export function buildActivityCalendar(
   const startDate = addDays(todayDate, -totalOffsetDays);
 
   const byDate = new Map<string, { runs: number; seconds: number }>();
-  for (const h of history) {
+  for (const h of filterVisibleHistory(history)) {
     if (!Number.isFinite(h.date) || h.date <= 0) continue;
     const dayStr = getLocalDateString(new Date(h.date));
     if (daysBetween(startDate, dayStr) < 0 || daysBetween(dayStr, todayDate) < 0) continue;

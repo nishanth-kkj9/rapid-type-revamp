@@ -62,7 +62,7 @@
     <!-- Feature Pills -->
     <g transform="translate(0, 195)">
       <text x="0" y="0" fill="#71717a" font-family="monospace" font-size="16">
-        Timed Drills  •  Word Shooter Arcade  •  Per-Key Heatmap  •  Targeted Weak-Key Remediation
+        Timed Drills  •  Adaptive Learn Mode  •  Per-Key Heatmap  •  Targeted Weak-Key Remediation
       </text>
     </g>
   </g>

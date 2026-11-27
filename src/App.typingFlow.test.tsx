@@ -38,7 +38,7 @@ beforeAll(() => {
   }
 });
 
-describe("Typing flow, Results, History, Onboarding & Unified Settings integration", () => {
+describe("Typing flow, Results, History, Learn Prompt & Unified Settings integration", () => {
   beforeEach(async () => {
     localStorage.clear();
     document.head.innerHTML = '<meta name="theme-color" content="#1c1917" />';
@@ -55,21 +55,12 @@ describe("Typing flow, Results, History, Onboarding & Unified Settings integrati
     cleanup();
   });
 
-  async function finishOnboarding(
-    user: ReturnType<typeof userEvent.setup>,
-    level: RegExp,
-    startBtn: RegExp,
-  ) {
-    render(<App />);
-    const dialog = await screen.findByRole("dialog", {}, { timeout: 4000 });
-    await user.click(within(dialog).getByRole("button", { name: level }));
-    await user.click(within(dialog).getByRole("button", { name: startBtn }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-  }
-
-  it("renders compact Practice layout, slim live strip, custom length, repeat same text, and unified settings", async () => {
+  it("renders compact Practice layout without first-launch dialog, slim live strip, custom length, repeat same text, and unified settings", async () => {
     const user = userEvent.setup();
-    await finishOnboarding(user, /Intermediate/i, /^Start practicing$/i);
+    render(<App />);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(await screen.findByText(/New to touch typing\?/i)).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     // Practice screen must NOT render DailyGoal block, Drill History accordion, tagline, or header Mode/Diff/Target chip
     expect(screen.queryByRole("button", { name: /Drill History/i })).not.toBeInTheDocument();
@@ -122,14 +113,12 @@ describe("Typing flow, Results, History, Onboarding & Unified Settings integrati
     await user.click(resetInput);
     await user.type(resetInput, restartedChars);
 
-    // 4. Verify ResultsPanel appears cleanly, Restart button hides, and aria-live announcer announced unlocked achievement
+    // 4. Verify ResultsPanel appears cleanly and Restart button hides
     const resultsSection = await screen.findByRole("region", { name: "Run results" });
     expect(resultsSection).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Restart/i })).not.toBeInTheDocument();
     expect(screen.getByText(/Run finished:/i)).toBeInTheDocument();
     expect(screen.getByRole("status", { name: "Live metrics" })).toBeInTheDocument();
-    expect(screen.queryByText(/Loosen up in Arcade/i)).not.toBeInTheDocument();
-    expect(screen.getByTestId("app-live-announcer")).toHaveTextContent(/achievements? unlocked/i);
 
     // 5. Repeat this text -> reuses exact same passage and marks result as repeated
     await user.click(within(resultsSection).getByRole("button", { name: /Repeat this text/i }));
@@ -146,25 +135,24 @@ describe("Typing flow, Results, History, Onboarding & Unified Settings integrati
       within(resultsSection2).getByText(/Repeated text · excluded from PBs/i),
     ).toBeInTheDocument();
 
-    // Primary nav shows Practice, Learn, Arcade, Stats, Achievements plus Settings gear
+    // Primary nav shows Practice, Learn, Stats plus Settings
     const primaryNav = screen.getByRole("navigation", { name: "Primary sections" });
     expect(within(primaryNav).getByRole("button", { name: /^Practice$/i })).toBeInTheDocument();
     expect(within(primaryNav).getByRole("button", { name: /^Learn$/i })).toBeInTheDocument();
-    expect(within(primaryNav).getByRole("button", { name: /^Arcade$/i })).toBeInTheDocument();
+    expect(within(primaryNav).queryByRole("button", { name: /^Arcade$/i })).not.toBeInTheDocument();
     expect(within(primaryNav).getByRole("button", { name: /^Stats$/i })).toBeInTheDocument();
-    expect(within(primaryNav).getByRole("button", { name: /^Achievements/i })).toBeInTheDocument();
+    expect(
+      within(primaryNav).queryByRole("button", { name: /^Achievements/i }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open unified settings" })).toBeInTheDocument();
-
-    // Arcade mode must NOT render HistoryPanel or full DailyGoal card
-    await user.click(within(primaryNav).getByRole("button", { name: /^Arcade$/i }));
-    expect(screen.queryByLabelText("Run history and progress")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Daily goal progress")).not.toBeInTheDocument();
 
     // Stats mode renders DailyGoal card, Summary tiles, Activity calendar, Heatmap, and Run history
     await user.click(within(primaryNav).getByRole("button", { name: /^Stats$/i }));
-    const statsSection = await screen.findByRole("region", {
-      name: "Statistics and practice progress",
-    });
+    const statsSection = await screen.findByRole(
+      "region",
+      { name: "Statistics and practice progress" },
+      { timeout: 4000 },
+    );
     expect(within(statsSection).getByLabelText("Daily goal progress")).toBeInTheDocument();
     expect(within(statsSection).getByLabelText("Summary statistics")).toBeInTheDocument();
     expect(within(statsSection).getByLabelText("Practice activity calendar")).toBeInTheDocument();
@@ -175,22 +163,25 @@ describe("Typing flow, Results, History, Onboarding & Unified Settings integrati
     ).toBeInTheDocument();
     expect(document.title).toContain("Stats & Progress");
 
-    // 6. Clicking header daily goal button opens Settings -> Typing
+    // 6. Clicking header daily goal button opens single-page Settings (no tabs, no icons)
     await user.click(
       within(screen.getByRole("banner")).getByRole("button", { name: /Daily goal/i }),
     );
-    const settingsSection = await screen.findByRole("region", { name: "Settings and privacy" });
-    expect(settingsSection).toBeInTheDocument();
-    expect(within(settingsSection).getByRole("tab", { name: /Typing/i })).toHaveAttribute(
-      "aria-selected",
-      "true",
+    const settingsSection = await screen.findByRole(
+      "region",
+      { name: "Settings and privacy" },
+      { timeout: 4000 },
     );
-    expect(within(settingsSection).queryByText(/Timed Drill/i)).not.toBeInTheDocument();
+    expect(settingsSection).toBeInTheDocument();
+    expect(within(settingsSection).queryAllByRole("tab")).toHaveLength(0);
+    expect(settingsSection.querySelectorAll("svg")).toHaveLength(0);
     expect(
-      within(settingsSection).getByRole("button", { name: /^Practice$/i }),
-    ).toBeInTheDocument();
+      within(settingsSection)
+        .getAllByRole("heading", { level: 3 })
+        .map((h) => h.textContent),
+    ).toEqual(["Typing", "Keyboard", "Appearance", "Data"]);
+    expect(within(settingsSection).queryByText(/Timed Drill/i)).not.toBeInTheDocument();
 
-    await user.click(within(settingsSection).getByRole("tab", { name: /Appearance/i }));
     expect(within(settingsSection).queryByText(/WCAG/i)).not.toBeInTheDocument();
     await user.click(within(settingsSection).getByRole("button", { name: /High Contrast/i }));
     expect(document.documentElement.classList.contains("high-contrast")).toBe(true);
@@ -198,7 +189,9 @@ describe("Typing flow, Results, History, Onboarding & Unified Settings integrati
       "#000000",
     );
 
-    const dyslexiaBtn = within(settingsSection).getByRole("button", { name: /Off|Enabled/i });
+    const dyslexiaBtn = within(settingsSection).getByRole("button", {
+      name: /Dyslexia-friendly font/i,
+    });
     await user.click(dyslexiaBtn);
     expect(document.documentElement.dataset["font"]).toBe("opendyslexic");
 
@@ -209,16 +202,16 @@ describe("Typing flow, Results, History, Onboarding & Unified Settings integrati
     expect(bootAfterChange.theme).toBe("high-contrast");
     expect(bootAfterChange.dyslexiaFont).toBe(true);
 
-    await user.click(within(settingsSection).getByRole("tab", { name: /Data & privacy/i }));
     expect(within(settingsSection).getByText(/ttp:history:index:v1/i)).toBeInTheDocument();
-    expect(
-      within(settingsSection).getByText(/100% Local-First Privacy Guarantee/i),
-    ).toBeInTheDocument();
   }, 25000);
 
-  it("offers Start Learn mode for Beginner onboarding and saves Learn lessons without altering PBs", async () => {
+  it("opens Learn mode from the dismissible prompt line, saves Learn lessons without altering PBs, and persists dismissal", async () => {
     const user = userEvent.setup();
-    await finishOnboarding(user, /Beginner/i, /^Start Learn mode$/i);
+    render(<App />);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    const tryLearnBtn = await screen.findByRole("button", { name: /Try Learn/i });
+    await user.click(tryLearnBtn);
 
     const learnSection = await screen.findByRole("region", { name: "Learn touch typing" });
     expect(learnSection).toBeInTheDocument();
@@ -246,6 +239,22 @@ describe("Typing flow, Results, History, Onboarding & Unified Settings integrati
     expect(within(statsSection).getByLabelText("Summary statistics")).toHaveTextContent(
       /Best WPM\s*—/i,
     );
+
+    // Returning to Practice and dismissing persists in UI prefs across remount
+    await user.click(within(primaryNav).getByRole("button", { name: /^Practice$/i }));
+    const dismissBtn = await screen.findByRole("button", {
+      name: /Dismiss new to touch typing prompt/i,
+    });
+    await user.click(dismissBtn);
+    expect(screen.queryByText(/New to touch typing\?/i)).not.toBeInTheDocument();
+
+    cleanup();
+    render(<App />);
+    await screen.findByLabelText("Typing input");
+    await waitFor(async () => {
+      expect(await appStorage.get("ttp:uiprefs:v1")).toMatchObject({ learnPromptDismissed: true });
+    });
+    expect(screen.queryByText(/New to touch typing\?/i)).not.toBeInTheDocument();
   }, 20000);
 
   it("renders Practice Progress title without Timed Drill in WpmChart", () => {
@@ -256,7 +265,8 @@ describe("Typing flow, Results, History, Onboarding & Unified Settings integrati
 
   it("requires two Esc presses within 1s mid-run (>10 chars) and shows press again to restart in metrics row", async () => {
     const user = userEvent.setup();
-    await finishOnboarding(user, /Intermediate/i, /^Start practicing$/i);
+    render(<App />);
+    await screen.findByLabelText("Typing input");
 
     await user.click(screen.getByRole("button", { name: "Open unified settings" }));
     const quickRestartGroup = await screen.findByRole("group", { name: "Quick restart key" });

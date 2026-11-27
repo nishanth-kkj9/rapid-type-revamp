@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { Flame, Shield, Trophy, Zap } from "lucide-react";
 import { ActivityCalendar } from "@/components/ActivityCalendar";
 import { DailyGoal } from "@/components/DailyGoal";
 import { HistoryPanel } from "@/components/HistoryPanel";
@@ -9,12 +8,8 @@ import { PanelSkeleton } from "@/components/Skeletons";
 import type { DailyState } from "@/lib/daily";
 import type { KeyboardLayoutId, KeyboardStandard } from "@/lib/keyboardLayout";
 import type { KeySpeedMap } from "@/lib/keySpeed";
-import {
-  computeArcadePersonalBests,
-  computeStatsSummary,
-  formatTotalDuration,
-} from "@/lib/statsAnalytics";
-import type { HistoryEntry } from "@/lib/typingStats";
+import { computeStatsSummary, formatTotalDuration } from "@/lib/statsAnalytics";
+import { filterVisibleHistory, type HistoryEntry } from "@/lib/typingStats";
 
 interface StatsPageProps {
   history: HistoryEntry[];
@@ -24,7 +19,7 @@ interface StatsPageProps {
   allTimeSpeed: KeySpeedMap;
   layout: KeyboardLayoutId;
   standard: KeyboardStandard;
-  onClearHistory: (mode?: "all" | "drill" | "shooter") => void;
+  onClearHistory: (mode?: "all" | "drill") => void;
   onImportHistory: (entries: HistoryEntry[]) => void;
   onDeleteRun: (id: string) => Promise<HistoryEntry | null>;
   onRestoreRun: (entry: HistoryEntry) => Promise<void>;
@@ -47,9 +42,8 @@ export function StatsPage({
   onOpenGoalSettings,
   onStartRun,
 }: StatsPageProps) {
-  const summary = useMemo(() => computeStatsSummary(history), [history]);
-  const arcadeBests = useMemo(() => computeArcadePersonalBests(history), [history]);
-  const drillHistory = useMemo(() => history.filter((h) => h.mode !== "shooter"), [history]);
+  const visibleHistory = useMemo(() => filterVisibleHistory(history), [history]);
+  const summary = useMemo(() => computeStatsSummary(visibleHistory), [visibleHistory]);
 
   return (
     <section aria-label="Statistics and practice progress" className="mt-4 space-y-6">
@@ -59,7 +53,7 @@ export function StatsPage({
 
       {!historyReady ? (
         <PanelSkeleton lines={5} />
-      ) : history.length === 0 ? (
+      ) : visibleHistory.length === 0 ? (
         <div
           aria-label="Empty statistics state"
           className="panel flex flex-col items-center gap-4 px-6 py-12 text-center"
@@ -109,9 +103,9 @@ export function StatsPage({
             </div>
           </div>
 
-          <HistoryProgressChart entries={drillHistory} />
+          <HistoryProgressChart entries={visibleHistory} />
 
-          <ActivityCalendar history={history} />
+          <ActivityCalendar history={visibleHistory} />
 
           <section aria-label="Lifetime keyboard heatmap" className="panel p-4 sm:p-5">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -135,56 +129,6 @@ export function StatsPage({
             onRestoreRun={onRestoreRun}
             onStartRun={onStartRun}
           />
-
-          {arcadeBests.totalGames > 0 ? (
-            <section aria-label="Arcade personal bests" className="panel p-4 sm:p-5">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-sm font-medium text-muted-foreground">Arcade</h3>
-                <span className="text-[13px] tabular-nums text-muted-foreground">
-                  {arcadeBests.totalGames} Word Shooter game
-                  {arcadeBests.totalGames === 1 ? "" : "s"}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
-                  <div className="flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
-                    <Trophy className="size-3.5 text-primary" aria-hidden="true" />
-                    Best score
-                  </div>
-                  <div className="mt-1 font-mono text-2xl font-bold tabular-nums text-primary">
-                    {arcadeBests.bestScore > 0 ? arcadeBests.bestScore.toLocaleString() : "—"}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
-                  <div className="flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
-                    <Zap className="size-3.5 text-accent" aria-hidden="true" />
-                    Best level
-                  </div>
-                  <div className="mt-1 font-mono text-2xl font-bold tabular-nums text-foreground">
-                    Lvl {arcadeBests.bestLevel}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
-                  <div className="flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
-                    <Flame className="size-3.5 text-primary" aria-hidden="true" />
-                    Best streak
-                  </div>
-                  <div className="mt-1 font-mono text-2xl font-bold tabular-nums text-foreground">
-                    {arcadeBests.bestStreak}x
-                  </div>
-                </div>
-                <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
-                  <div className="flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
-                    <Shield className="size-3.5 text-destructive" aria-hidden="true" />
-                    Bosses defeated
-                  </div>
-                  <div className="mt-1 font-mono text-2xl font-bold tabular-nums text-foreground">
-                    {arcadeBests.bossesDefeated.toLocaleString()}
-                  </div>
-                </div>
-              </div>
-            </section>
-          ) : null}
         </>
       )}
     </section>

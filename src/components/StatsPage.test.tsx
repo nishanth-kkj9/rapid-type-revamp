@@ -62,17 +62,11 @@ describe("StatsPage", () => {
     expect(onStartRun).toHaveBeenCalledTimes(1);
   });
 
-  it("renders compact summary row without icons, sections in order, conditional Arcade block, and h2->h3 headings", () => {
+  it("renders compact summary row without icons, hides legacy shooter entries, and keeps h2->h3 headings", () => {
     const drillRuns = Array.from({ length: 4 }, (_, i) => mkRun(i));
-    const shooterRun = mkRun(4, {
-      id: "shooter-pb-1",
-      mode: "shooter",
-      score: 3450,
-      level: 7,
-      maxStreak: 19,
-      bossesDefeated: 2,
-      elapsed: 30,
-    });
+    const legacyShooterRun = {
+      ...mkRun(4, { id: "shooter-pb-1", mode: "shooter", elapsed: 30 }),
+    } as HistoryEntry;
     const baseProps = {
       historyReady: true,
       daily: null,
@@ -98,16 +92,14 @@ describe("StatsPage", () => {
       "H3",
     ]);
 
-    rerender(<StatsPage history={[...drillRuns, shooterRun]} {...baseProps} />);
+    rerender(<StatsPage history={[...drillRuns, legacyShooterRun]} {...baseProps} />);
     const summary = screen.getByLabelText("Summary statistics");
     expect(summary.querySelectorAll("svg")).toHaveLength(0);
-    expect(within(summary).getByText("5")).toBeInTheDocument();
-    expect(within(summary).getByText("2m 30s")).toBeInTheDocument();
+    // Legacy shooter run is excluded from visible count (4 drills, 2m)
+    expect(within(summary).getByText("4")).toBeInTheDocument();
+    expect(within(summary).getByText("2m")).toBeInTheDocument();
     expect(within(summary).getByText(/Avg accuracy \(last 20\)/i)).toBeInTheDocument();
-
-    const arcadeSection = screen.getByLabelText("Arcade personal bests");
-    expect(within(arcadeSection).getByText("3,450")).toBeInTheDocument();
-    expect(within(arcadeSection).getByText("Lvl 7")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Arcade personal bests")).not.toBeInTheDocument();
 
     const chart = screen.getByLabelText("WPM over time");
     const calendar = screen.getByLabelText("Practice activity calendar");
@@ -127,11 +119,36 @@ describe("StatsPage", () => {
       "H3",
       "H3",
       "H3",
-      "H3",
     ]);
     expect(screen.getByRole("button", { name: /Download history as CSV/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Import/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Delete all my data/i })).not.toBeInTheDocument();
+
+    // Personal bests table displays mode, length, punctuation, and numbers as plain text
+    const pbHistory: HistoryEntry[] = [
+      mkRun(10, {
+        mode: "25w",
+        difficulty: "200",
+        wpm: 84,
+        punctuation: true,
+        numbers: false,
+      }),
+      mkRun(11, {
+        mode: "quote",
+        difficulty: "200",
+        wpm: 72,
+        quoteLength: "medium",
+      }),
+    ];
+    rerender(<StatsPage history={pbHistory} {...baseProps} />);
+    const pbHeading = screen.getByText("Personal bests by test type");
+    const pbContainer = pbHeading.parentElement!;
+    expect(within(pbContainer).getByText("Words · 25 words")).toBeInTheDocument();
+    expect(
+      within(pbContainer).getByText("Common 200 · punctuation on · numbers off"),
+    ).toBeInTheDocument();
+    expect(within(pbContainer).getByText("Quote · medium")).toBeInTheDocument();
+    expect(within(pbContainer).getByText("Any · punctuation — · numbers —")).toBeInTheDocument();
   });
 
   it("handles 2,000 imported runs smoothly with paginated history and downsampled progress chart", async () => {
@@ -204,11 +221,11 @@ describe("StatsPage", () => {
       checkNoImport(file, [/importFullBackup/, /onExportAllData/, /onDeleteAllData/]);
     }
 
-    const settingsTab = fs.readFileSync(
-      path.join(srcDir, "components/settings/SettingsDataPrivacyTab.tsx"),
+    const settingsData = fs.readFileSync(
+      path.join(srcDir, "components/settings/SettingsDataSection.tsx"),
       "utf8",
     );
-    expect(settingsTab).toMatch(/downloadFullBackupJson/);
-    expect(settingsTab).toMatch(/DeleteAllDataDialog/);
+    expect(settingsData).toMatch(/downloadFullBackupJson/);
+    expect(settingsData).toMatch(/DeleteAllDataDialog/);
   });
 });

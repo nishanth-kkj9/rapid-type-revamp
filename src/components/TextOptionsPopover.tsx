@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import {
-  DRILL_DIFFICULTIES,
   PACE_CARET_OPTIONS,
   STRICT_MODES,
+  WORD_LIST_OPTIONS,
   getPaceCaret,
   getStrictMode,
   resolveTextOptions,
@@ -54,7 +54,7 @@ export function TextOptionsPopover({
 
   const activeTags: string[] = [];
   if (drillMode !== "quote" && !hasCustomText) {
-    activeTags.push(settings.difficulty);
+    activeTags.push(settings.wordList === "1000" ? "1000w" : "200w");
     if (textOpts.numbers) activeTags.push("123");
     if (settings.focusWeakKeys) activeTags.push("focus");
   }
@@ -77,7 +77,7 @@ export function TextOptionsPopover({
         <SlidersHorizontal className="size-3.5 text-primary" />
         <span>Options</span>
         {activeTags.length > 0 ? (
-          <span className="hidden text-[13px] capitalize text-muted-foreground sm:inline">
+          <span className="hidden text-[13px] text-muted-foreground sm:inline">
             · {activeTags.join(" · ")}
           </span>
         ) : null}
@@ -93,51 +93,22 @@ export function TextOptionsPopover({
             <>
               <div>
                 <div className="mb-1.5 text-[13px] font-medium text-muted-foreground">
-                  Difficulty
+                  Word list
                 </div>
-                <div className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-secondary/50 p-1">
-                  {DRILL_DIFFICULTIES.map((d) => (
+                <div className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-secondary/50 p-1">
+                  {WORD_LIST_OPTIONS.map((opt) => (
                     <button
-                      key={d}
+                      key={opt.id}
                       type="button"
-                      aria-pressed={settings.difficulty === d}
-                      onClick={() => onUpdateSettings({ difficulty: d })}
-                      className={`min-h-11 sm:min-h-8 cursor-pointer rounded-md px-2 py-1 text-[13px] font-medium capitalize transition-colors ${
-                        settings.difficulty === d
+                      aria-pressed={settings.wordList === opt.id}
+                      onClick={() => onUpdateSettings({ wordList: opt.id })}
+                      className={`min-h-11 sm:min-h-8 cursor-pointer rounded-md px-2 py-1 text-[13px] font-medium transition-colors ${
+                        settings.wordList === opt.id
                           ? "bg-primary font-semibold text-primary-foreground"
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      {d}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <div className="mb-1.5 text-[13px] font-medium text-muted-foreground">
-                  Text style
-                </div>
-                <div className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-secondary/50 p-1">
-                  {(["sentences", "words"] as const).map((st) => (
-                    <button
-                      key={st}
-                      type="button"
-                      aria-pressed={textOpts.style === st}
-                      onClick={() =>
-                        onUpdateSettings({
-                          textStyle: st,
-                          includePunctuation: st === "sentences",
-                          includeCapitals: st === "sentences",
-                        })
-                      }
-                      className={`min-h-11 sm:min-h-8 cursor-pointer rounded-md px-2 py-1 text-[13px] font-medium capitalize transition-colors ${
-                        textOpts.style === st
-                          ? "bg-secondary font-semibold text-foreground ring-1 ring-border"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {st}
+                      {opt.label}
                     </button>
                   ))}
                 </div>

@@ -50,20 +50,9 @@ describe("storage adapters & migration", () => {
       consistency: 88,
     };
 
-    const shooterRun = {
-      ...sampleRun,
-      id: "run-shooter-1",
-      mode: "shooter",
-      score: 1500,
-    };
-
-    window.localStorage.setItem("ttp:history:v1", JSON.stringify([sampleRun, shooterRun]));
+    window.localStorage.setItem("ttp:history:v1", JSON.stringify([sampleRun]));
     window.localStorage.setItem("ttp:keystats:v1", JSON.stringify({ q: 3 }));
     window.localStorage.setItem("ttp:keyspeed:v1", JSON.stringify({ q: [400, 2] }));
-    window.localStorage.setItem(
-      "ttp:achievements:v1",
-      JSON.stringify({ unlocked: { first_run: 1 }, counters: {} }),
-    );
     window.localStorage.setItem(
       "ttp:daily:v1",
       JSON.stringify({ date: "2026-11-15", runsToday: 2, streak: 3 }),
@@ -74,15 +63,10 @@ describe("storage adapters & migration", () => {
       JSON.stringify({ difficulty: "hard", duration: 60 }),
     );
     window.localStorage.setItem(
-      "ttp:shooter:settings:v1",
-      JSON.stringify({ difficulty: "easy", startingLives: 5 }),
-    );
-    window.localStorage.setItem(
       "ttp:uiprefs:v1",
       JSON.stringify({ themeAccent: "cyan", heatmapMetric: "speed" }),
     );
     window.localStorage.setItem("ttp:theme:v1", "light");
-    window.localStorage.setItem("ttp:shooter:best:v1", "9999");
     window.localStorage.setItem("ttp:onboarded:v1", "1");
     window.localStorage.setItem("ttp:best:samples:v1:30s", JSON.stringify([5, 11, 18]));
 
@@ -90,7 +74,7 @@ describe("storage adapters & migration", () => {
     const report = await migrateLegacyLocalStorage(mem, window.localStorage);
 
     expect(report.failed).toEqual([]);
-    expect(report.migrated.length).toBeGreaterThanOrEqual(13);
+    expect(report.migrated.length).toBeGreaterThanOrEqual(10);
     expect(window.localStorage.getItem("ttp:history:v1")).toBeNull();
     expect(window.localStorage.getItem("ttp:best:samples:v1:30s")).toBeNull();
     // Pre-paint boot keys remain until ttp:boot:v1 has been written
@@ -105,21 +89,19 @@ describe("storage adapters & migration", () => {
     expect(window.localStorage.getItem("ttp:uiprefs:v1")).toBeNull();
 
     const hydrated = await hydrateAppFromStorage(mem);
-    expect(hydrated.history).toHaveLength(2);
+    expect(hydrated.history).toHaveLength(1);
     expect(hydrated.history.find((h) => h.id === "run-1")?.wpm).toBe(72);
     expect(hydrated.allTimeKeys["q"]).toBe(3);
-    expect(hydrated.drillSettings.difficulty).toBe("hard");
+    expect(hydrated.drillSettings.wordList).toBe("1000");
     expect(hydrated.drillSettings.duration).toBe(60);
-    expect(hydrated.shooterSettings.difficulty).toBe("easy");
     expect(hydrated.uiPrefs.heatmapMetric).toBe("speed");
     expect("themeAccent" in hydrated.uiPrefs).toBe(false);
     expect(hydrated.theme).toBe("light");
-    expect(hydrated.shooterBest).toBe(1500);
-    expect(hydrated.onboarded).toBe(true);
+    expect(await mem.get("ttp:onboarded:v1")).toBe("1");
     // Legacy ttp:history:v1 array is automatically migrated to ttp:run:<id> + ttp:history:index:v1
     expect(await mem.get(HISTORY_STORAGE_KEY)).toBeNull();
-    expect(await mem.list(RUN_KEY_PREFIX)).toHaveLength(2);
-    expect(await mem.get(HISTORY_INDEX_KEY)).toHaveLength(2);
+    expect(await mem.list(RUN_KEY_PREFIX)).toHaveLength(1);
+    expect(await mem.get(HISTORY_INDEX_KEY)).toHaveLength(1);
   });
 
   it("retains legacy localStorage keys if any write fails", async () => {
@@ -150,7 +132,7 @@ describe("storage adapters & migration", () => {
 
     const hydrated = await hydrateAppFromStorage(mem);
     expect(hydrated.history).toEqual([]);
-    expect(hydrated.drillSettings.difficulty).toBe("medium");
+    expect(hydrated.drillSettings.wordList).toBe("200");
     expect(hydrated.drillSettings.duration).toBe(30);
 
     // Import schema v1 payload with > 100 entries (no cap)

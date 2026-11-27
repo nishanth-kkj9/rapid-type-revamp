@@ -1,7 +1,6 @@
 import { Download, Trash2 } from "lucide-react";
 
 interface HistoryActionsBarProps {
-  mode: "drill" | "shooter";
   currentModeRunsCount: number;
   totalRunsCount: number;
   confirmClear: boolean;
@@ -12,7 +11,6 @@ interface HistoryActionsBarProps {
 }
 
 export function HistoryActionsBar({
-  mode,
   currentModeRunsCount,
   totalRunsCount,
   confirmClear,
@@ -45,7 +43,7 @@ export function HistoryActionsBar({
                 className="flex min-h-9 cursor-pointer items-center gap-1 rounded-lg bg-destructive px-3 py-1.5 text-[13px] font-semibold text-destructive-foreground whitespace-nowrap shrink-0 transition-opacity hover:opacity-90"
               >
                 <Trash2 className="size-3.5" aria-hidden="true" />
-                Clear {mode === "drill" ? "Practice Runs" : "Arcade Games"}
+                Clear Practice Runs
               </button>
               <button
                 type="button"

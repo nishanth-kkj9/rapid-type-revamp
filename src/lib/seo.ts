@@ -1,27 +1,21 @@
-import { ACHIEVEMENTS } from "./achievements";
 import type { AppMode } from "./urlState";
 
 const MODE_TITLES: Record<AppMode, string> = {
-  drill: "Typing Trainer Pro — Local-First Typing Speed & Accuracy Drills",
-  learn: "Learn Touch Typing — Typing Trainer Pro",
-  shooter: "Word Shooter Arcade — Typing Trainer Pro",
-  stats: "Stats & Progress — Typing Trainer Pro",
-  achievements: "Achievements & Milestones — Typing Trainer Pro",
-  settings: "Settings & Privacy — Typing Trainer Pro",
+  drill: "Typing Trainer",
+  learn: "Learn Touch Typing — Typing Trainer",
+  stats: "Stats & Progress — Typing Trainer",
+  settings: "Settings — Typing Trainer",
 };
 
 const MODE_DESCRIPTIONS: Record<AppMode, string> = {
   drill:
-    "Practice typing speed and accuracy offline with timed drills, word quotas, real quotes, live keystroke metrics, and adaptive weak-key exercises.",
+    "Typing practice with timed and word-count tests and an adaptive Learn mode. Works offline.",
   learn:
-    "Step-by-step touch typing lessons starting with six core letters, unlocking the full alphabet locally as speed and accuracy hit your target.",
-  shooter:
-    "Defend your ship in Word Shooter arcade mode by typing falling words accurately, building streaks, and clearing boss waves.",
+    "Step-by-step touch typing lessons starting with six letters and unlocking the alphabet as speed and accuracy hit your target.",
   stats:
-    "Inspect typing speed trends, personal bests, per-key accuracy heatmaps, 26-week practice calendar, daily goals, and full run history stored locally.",
-  achievements: `Track ${ACHIEVEMENTS.length} typing and arcade achievements, personal best WPM milestones, and active daily practice streaks stored in your browser.`,
+    "Typing speed trends, personal bests, per-key accuracy heatmap, 26-week practice calendar, daily goals, and run history.",
   settings:
-    "Customize typing modes, keyboard layouts, sound effects, high-contrast and OpenDyslexic accessibility themes, and manage local browser data.",
+    "Typing behavior, keyboard layouts, color themes, OpenDyslexic font, and local backup controls.",
 };
 
 /** Synchronize document title, description, canonical link, and absolute OpenGraph image/URL meta tags. */

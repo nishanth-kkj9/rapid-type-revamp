@@ -11,7 +11,6 @@ interface CompactTouchKeyboardProps {
   errorFlash: boolean;
   layout?: KeyboardLayoutId | undefined;
   standard?: KeyboardStandard | undefined;
-  showFingerZones?: boolean | undefined;
   lockedKeys?: ReadonlySet<string> | undefined;
   focusKey?: string | null | undefined;
 }
@@ -36,7 +35,6 @@ export function CompactTouchKeyboard({
   errorFlash,
   layout = "qwerty",
   standard = "ansi",
-  showFingerZones = true,
   lockedKeys,
   focusKey = null,
 }: CompactTouchKeyboardProps) {
@@ -65,7 +63,7 @@ export function CompactTouchKeyboard({
           </span>
         )}
         <span>
-          {lookup.finger && showFingerZones ? `${FINGER_SHORT[lookup.finger]} · ` : ""}
+          {lookup.finger ? `${FINGER_SHORT[lookup.finger]} · ` : ""}
           {layout.toUpperCase()}
         </span>
       </div>
@@ -86,7 +84,7 @@ export function CompactTouchKeyboard({
                 <div
                   key={cell.id}
                   data-state={isTarget ? (errorFlash ? "error" : "active") : undefined}
-                  data-finger={showFingerZones ? cell.finger : undefined}
+                  data-finger={cell.finger}
                   data-home={cell.home ? "true" : undefined}
                   data-learn={learnState}
                   className="keycap flex h-7 min-w-0 flex-1 items-center justify-center font-mono text-[13px]"

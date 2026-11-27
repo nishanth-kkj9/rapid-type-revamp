@@ -12,7 +12,12 @@ export const TEST_TYPE_FILTERS = [
   { id: "learn", label: "Learn" },
 ] as const;
 
-export const DIFFICULTIES = ["all", "easy", "medium", "hard"] as const;
+export const WORD_LIST_FILTERS = [
+  { id: "all", label: "All" },
+  { id: "200", label: "Common 200" },
+  { id: "1000", label: "Common 1000" },
+] as const;
+
 export const DATE_RANGES = [
   { id: "all", label: "All time", days: null },
   { id: "7d", label: "7d", days: 7 },
@@ -21,24 +26,24 @@ export const DATE_RANGES = [
 ] as const;
 
 export type TestTypeFilter = (typeof TEST_TYPE_FILTERS)[number]["id"];
-export type DifficultyFilter = (typeof DIFFICULTIES)[number];
+export type WordListFilter = (typeof WORD_LIST_FILTERS)[number]["id"];
 export type DateRangeFilter = (typeof DATE_RANGES)[number]["id"];
 
 interface HistoryDrillFiltersProps {
   testType: TestTypeFilter;
-  difficulty: DifficultyFilter;
+  wordList: WordListFilter;
   dateRange: DateRangeFilter;
   onTestTypeChange: (val: TestTypeFilter) => void;
-  onDifficultyChange: (val: DifficultyFilter) => void;
+  onWordListChange: (val: WordListFilter) => void;
   onDateRangeChange: (val: DateRangeFilter) => void;
 }
 
 export function HistoryDrillFilters({
   testType,
-  difficulty,
+  wordList,
   dateRange,
   onTestTypeChange,
-  onDifficultyChange,
+  onWordListChange,
   onDateRangeChange,
 }: HistoryDrillFiltersProps) {
   return (
@@ -67,22 +72,22 @@ export function HistoryDrillFilters({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-[13px] font-medium text-muted-foreground">Diff:</span>
-          {DIFFICULTIES.map((diff) => {
-            const active = difficulty === diff;
+          <span className="mr-1 text-[13px] font-medium text-muted-foreground">Word list:</span>
+          {WORD_LIST_FILTERS.map((wl) => {
+            const active = wordList === wl.id;
             return (
               <button
-                key={diff}
+                key={wl.id}
                 type="button"
                 aria-pressed={active}
-                onClick={() => onDifficultyChange(diff)}
-                className={`cursor-pointer rounded-md px-2 py-0.5 text-[13px] font-medium capitalize transition-colors ${
+                onClick={() => onWordListChange(wl.id)}
+                className={`cursor-pointer rounded-md px-2 py-0.5 text-[13px] font-medium transition-colors ${
                   active
                     ? "bg-foreground font-semibold text-background"
                     : "bg-secondary text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {diff}
+                {wl.label}
               </button>
             );
           })}

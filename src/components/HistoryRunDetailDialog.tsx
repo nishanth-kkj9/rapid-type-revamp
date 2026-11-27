@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatModeLabel, type HistoryEntry } from "@/lib/typingStats";
+import { formatModeLabel, formatWordListLabel, type HistoryEntry } from "@/lib/typingStats";
 import { ProblemKeys } from "@/components/ProblemKeys";
 import { WpmChart } from "@/components/WpmChart";
 
@@ -24,7 +24,6 @@ export function HistoryRunDetailDialog({
 }: HistoryRunDetailDialogProps) {
   if (!entry) return null;
 
-  const isShooter = entry.mode === "shooter";
   const dateLabel = new Date(entry.date).toLocaleString(undefined, {
     year: "numeric",
     month: "short",
@@ -38,18 +37,19 @@ export function HistoryRunDetailDialog({
       <DialogContent className="max-h-[90dvh] overflow-y-auto border-border bg-card text-foreground sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-lg font-bold">
-            {isShooter ? "Word Shooter Battle" : `${formatModeLabel(entry.mode)} Run Details`}
+            {formatModeLabel(entry.mode)} Run Details
           </DialogTitle>
           <DialogDescription className="text-[13px] tabular-nums text-muted-foreground">
-            {dateLabel} · {entry.difficulty} difficulty · {entry.elapsed.toFixed(1)}s elapsed
+            {dateLabel} · {formatWordListLabel(entry.difficulty)} · {entry.elapsed.toFixed(1)}s
+            elapsed
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-2 divide-y divide-border/60 rounded-xl border border-border/70 bg-secondary/20 sm:grid-cols-4 sm:divide-x sm:divide-y-0">
           <div className="p-3 text-center">
-            <div className="text-[13px] text-muted-foreground">{isShooter ? "Score" : "WPM"}</div>
+            <div className="text-[13px] text-muted-foreground">WPM</div>
             <div className="mt-0.5 font-mono text-2xl font-bold tabular-nums text-primary">
-              {isShooter ? (entry.score ?? 0).toLocaleString() : entry.wpm.toFixed(0)}
+              {entry.wpm.toFixed(0)}
             </div>
           </div>
           <div className="p-3 text-center">
@@ -59,21 +59,15 @@ export function HistoryRunDetailDialog({
             </div>
           </div>
           <div className="p-3 text-center">
-            <div className="text-[13px] text-muted-foreground">
-              {isShooter ? "Level" : "Raw WPM"}
-            </div>
+            <div className="text-[13px] text-muted-foreground">Raw WPM</div>
             <div className="mt-0.5 font-mono text-2xl font-bold tabular-nums">
-              {isShooter ? `Lvl ${entry.level ?? 1}` : entry.rawWpm.toFixed(0)}
+              {entry.rawWpm.toFixed(0)}
             </div>
           </div>
           <div className="p-3 text-center">
-            <div className="text-[13px] text-muted-foreground">
-              {isShooter ? "Words" : "Consistency"}
-            </div>
+            <div className="text-[13px] text-muted-foreground">Consistency</div>
             <div className="mt-0.5 font-mono text-2xl font-bold tabular-nums">
-              {isShooter
-                ? (entry.wordsDestroyed ?? entry.correct)
-                : `${entry.consistency.toFixed(0)}%`}
+              {entry.consistency.toFixed(0)}%
             </div>
           </div>
         </div>
@@ -81,15 +75,7 @@ export function HistoryRunDetailDialog({
         <p className="text-[13px] tabular-nums text-muted-foreground">
           {entry.correct} correct · {entry.incorrect} errors
           {entry.uncorrectedErrors !== undefined ? ` · ${entry.uncorrectedErrors} uncorrected` : ""}
-          {isShooter && entry.hitRate !== undefined
-            ? ` · ${entry.hitRate.toFixed(1)}% hit rate`
-            : ""}
-          {isShooter && entry.maxStreak !== undefined ? ` · ${entry.maxStreak}x max streak` : ""}
-          {isShooter && entry.strayKeys ? ` · ${entry.strayKeys} stray keys` : ""}
-          {isShooter && entry.bossesDefeated ? ` · ${entry.bossesDefeated} boss defeated` : ""}
-          {isShooter && entry.practiceMode ? " · Practice" : ""}
-          {isShooter && entry.dailyChallengeDate ? ` · Daily (${entry.dailyChallengeDate})` : ""}
-          {!isShooter ? ` · ${entry.adjustedWpm.toFixed(0)} net wpm` : ""}
+          {` · ${entry.adjustedWpm.toFixed(0)} net wpm`}
           {entry.strict ? ` · strict: ${entry.strict}` : ""}
           {entry.repeated ? " · Repeated text (excluded from PBs)" : ""}
         </p>

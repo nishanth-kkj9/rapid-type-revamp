@@ -23,12 +23,14 @@ export function formatResultShareText({
     month: "short",
     day: "numeric",
   });
-  const modeMeta = modeKey === "quote" ? modeLabel : `${modeLabel} · ${difficulty}`;
+  const listLabel =
+    difficulty === "200" ? "Common 200" : difficulty === "1000" ? "Common 1000" : difficulty;
+  const modeMeta = modeKey === "quote" ? modeLabel : `${modeLabel} · ${listLabel}`;
   const pbTag = isRecord ? " [PB]" : "";
   const authorTag = quoteAuthor ? ` · ${quoteAuthor}` : "";
 
   return [
-    `Typing Trainer Pro — ${Math.round(stats.wpm)} WPM${pbTag}`,
+    `Typing Trainer — ${Math.round(stats.wpm)} WPM${pbTag}`,
     `${stats.accuracy.toFixed(1)}% acc`,
     `${Math.round(stats.rawWpm)} raw`,
     `${Math.round(stats.consistency)}% consistency`,

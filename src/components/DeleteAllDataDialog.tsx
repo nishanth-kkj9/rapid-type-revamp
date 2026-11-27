@@ -37,9 +37,9 @@ export function DeleteAllDataDialog({
             Delete all local data
           </DialogTitle>
           <DialogDescription className="text-[13px] leading-relaxed text-muted-foreground">
-            This permanently erases your drill &amp; shooter history, key accuracy/speed stats,
-            achievements, daily goal streak, missed words, custom texts, and preferences stored in
-            this browser. Export a full backup first if you may want them back.
+            This permanently erases your practice &amp; learn history, key accuracy/speed stats,
+            daily goal streak, missed words, custom texts, and preferences stored in this browser.
+            Export a full backup first if you may want them back.
           </DialogDescription>
         </DialogHeader>
 

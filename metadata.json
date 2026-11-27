@@ -1,6 +1,6 @@
 {
   "name": "Typing Trainer Pro",
-  "description": "Typing practice with timed and word-count tests, an adaptive Learn mode and a Word Shooter side game. Works offline.",
+  "description": "Typing practice with timed and word-count tests and an adaptive Learn mode. Works offline.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

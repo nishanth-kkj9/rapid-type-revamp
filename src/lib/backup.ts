@@ -1,17 +1,5 @@
 import { z } from "zod";
-import {
-  ACHIEVEMENTS_KEY,
-  EMPTY_ACHIEVEMENTS,
-  sanitizeAchievements,
-  saveAchievementsToStorage,
-  type AchievementState,
-} from "./achievements";
-import {
-  hydrateAppFromStorage,
-  ONBOARDED_KEY,
-  SHOOTER_BEST_KEY,
-  type HydratedAppState,
-} from "./appHydration";
+import { hydrateAppFromStorage, type HydratedAppState } from "./appHydration";
 import { removeBootPrefs } from "./bootPrefs";
 import {
   CUSTOM_TEXTS_KEY,
@@ -55,12 +43,6 @@ import {
   saveMissedWordRecordsToStorage,
   type MissedWordRecord,
 } from "./missedWords";
-import {
-  DEFAULT_SHOOTER_SETTINGS,
-  sanitizeShooterSettings,
-  saveShooterSettingsToStorage,
-  type ShooterSettings,
-} from "./shooterSettings";
 import { LEGACY_EXACT_KEYS, LEGACY_SAMPLES_PREFIX, type Storage } from "./storage";
 import {
   HISTORY_INDEX_KEY,
@@ -94,16 +76,13 @@ export interface AppBackupPayloadV2 {
   allTimeKeys: Record<string, number>;
   allTimeBigrams: Record<string, number>;
   allTimeSpeed: KeySpeedMap;
-  achievements: AchievementState;
   daily: DailyState | null;
   missedWordRecords: MissedWordRecord[];
   customTexts: CustomTextEntry[];
   learn?: LearnState | undefined;
   drillSettings: DrillSettings;
-  shooterSettings: ShooterSettings;
   uiPrefs: UiPrefs;
   theme: Theme;
-  shooterBest: number;
   bestSamples?: Record<string, number[]> | undefined;
 }
 
@@ -114,16 +93,14 @@ const BackupV2EnvelopeSchema = z.object({
   allTimeKeys: z.record(z.string(), z.unknown()).optional(),
   allTimeBigrams: z.record(z.string(), z.unknown()).optional(),
   allTimeSpeed: z.record(z.string(), z.unknown()).optional(),
-  achievements: z.unknown().optional(),
+  achievements: z.unknown().optional(), // legacy v2 backup field accepted and ignored
   daily: DailyStateSchema.nullable().optional(),
   missedWordRecords: z.array(z.unknown()).optional(),
   customTexts: z.array(z.unknown()).optional(),
   learn: z.unknown().optional(),
   drillSettings: z.unknown().optional(),
-  shooterSettings: z.unknown().optional(),
   uiPrefs: z.unknown().optional(),
   theme: ThemeSchema.optional(),
-  shooterBest: z.number().finite().min(0).optional(),
   bestSamples: z.record(z.string(), SamplesSchema).optional(),
 });
 
@@ -157,35 +134,15 @@ export async function exportAllAppDataFromStorage(storage: Storage): Promise<App
     allTimeKeys: hydrated.allTimeKeys,
     allTimeBigrams: hydrated.allTimeBigrams,
     allTimeSpeed: hydrated.allTimeSpeed,
-    achievements: hydrated.achievements,
     daily: hydrated.daily,
     missedWordRecords: hydrated.missedWordRecords,
     customTexts: hydrated.customTexts,
     learn: hydrated.learn,
     drillSettings: hydrated.drillSettings,
-    shooterSettings: hydrated.shooterSettings,
     uiPrefs: hydrated.uiPrefs,
     theme: hydrated.theme,
-    shooterBest: hydrated.shooterBest,
     ...(Object.keys(bestSamples).length > 0 ? { bestSamples } : {}),
   };
-}
-
-function mergeAchievements(
-  current: AchievementState,
-  incoming: AchievementState,
-): AchievementState {
-  const unlocked: Record<string, string> = { ...current.unlocked };
-  for (const [id, ts] of Object.entries(incoming.unlocked)) {
-    if (!unlocked[id] || ts < unlocked[id]!) {
-      unlocked[id] = ts;
-    }
-  }
-  const counters: Record<string, number> = { ...current.counters };
-  for (const [k, v] of Object.entries(incoming.counters)) {
-    counters[k] = Math.max(counters[k] ?? 0, v);
-  }
-  return { unlocked, counters };
 }
 
 function mergeDaily(current: DailyState | null, incoming: DailyState | null): DailyState | null {
@@ -208,11 +165,9 @@ function mergeDaily(current: DailyState | null, incoming: DailyState | null): Da
     ...current,
     streak: Math.max(current.streak, incoming.streak),
     longestStreak: Math.max(current.longestStreak, incoming.longestStreak),
-    runsToday: Math.max(current.runsToday, incoming.runsToday),
     activeSecondsToday: Math.max(current.activeSecondsToday, incoming.activeSecondsToday),
     goalMetToday: current.goalMetToday || incoming.goalMetToday,
     lastGoalMetDate: current.lastGoalMetDate ?? incoming.lastGoalMetDate,
-    lastFreezeUsedDate: current.lastFreezeUsedDate ?? incoming.lastFreezeUsedDate,
   };
 }
 
@@ -275,7 +230,6 @@ export async function importAllAppDataToStorage(
     // Fall back gracefully to legacy v1 history import
     const legacyRes = await importHistoryToStorage(storage, rawJson);
     if (!legacyRes.ok) return { ok: false, reason: legacyRes.reason };
-    await storage.set(ONBOARDED_KEY, "1");
     const state = await hydrateAppFromStorage(storage);
     return { ok: true, scope: "history-only", state };
   }
@@ -302,14 +256,6 @@ export async function importAllAppDataToStorage(
     const incomingSpeed = sanitizeKeySpeed(payload.allTimeSpeed);
     if (Object.keys(incomingSpeed).length > 0) {
       await recordKeySpeedInStorage(storage, incomingSpeed);
-    }
-
-    if (payload.achievements !== undefined) {
-      const mergedAch = mergeAchievements(
-        current.achievements,
-        sanitizeAchievements(payload.achievements),
-      );
-      await saveAchievementsToStorage(storage, mergedAch);
     }
 
     if (payload.daily !== undefined) {
@@ -348,21 +294,12 @@ export async function importAllAppDataToStorage(
       await saveDrillSettingsToStorage(storage, sanitizeDrillSettings(payload.drillSettings));
     }
 
-    if (payload.shooterSettings !== undefined) {
-      await saveShooterSettingsToStorage(storage, sanitizeShooterSettings(payload.shooterSettings));
-    }
-
     if (payload.uiPrefs !== undefined) {
       await saveUiPrefsToStorage(storage, sanitizeUiPrefs(payload.uiPrefs));
     }
 
     if (payload.theme !== undefined) {
       await saveThemeToStorage(storage, payload.theme);
-    }
-
-    if (typeof payload.shooterBest === "number") {
-      // shooterBest is now strictly derived from run history; remove any legacy standalone key
-      await storage.delete(SHOOTER_BEST_KEY);
     }
 
     if (payload.bestSamples) {
@@ -376,7 +313,6 @@ export async function importAllAppDataToStorage(
     // Ensure keySpeed was reloaded cleanly if unused
     void loadKeySpeedFromStorage;
 
-    await storage.set(ONBOARDED_KEY, "1");
     const nextState = await hydrateAppFromStorage(storage);
     return { ok: true, scope: "full", state: nextState };
   } catch {
@@ -390,13 +326,10 @@ export async function clearAllAppData(storage: Storage): Promise<HydratedAppStat
     HISTORY_INDEX_KEY,
     KEY_STATS_KEY,
     KEY_BIGRAMS_KEY,
-    ACHIEVEMENTS_KEY,
     DAILY_STORAGE_KEY,
     MISSED_WORDS_KEY,
     CUSTOM_TEXTS_KEY,
     LEARN_STORAGE_KEY,
-    SHOOTER_BEST_KEY,
-    ONBOARDED_KEY,
   ]);
 
   try {
@@ -446,19 +379,15 @@ export async function clearAllAppData(storage: Storage): Promise<HydratedAppStat
   return {
     history: [],
     drillSettings: { ...DEFAULT_DRILL_SETTINGS },
-    shooterSettings: { ...DEFAULT_SHOOTER_SETTINGS },
     uiPrefs: { ...DEFAULT_UI_PREFS },
     theme,
     allTimeKeys: {},
     allTimeBigrams: {},
     allTimeSpeed: {},
-    achievements: { ...EMPTY_ACHIEVEMENTS },
     daily: null,
     missedWordRecords: [],
     missedWords: getActiveMissedWords([]),
     customTexts: [],
     learn: createInitialLearnState(),
-    shooterBest: 0,
-    onboarded: true,
   };
 }

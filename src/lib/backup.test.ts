@@ -6,16 +6,15 @@ import {
   saveRunToStorage,
   loadBestSamplesFromStorage,
   saveBestSamplesToStorage,
+  filterVisibleHistory,
   type HistoryEntry,
 } from "./typingStats";
 import { recordKeyMistakesInStorage, recordKeyBigramsInStorage } from "./keyStats";
 import { recordKeySpeedInStorage } from "./keySpeed";
-import { saveAchievementsToStorage } from "./achievements";
 import { saveDailyToStorage } from "./daily";
 import { saveMissedWordRecordsToStorage } from "./missedWords";
 import { saveCustomTextsToStorage } from "./customTexts";
 import { saveDrillSettingsToStorage } from "./drillSettings";
-import { saveShooterSettingsToStorage } from "./shooterSettings";
 import { saveThemeToStorage } from "./useTheme";
 import { hydrateAppFromStorage } from "./appHydration";
 import { saveLearnToStorage } from "./learn";
@@ -38,42 +37,23 @@ const sampleEntry: HistoryEntry = {
   errorSeconds: [4.2, 11.8],
 };
 
-const shooterSampleEntry: HistoryEntry = {
-  ...sampleEntry,
-  id: "run-shooter-backup-1",
-  date: 1730000001000,
-  mode: "shooter",
-  score: 4200,
-  wordsDestroyed: 35,
-  level: 5,
-};
-
 describe("Backup v2 & full deletion", () => {
   it("exports everything, wipes all data permanently, then restores every domain from backup", async () => {
     const storage = new MemoryStorage();
 
     await saveRunToStorage(storage, sampleEntry);
-    await saveRunToStorage(storage, shooterSampleEntry);
     await recordKeyMistakesInStorage(storage, { q: 5, x: 3 });
     await recordKeyBigramsInStorage(storage, { qu: 4 });
     await recordKeySpeedInStorage(storage, { q: [900, 3] });
-    await saveAchievementsToStorage(storage, {
-      unlocked: { "first-run": "2026-11-14T10:00:00.000Z" },
-      counters: { focusRuns: 3 },
-    });
     await saveDailyToStorage(storage, {
       lastDate: "2026-11-15",
       streak: 5,
       longestStreak: 5,
-      runsToday: 2,
       activeSecondsToday: 240,
       goalMetToday: false,
       lastGoalMetDate: "2026-11-14",
       previousGoalMetDate: "2026-11-13",
-      goalType: "minutes",
       goalTarget: 5,
-      freezeEnabled: true,
-      lastFreezeUsedDate: null,
     });
     await saveMissedWordRecordsToStorage(storage, [
       { word: "rhythm", cleanStreak: 1, lastSeenAt: 1730000000000 },
@@ -82,7 +62,7 @@ describe("Backup v2 & full deletion", () => {
       { id: "ct-1", name: "Warmup", text: "alpha beta gamma", createdAt: 100, updatedAt: 200 },
     ]);
     await saveDrillSettingsToStorage(storage, {
-      difficulty: "hard",
+      wordList: "1000",
       duration: 60,
       sound: "beep",
       caretStyle: "block",
@@ -92,15 +72,6 @@ describe("Backup v2 & full deletion", () => {
       focusWeakKeys: true,
       drillMode: "words",
       wordCount: 25,
-    });
-    await saveShooterSettingsToStorage(storage, {
-      difficulty: "hard",
-      speedMultiplier: 1.5,
-      startingLives: 5,
-      soundEnabled: false,
-      showKeyboard: true,
-      practiceMode: false,
-      dailyChallenge: false,
     });
     await saveThemeToStorage(storage, "light");
     await saveBestSamplesToStorage(storage, "25w", [12, 24, 38], "hard");
@@ -115,16 +86,14 @@ describe("Backup v2 & full deletion", () => {
     // 1. Export everything
     const exported = await exportAllAppDataFromStorage(storage);
     expect(exported.schemaVersion).toBe(2);
-    expect(exported.history).toHaveLength(2);
+    expect(exported.history).toHaveLength(1);
     expect(exported.allTimeKeys["q"]).toBe(5);
     expect(exported.allTimeBigrams["qu"]).toBe(4);
     expect(exported.allTimeSpeed["q"]).toEqual([900, 3]);
-    expect(exported.achievements.unlocked["first-run"]).toBeTruthy();
     expect(exported.daily?.streak).toBe(5);
     expect(exported.missedWordRecords[0]?.word).toBe("rhythm");
     expect(exported.customTexts[0]?.name).toBe("Warmup");
     expect(exported.drillSettings.targetWpm).toBe(85);
-    expect(exported.shooterBest).toBe(4200);
     expect(exported.learn?.unlocked).toEqual(["e", "t", "a", "o", "i", "n", "s"]);
     expect(exported.learn?.targetWpm).toBe(45);
 
@@ -134,7 +103,6 @@ describe("Backup v2 & full deletion", () => {
     const cleared = await clearAllAppData(storage);
     expect(cleared.history).toEqual([]);
     expect(cleared.allTimeKeys).toEqual({});
-    expect(cleared.achievements.unlocked).toEqual({});
     expect(cleared.daily).toBeNull();
     expect(cleared.missedWordRecords).toEqual([]);
     expect(cleared.customTexts).toEqual([]);
@@ -144,7 +112,6 @@ describe("Backup v2 & full deletion", () => {
     expect(rehydratedEmpty.allTimeKeys).toEqual({});
     expect(rehydratedEmpty.allTimeSpeed).toEqual({});
     expect(rehydratedEmpty.daily).toBeNull();
-    expect(rehydratedEmpty.shooterBest).toBe(0);
     expect(rehydratedEmpty.learn.unlocked).toEqual(["e", "t", "a", "o", "i", "n"]);
     expect(rehydratedEmpty.learn.lessons).toBe(0);
     expect(await loadBestSamplesFromStorage(storage, "25w", "hard")).toBeUndefined();
@@ -154,21 +121,18 @@ describe("Backup v2 & full deletion", () => {
     expect(restoredRes.ok).toBe(true);
     if (!restoredRes.ok) return;
     expect(restoredRes.scope).toBe("full");
-    expect(restoredRes.state.history).toHaveLength(2);
+    expect(restoredRes.state.history).toHaveLength(1);
     expect(restoredRes.state.history.find((h) => h.id === "run-backup-1")?.errorSeconds).toEqual([
       4.2, 11.8,
     ]);
     expect(restoredRes.state.allTimeKeys["q"]).toBe(5);
     expect(restoredRes.state.allTimeBigrams["qu"]).toBe(4);
     expect(restoredRes.state.allTimeSpeed["q"]).toEqual([900, 3]);
-    expect(restoredRes.state.achievements.unlocked["first-run"]).toBeTruthy();
     expect(restoredRes.state.daily?.streak).toBe(5);
     expect(restoredRes.state.missedWords).toContain("rhythm");
     expect(restoredRes.state.customTexts[0]?.name).toBe("Warmup");
     expect(restoredRes.state.drillSettings.targetWpm).toBe(85);
-    expect(restoredRes.state.shooterSettings.startingLives).toBe(5);
     expect(restoredRes.state.theme).toBe("light");
-    expect(restoredRes.state.shooterBest).toBe(4200);
     expect(restoredRes.state.learn.unlocked).toEqual(["e", "t", "a", "o", "i", "n", "s"]);
     expect(restoredRes.state.learn.targetWpm).toBe(45);
     expect(await loadBestSamplesFromStorage(storage, "25w", "hard")).toEqual([12, 24, 38]);
@@ -234,18 +198,97 @@ describe("Backup v2 & full deletion", () => {
     expect(bad).toEqual({ ok: false, reason: "invalid" });
   });
 
-  it("imports legacy v2 backup containing uiPrefs.themeAccent without error", async () => {
+  it("imports old-format v2 backup containing removed shooter data and achievements without error", async () => {
     const storage = new MemoryStorage();
-    const legacyV2 = JSON.stringify({
+    // Simulate leftover legacy IndexedDB keys from earlier versions
+    await storage.set("ttp:shooter:settings:v1", { difficulty: "hard", startingLives: 5 });
+    await storage.set("ttp:shooter:best:v1", 4200);
+    await storage.set("ttp:achievements:v1", {
+      unlocked: { "first-run": "2026-11-14T10:00:00.000Z" },
+      counters: {},
+    });
+
+    const oldFormatV2 = JSON.stringify({
       schemaVersion: 2,
       exportedAt: 1730000000000,
-      history: [sampleEntry],
+      history: [
+        sampleEntry,
+        {
+          ...sampleEntry,
+          id: "run-shooter-legacy",
+          date: 1730000001000,
+          mode: "shooter",
+          score: 4200,
+          wordsDestroyed: 35,
+          wordsSpawned: 38,
+          hitRate: 92,
+          maxStreak: 14,
+          strayKeys: 2,
+          bossesDefeated: 1,
+          practiceMode: false,
+          dailyChallengeDate: "2026-11-14",
+          level: 5,
+        },
+      ],
+      achievements: {
+        unlocked: {
+          "first-run": "2026-11-14T10:00:00.000Z",
+          "boss-slayer": "2026-11-14T10:05:00.000Z",
+        },
+        counters: { wordsDestroyed: 35, bossesDefeated: 1 },
+      },
+      shooterSettings: {
+        difficulty: "hard",
+        speedMultiplier: 1.5,
+        startingLives: 5,
+        soundEnabled: false,
+        showKeyboard: true,
+        practiceMode: false,
+        dailyChallenge: false,
+      },
+      shooterBest: 4200,
+      daily: {
+        lastDate: "2026-11-14",
+        streak: 5,
+        longestStreak: 7,
+        runsToday: 3,
+        activeSecondsToday: 120,
+        goalMetToday: true,
+        lastGoalMetDate: "2026-11-14",
+        goalType: "runs",
+        goalTarget: 3,
+        freezeEnabled: true,
+        lastFreezeUsedDate: "2026-11-12",
+      },
+      drillSettings: {
+        difficulty: "hard",
+        textStyle: "sentences",
+        duration: 45,
+      },
       uiPrefs: { heatmapMetric: "speed", themeAccent: "violet", dyslexiaFont: true },
     });
-    const res = await importAllAppDataToStorage(storage, legacyV2);
+
+    const res = await importAllAppDataToStorage(storage, oldFormatV2);
     expect(res.ok).toBe(true);
-    if (res.ok) {
-      expect(res.state.uiPrefs).toEqual({ heatmapMetric: "speed", dyslexiaFont: true });
-    }
+    if (!res.ok) return;
+    expect(res.scope).toBe("full");
+    expect(res.state.drillSettings.wordList).toBe("1000");
+    expect(res.state.drillSettings.duration).toBe(45);
+    expect(res.state.uiPrefs).toEqual({
+      heatmapMetric: "speed",
+      dyslexiaFont: true,
+      learnPromptDismissed: false,
+    });
+    expect(res.state.daily?.goalTarget).toBe(5);
+    expect(res.state.daily?.streak).toBe(5);
+    // Legacy achievements key already on disk is left untouched on import
+    expect(await storage.get("ttp:achievements:v1")).toBeTruthy();
+    // Legacy shooter run is preserved on disk, hidden by filterVisibleHistory
+    expect(res.state.history.some((h) => h.id === "run-shooter-legacy")).toBe(true);
+    expect(filterVisibleHistory(res.state.history).map((h) => h.id)).toEqual(["run-backup-1"]);
+
+    // Delete all data still clears every ttp:* key including leftover legacy keys
+    await clearAllAppData(storage);
+    expect(await storage.list("ttp:")).toEqual([]);
   });
 });

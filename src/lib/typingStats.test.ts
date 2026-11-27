@@ -12,7 +12,7 @@ import {
   computePersonalBestsTable,
   computeSameTypeTrend,
   deleteRunFromStorage,
-  getShooterBestScore,
+  filterVisibleHistory,
   loadHistoryFromStorage,
   saveRunToStorage,
   importHistoryToStorage,
@@ -91,12 +91,11 @@ describe("toDeltas & rolling WPM", () => {
 });
 
 describe("formatModeLabel & scoped PB", () => {
-  it("formats drill and shooter labels consistently", () => {
+  it("formats drill and learn labels consistently", () => {
     expect(formatModeLabel("30")).toBe("30s");
     expect(formatModeLabel("30s")).toBe("30s");
     expect(formatModeLabel("25w")).toBe("25 words");
     expect(formatModeLabel("quote")).toBe("Quote");
-    expect(formatModeLabel("shooter")).toBe("Shooter");
     expect(formatModeLabel("learn")).toBe("Learn");
   });
 
@@ -106,7 +105,6 @@ describe("formatModeLabel & scoped PB", () => {
       entry({ id: "2", mode: "30s", difficulty: "hard", wpm: 62 }),
       entry({ id: "3", mode: "25w", difficulty: "hard", wpm: 80 }),
       entry({ id: "4", mode: "quote", difficulty: "easy", wpm: 77 }),
-      entry({ id: "5", mode: "shooter", difficulty: "hard", wpm: 130 }),
     ];
     expect(getPersonalBestWpm(history, "30s", "hard")).toBe(62);
     expect(getPersonalBestWpm(history, "30s", "easy")).toBe(95);
@@ -114,14 +112,13 @@ describe("formatModeLabel & scoped PB", () => {
     expect(getPersonalBestWpm(history, "quote", "hard")).toBe(77);
   });
 
-  it("excludes repeated, shooter, and learn runs from personal bests and persists strict/repeated metadata", async () => {
+  it("excludes repeated and learn runs from personal bests and persists strict/repeated metadata", async () => {
     const history = [
       entry({ id: "1", mode: "30s", difficulty: "medium", wpm: 72 }),
       entry({ id: "2", mode: "30s", difficulty: "medium", wpm: 125, repeated: true }),
       entry({ id: "3", mode: "25w", difficulty: "medium", wpm: 110, repeated: true }),
       entry({ id: "4", mode: "learn", difficulty: "medium", wpm: 140 }),
       entry({ id: "5", mode: "learn-home-row", difficulty: "easy", wpm: 130 }),
-      entry({ id: "6", mode: "shooter", difficulty: "hard", wpm: 150 }),
     ];
     expect(getPersonalBestWpm(history, "30s", "medium")).toBe(72);
     expect(getPersonalBestWpm(history, "25w", "medium")).toBe(0);
@@ -242,61 +239,23 @@ describe("history storage", () => {
     if (parsed.success) expect(parsed.data.mode).toBe("30");
   });
 
-  it("saves, loads, and filters shooter runs with mode 'shooter'", async () => {
-    const storage = new MemoryStorage();
-    const shooterRun = entry({
-      id: "shooter-1",
-      mode: "shooter",
-      wpm: 60,
-      accuracy: 95,
-      correct: 25,
-      incorrect: 2,
-      score: 1450,
-      wordsDestroyed: 24,
-      level: 4,
-    });
-    const { list } = await saveRunToStorage(storage, shooterRun);
-    expect(list.some((e) => e.id === "shooter-1" && e.mode === "shooter")).toBe(true);
-
-    const loaded = await loadHistoryFromStorage(storage);
-    const found = loaded.find((e) => e.id === "shooter-1");
-    expect(found).toBeDefined();
-    expect(found?.mode).toBe("shooter");
-    expect(found?.score).toBe(1450);
-    expect(found?.wordsDestroyed).toBe(24);
-    expect(found?.level).toBe(4);
-
-    // Standard drill filters exclude shooter runs
-    const drillOnly = loaded.filter(
-      (e) => e.mode !== "shooter" && (e.mode === "30" || e.mode === "30s"),
-    );
-    expect(drillOnly.some((e) => e.id === "shooter-1")).toBe(false);
-
-    // Shooter filter finds shooter runs
-    const shooterOnly = loaded.filter((e) => e.mode === "shooter");
-    expect(shooterOnly.some((e) => e.id === "shooter-1")).toBe(true);
-  });
-
-  it("supports clearing history selectively by mode", async () => {
+  it("preserves legacy mode 'shooter' entries on disk without showing them and clears drill-only view safely", async () => {
     const storage = new MemoryStorage();
     const drill = entry({ id: "drill-1", mode: "30", date: 10 });
-    const shooter = entry({ id: "shooter-1", mode: "shooter", score: 800, level: 2, date: 20 });
+    const legacyHidden = entry({ id: "legacy-shooter-1", mode: "shooter", date: 20 });
     await saveRunToStorage(storage, drill);
-    await saveRunToStorage(storage, shooter);
+    await saveRunToStorage(storage, legacyHidden);
 
-    // Clear drill only
+    const loaded = await loadHistoryFromStorage(storage);
+    expect(loaded).toHaveLength(2);
+    expect(filterVisibleHistory(loaded).map((e) => e.id)).toEqual(["drill-1"]);
+
+    // Clearing Practice view deletes visible runs while leaving legacy shooter entry on disk
     const afterDrillClear = await clearHistoryInStorage(storage, "drill");
-    expect(afterDrillClear.length).toBe(1);
-    expect(afterDrillClear[0]?.id).toBe("shooter-1");
+    expect(afterDrillClear.map((e) => e.id)).toEqual(["legacy-shooter-1"]);
+    expect(filterVisibleHistory(afterDrillClear)).toEqual([]);
 
-    // Add another drill
-    await saveRunToStorage(storage, entry({ id: "drill-2", mode: "60", date: 30 }));
-    // Clear shooter only
-    const afterShooterClear = await clearHistoryInStorage(storage, "shooter");
-    expect(afterShooterClear.length).toBe(1);
-    expect(afterShooterClear[0]?.id).toBe("drill-2");
-
-    // Clear all
+    // Full clear removes everything
     const afterAllClear = await clearHistoryInStorage(storage, "all");
     expect(afterAllClear).toEqual([]);
     expect(await loadHistoryFromStorage(storage)).toEqual([]);
@@ -337,8 +296,7 @@ describe("History v2 analytics & single-run deletion", () => {
       ...Array.from({ length: 5 }, (_, i) =>
         entry({ id: `b-${i}`, date: 2000 + i, mode: "25w", difficulty: "medium", wpm: 60 }),
       ),
-      // Add an unrelated higher shooter run that must not affect 25w trend
-      entry({ id: "sh-1", date: 3000, mode: "shooter", difficulty: "medium", wpm: 140 }),
+      entry({ id: "q-1", date: 3000, mode: "quote", difficulty: "medium", wpm: 140 }),
     ];
 
     const trend = computeSameTypeTrend(sameTypeAndDiff, "25w", "medium");
@@ -350,20 +308,46 @@ describe("History v2 analytics & single-run deletion", () => {
 
   it("filters 25 words and Quote runs and computes personal best table per test type", () => {
     const history = [
-      entry({ id: "w1", mode: "25w", difficulty: "medium", wpm: 71, accuracy: 96 }),
-      entry({ id: "w2", mode: "25w", difficulty: "medium", wpm: 79, accuracy: 98 }),
-      entry({ id: "q1", mode: "quote", difficulty: "hard", wpm: 64, accuracy: 99 }),
-      entry({ id: "s1", mode: "shooter", difficulty: "hard", wpm: 120, accuracy: 95 }),
+      entry({
+        id: "w1",
+        mode: "25w",
+        difficulty: "medium",
+        wpm: 71,
+        accuracy: 96,
+        punctuation: false,
+        numbers: false,
+      }),
+      entry({
+        id: "w2",
+        mode: "25w",
+        difficulty: "medium",
+        wpm: 79,
+        accuracy: 98,
+        punctuation: true,
+        numbers: true,
+      }),
+      entry({
+        id: "q1",
+        mode: "quote",
+        difficulty: "hard",
+        wpm: 64,
+        accuracy: 99,
+        quoteLength: "long",
+      }),
+      entry({ id: "l1", mode: "learn", difficulty: "easy", wpm: 120, accuracy: 95 }),
     ];
     expect(getModeHistory(history, "25w")).toHaveLength(2);
     expect(getModeHistory(history, "quote")).toHaveLength(1);
 
     const pbTable = computePersonalBestsTable(history);
-    expect(pbTable).toHaveLength(2); // excludes shooter
+    expect(pbTable).toHaveLength(2); // excludes learn
     expect(pbTable[0]?.modeLabel).toBe("25 words");
     expect(pbTable[0]?.bestWpm).toBe(79);
     expect(pbTable[0]?.runs).toBe(2);
+    expect(pbTable[0]?.punctuation).toBe(true);
+    expect(pbTable[0]?.numbers).toBe(true);
     expect(pbTable[1]?.modeLabel).toBe("Quote");
+    expect(pbTable[1]?.quoteLength).toBe("long");
   });
 
   it("deletes a single run from storage cleanly", async () => {
@@ -372,18 +356,6 @@ describe("History v2 analytics & single-run deletion", () => {
     const { deleted, list } = await deleteRunFromStorage(storage, "del-1");
     expect(deleted?.id).toBe("del-1");
     expect(list.map((r) => r.id)).toEqual(["keep-2"]);
-  });
-
-  it("derives shooter best score strictly from non-practice shooter history and resets on clear", () => {
-    const history = [
-      entry({ id: "d1", mode: "30s", score: 5000 }),
-      entry({ id: "s1", mode: "shooter", score: 1850 }),
-      entry({ id: "s2", mode: "shooter", score: 9999, practiceMode: true }),
-      entry({ id: "s3", mode: "shooter", score: 1200 }),
-    ];
-    expect(getShooterBestScore(history)).toBe(1850);
-    expect(getShooterBestScore(history.filter((h) => h.id !== "s1"))).toBe(1200);
-    expect(getShooterBestScore(history.filter((h) => h.mode !== "shooter"))).toBe(0);
   });
 });
 

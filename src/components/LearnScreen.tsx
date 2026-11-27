@@ -7,11 +7,10 @@ import {
   RotateCcw,
   Sparkles,
 } from "lucide-react";
-import { playDrillKeySound } from "@/lib/arcadeAudio";
+import { playDrillKeySound } from "@/lib/drillSound";
 import {
   getKeyboardLayout,
   getKeyboardStandard,
-  getShowFingerZones,
   resolveTextOptions,
   type DrillSettings,
 } from "@/lib/drillSettings";
@@ -48,7 +47,6 @@ interface LearnScreenProps {
   drillSettings: DrillSettings;
   onTargetWpmChange: (wpm: number) => void;
   onCommitLesson: (payload: LearnRunCommitPayload) => LearnLessonUpdateResult;
-  onOpenAchievements?: (() => void) | undefined;
 }
 
 interface LessonResultSnapshot {
@@ -65,12 +63,10 @@ export function LearnScreen({
   drillSettings,
   onTargetWpmChange,
   onCommitLesson,
-  onOpenAchievements,
 }: LearnScreenProps) {
   const coarsePointer = useCoarsePointer();
   const layout = getKeyboardLayout(drillSettings);
   const standard = getKeyboardStandard(drillSettings);
-  const showFingerZones = getShowFingerZones(drillSettings);
   const textOpts = resolveTextOptions(drillSettings);
 
   const [seed, setSeed] = useState(
@@ -292,7 +288,7 @@ export function LearnScreen({
                 .
               </>
             ) : (
-              "All 26 letters unlocked! Keep refining your speed and rhythm across the full alphabet."
+              "All 26 letters unlocked."
             )}
           </p>
         </div>
@@ -382,7 +378,6 @@ export function LearnScreen({
           errorFlash={errorFlash}
           layout={layout}
           standard={standard}
-          showFingerZones={showFingerZones}
           lockedKeys={lockedKeys}
           focusKey={focusKey}
         />
@@ -440,15 +435,6 @@ export function LearnScreen({
                   </div>
                 </div>
               </div>
-              {onOpenAchievements ? (
-                <button
-                  type="button"
-                  onClick={onOpenAchievements}
-                  className="cursor-pointer rounded-lg border border-border bg-card px-3 py-1.5 text-[13px] font-medium text-foreground hover:bg-secondary"
-                >
-                  View achievements
-                </button>
-              ) : null}
             </div>
           ) : null}
 
@@ -561,7 +547,6 @@ export function LearnScreen({
           pressedChar={pressedChar}
           layout={layout}
           standard={standard}
-          showFingerZones={showFingerZones}
           lockedKeys={lockedKeys}
           focusKey={focusKey}
         />

@@ -249,14 +249,11 @@ export const LEGACY_EXACT_KEYS = [
   "ttp:history:v1",
   "ttp:keystats:v1",
   "ttp:keyspeed:v1",
-  "ttp:achievements:v1",
   "ttp:daily:v1",
   "ttp:missed-words:v1",
   "ttp:drill:settings:v1",
-  "ttp:shooter:settings:v1",
   "ttp:uiprefs:v1",
   "ttp:theme:v1",
-  "ttp:shooter:best:v1",
   "ttp:onboarded:v1",
 ] as const;
 
@@ -267,10 +264,6 @@ const STRING_RAW_KEYS = new Set(["ttp:theme:v1", "ttp:onboarded:v1"]);
 function parseLegacyValue(key: string, raw: string): unknown {
   if (STRING_RAW_KEYS.has(key)) {
     return raw;
-  }
-  if (key === "ttp:shooter:best:v1") {
-    const n = Number(raw);
-    return Number.isFinite(n) ? n : raw;
   }
   try {
     return JSON.parse(raw) as unknown;

@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { appStorage } from "@/lib/storage";
 import { hydrateAppFromStorage, type HydratedAppState } from "@/lib/appHydration";
 import { clearAllAppData, importAllAppDataToStorage, type BackupImportResult } from "@/lib/backup";
 import { removeBootPrefs, writeBootPrefs } from "@/lib/bootPrefs";
 import { syncSeoMetadata } from "@/lib/seo";
-import { parseUrlState, syncUrlState, type AppMode, type SettingsTabId } from "@/lib/urlState";
+import { parseUrlState, syncUrlState, type AppMode } from "@/lib/urlState";
 import { applyTheme, useTheme, type Theme } from "@/lib/useTheme";
 import {
   DEFAULT_DRILL_SETTINGS,
@@ -13,27 +13,13 @@ import {
   saveDrillSettingsToStorage,
   type DrillSettings,
 } from "@/lib/drillSettings";
-import {
-  DEFAULT_SHOOTER_SETTINGS,
-  saveShooterSettingsToStorage,
-  type ShooterSettings,
-} from "@/lib/shooterSettings";
 import { applyDyslexiaFont, DEFAULT_UI_PREFS, saveUiPrefsToStorage } from "@/lib/uiPrefs";
 import {
   clearHistoryInStorage,
-  computeStats,
   deleteRunFromStorage,
-  getShooterBestScore,
-  newRunId,
   saveRunToStorage,
   type HistoryEntry,
-  type ShooterRunSummary,
 } from "@/lib/typingStats";
-import {
-  evaluateAchievements,
-  saveAchievementsToStorage,
-  type AchievementState,
-} from "@/lib/achievements";
 import {
   getEffectiveDaily,
   getLocalDateString,
@@ -87,17 +73,16 @@ export function useAppStore() {
   const { theme, selectTheme } = useTheme(hydratedTheme);
 
   const [mode, setMode] = useState<AppMode>(() => initialUrlPatch.mode ?? "drill");
-  const [settingsTab, setSettingsTab] = useState<SettingsTabId>(
-    () => initialUrlPatch.settingsTab ?? "typing",
-  );
   const [returnMode, setReturnMode] = useState<Exclude<AppMode, "settings">>(() =>
     initialUrlPatch.mode && initialUrlPatch.mode !== "settings" ? initialUrlPatch.mode : "drill",
   );
   const [drillSettings, setDrillSettings] = useState<DrillSettings>(() =>
     sanitizeDrillSettings({ ...DEFAULT_DRILL_SETTINGS, ...initialUrlPatch }),
   );
-  const [shooterSettings, setShooterSettings] = useState<ShooterSettings>(DEFAULT_SHOOTER_SETTINGS);
   const [dyslexiaFont, setDyslexiaFontState] = useState<boolean>(DEFAULT_UI_PREFS.dyslexiaFont);
+  const [learnPromptDismissed, setLearnPromptDismissedState] = useState<boolean>(
+    DEFAULT_UI_PREFS.learnPromptDismissed,
+  );
 
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [allTimeKeys, setAllTimeKeys] = useState<Record<string, number>>({});
@@ -107,16 +92,11 @@ export function useAppStore() {
   const [storedMissedWords, setStoredMissedWords] = useState<string[]>([]);
   const [customTexts, setCustomTexts] = useState<CustomTextEntry[]>([]);
   const [learnState, setLearnState] = useState<LearnState>(() => createInitialLearnState());
-  const [achState, setAchState] = useState<AchievementState>({ unlocked: {}, counters: {} });
   const [daily, setDaily] = useState<DailyState | null>(null);
-  const [alreadyOnboarded, setAlreadyOnboarded] = useState(true);
   const [historyReady, setHistoryReady] = useState(false);
   const [liveAnnouncement, setLiveAnnouncement] = useState("");
 
-  const shooterBest = useMemo(() => getShooterBestScore(history), [history]);
-
   const historyRef = useRef<HistoryEntry[]>([]);
-  const achStateRef = useRef<AchievementState>({ unlocked: {}, counters: {} });
   const dailyRef = useRef<DailyState | null>(null);
   const missedWordRecordsRef = useRef<MissedWordRecord[]>([]);
   const customTextsRef = useRef<CustomTextEntry[]>([]);
@@ -144,8 +124,8 @@ export function useAppStore() {
         ? sanitizeDrillSettings({ ...data.drillSettings, ...urlPatch })
         : sanitizeDrillSettings(data.drillSettings);
       setDrillSettings(mergedDrill);
-      setShooterSettings(data.shooterSettings);
       setDyslexiaFontState(data.uiPrefs.dyslexiaFont);
+      setLearnPromptDismissedState(data.uiPrefs.learnPromptDismissed);
       applyDyslexiaFont(data.uiPrefs.dyslexiaFont);
       setHydratedTheme(data.theme);
       applyTheme(data.theme);
@@ -169,11 +149,8 @@ export function useAppStore() {
       setCustomTexts(data.customTexts);
       learnStateRef.current = data.learn;
       setLearnState(data.learn);
-      achStateRef.current = data.achievements;
-      setAchState(data.achievements);
       dailyRef.current = data.daily;
       setDaily(data.daily);
-      setAlreadyOnboarded(data.onboarded);
     },
     [],
   );
@@ -207,8 +184,8 @@ export function useAppStore() {
   useEffect(() => {
     syncSeoMetadata(mode);
     if (!hydrated) return;
-    syncUrlState(mode, drillSettings, settingsTab);
-  }, [hydrated, mode, drillSettings, settingsTab]);
+    syncUrlState(mode, drillSettings);
+  }, [hydrated, mode, drillSettings]);
 
   const navigateMode = useCallback((nextMode: AppMode) => {
     if (nextMode !== "settings") {
@@ -217,20 +194,12 @@ export function useAppStore() {
     setMode(nextMode);
   }, []);
 
-  const openSettings = useCallback(
-    (tab?: SettingsTabId) => {
-      if (mode !== "settings") {
-        setReturnMode(mode);
-      }
-      if (tab) {
-        setSettingsTab(tab);
-      } else {
-        setSettingsTab(mode === "shooter" ? "game" : "typing");
-      }
-      setMode("settings");
-    },
-    [mode],
-  );
+  const openSettings = useCallback(() => {
+    if (mode !== "settings") {
+      setReturnMode(mode);
+    }
+    setMode("settings");
+  }, [mode]);
 
   const closeSettings = useCallback(() => {
     setMode(returnMode);
@@ -251,16 +220,16 @@ export function useAppStore() {
     return clean;
   }, []);
 
-  const saveShooterSettings = useCallback((next: ShooterSettings) => {
-    setShooterSettings(next);
-    void saveShooterSettingsToStorage(appStorage, next);
-  }, []);
-
   const setDyslexiaFont = useCallback((enabled: boolean) => {
     setDyslexiaFontState(enabled);
     applyDyslexiaFont(enabled);
     writeBootPrefs({ dyslexiaFont: enabled });
     void saveUiPrefsToStorage(appStorage, { dyslexiaFont: enabled });
+  }, []);
+
+  const dismissLearnPrompt = useCallback(() => {
+    setLearnPromptDismissedState(true);
+    void saveUiPrefsToStorage(appStorage, { learnPromptDismissed: true });
   }, []);
 
   const saveCustomText = useCallback(
@@ -302,32 +271,6 @@ export function useAppStore() {
     });
   }, []);
 
-  const commitAchievements = useCallback(
-    (ctx: Parameters<typeof evaluateAchievements>[0]) => {
-      const { state, newlyUnlocked } = evaluateAchievements(ctx, achStateRef.current);
-      if (newlyUnlocked.length === 0) return;
-      achStateRef.current = state;
-      setAchState(state);
-      void saveAchievementsToStorage(appStorage, state);
-      const titles = newlyUnlocked.map((a) => a.title).join(", ");
-      announce(
-        newlyUnlocked.length === 1
-          ? `Achievement unlocked: ${titles}.`
-          : `${newlyUnlocked.length} achievements unlocked: ${titles}.`,
-      );
-      for (const a of newlyUnlocked) {
-        toast.success(`Achievement unlocked — ${a.title}`, {
-          description: a.description,
-          action: {
-            label: "View",
-            onClick: () => setMode("achievements"),
-          },
-        });
-      }
-    },
-    [announce],
-  );
-
   const recordDaily = useCallback(
     (activeSeconds: number) => {
       const today = getLocalDateString();
@@ -341,7 +284,6 @@ export function useAppStore() {
         toast.success("Daily goal complete!");
         announce("Daily goal complete!");
       }
-      return nextDaily;
     },
     [announce],
   );
@@ -369,99 +311,22 @@ export function useAppStore() {
       if (Object.keys(payload.keySpeed).length > 0) {
         void recordKeySpeedInStorage(appStorage, payload.keySpeed).then(setAllTimeSpeed);
       }
-      let wordsGraduated = 0;
       if (
         payload.missedWords.length > 0 ||
         (missedWordRecordsRef.current.length > 0 && payload.cleanWordsInRun.length > 0)
       ) {
-        const prevWords = new Set(missedWordRecordsRef.current.map((r) => r.word));
-        const cleanSet = new Set(payload.cleanWordsInRun.map((w) => w.trim().toLowerCase()));
         const nextRecords = recordMissedWordsRun(missedWordRecordsRef.current, {
           missedInRun: payload.missedWords,
           cleanWordsInRun: payload.cleanWordsInRun,
         });
-        const nextWords = new Set(nextRecords.map((r) => r.word));
-        for (const w of prevWords) {
-          if (cleanSet.has(w) && !nextWords.has(w)) {
-            wordsGraduated += 1;
-          }
-        }
         missedWordRecordsRef.current = nextRecords;
         setMissedWordRecords(nextRecords);
         setStoredMissedWords(getActiveMissedWords(nextRecords));
         void saveMissedWordRecordsToStorage(appStorage, nextRecords);
       }
-      const nextDaily = recordDaily(payload.activeSeconds);
-      commitAchievements({
-        mode: "drill",
-        drillMode: payload.drillMode,
-        durationSec: payload.durationSec,
-        wpm: payload.entry.wpm,
-        accuracy: payload.entry.accuracy,
-        consistency: payload.entry.consistency,
-        typed: payload.entry.typed,
-        correctChars: payload.entry.correct,
-        streak: nextDaily.streak,
-        focused: payload.focused,
-        improvedWeakKey: payload.improvedWeakKey,
-        wordsGraduated,
-        repeated: payload.repeated,
-      });
+      recordDaily(payload.activeSeconds);
     },
-    [commitAchievements, recordDaily],
-  );
-
-  const commitShooterRun = useCallback(
-    (s: ShooterRunSummary, mistakes: Record<string, number>) => {
-      const incorrect = s.wrongKeys ?? 0;
-      const realChars = s.charsDestroyed ?? s.wordsDestroyed * 5;
-      const fs = computeStats(realChars, incorrect, s.durationSec * 1000, s.samples ?? []);
-      void saveRunToStorage(
-        appStorage,
-        {
-          ...fs,
-          accuracy: s.accuracy,
-          id: newRunId(),
-          date: Date.now(),
-          difficulty: s.difficulty,
-          mode: "shooter",
-          score: s.score,
-          wordsDestroyed: s.wordsDestroyed,
-          wordsSpawned: s.wordsSpawned,
-          hitRate: s.hitRate,
-          maxStreak: s.maxStreak,
-          strayKeys: s.strayKeys,
-          bossesDefeated: s.bossesDefeated,
-          practiceMode: s.practiceMode,
-          dailyChallengeDate: s.dailyChallengeDate,
-          level: s.level ?? 1,
-          samples: s.samples,
-          mistakes: Object.keys(mistakes).length > 0 ? mistakes : undefined,
-        },
-        historyRef.current,
-      ).then(({ list, ok }) => {
-        historyRef.current = list;
-        setHistory(list);
-        if (!ok) toast.error("Couldn't save this run to local storage.");
-      });
-
-      if (Object.keys(mistakes).length > 0) {
-        void recordKeyMistakesInStorage(appStorage, mistakes).then(setAllTimeKeys);
-      }
-
-      const nextDaily = recordDaily(s.activeDurationSec ?? s.durationSec);
-      commitAchievements({
-        mode: "shooter",
-        wpm: fs.wpm,
-        accuracy: s.accuracy,
-        wordsDestroyed: s.wordsDestroyed,
-        shooterStreak: s.maxStreak,
-        level: s.level,
-        bossesDefeated: s.bossesDefeated,
-        streak: nextDaily.streak,
-      });
-    },
-    [commitAchievements, recordDaily],
+    [recordDaily],
   );
 
   const updateLearnTargetWpm = useCallback((wpm: number) => {
@@ -505,21 +370,11 @@ export function useAppStore() {
         announce(msg);
       }
 
-      const nextDaily = recordDaily(payload.activeSeconds);
-      commitAchievements({
-        mode: "learn",
-        wpm: payload.entry.wpm,
-        accuracy: payload.entry.accuracy,
-        consistency: payload.entry.consistency,
-        typed: payload.entry.typed,
-        correctChars: payload.entry.correct,
-        streak: nextDaily.streak,
-        learnUnlockedCount: update.state.unlocked.length,
-      });
+      recordDaily(payload.activeSeconds);
 
       return update;
     },
-    [announce, commitAchievements, recordDaily],
+    [announce, recordDaily],
   );
 
   const updateHistoryState = useCallback((nextHistory: HistoryEntry[]) => {
@@ -527,7 +382,7 @@ export function useAppStore() {
     setHistory(nextHistory);
   }, []);
 
-  const clearHistory = useCallback((m?: "all" | "drill" | "shooter") => {
+  const clearHistory = useCallback((m?: "all" | "drill") => {
     void clearHistoryInStorage(appStorage, m).then((list) => {
       historyRef.current = list;
       setHistory(list);
@@ -570,14 +425,13 @@ export function useAppStore() {
     selectTheme,
     mode,
     setMode: navigateMode,
-    settingsTab,
-    setSettingsTab,
     openSettings,
     closeSettings,
     drillSettings,
-    shooterSettings,
     dyslexiaFont,
     setDyslexiaFont,
+    learnPromptDismissed,
+    dismissLearnPrompt,
     history,
     setHistory: updateHistoryState,
     allTimeKeys,
@@ -587,19 +441,14 @@ export function useAppStore() {
     storedMissedWords,
     customTexts,
     learnState,
-    achState,
     daily,
-    shooterBest,
-    alreadyOnboarded,
     historyReady,
     liveAnnouncement,
     updateDrillSettings,
     saveDrillSettings,
-    saveShooterSettings,
     saveCustomText,
     deleteCustomText,
     commitDrillRun,
-    commitShooterRun,
     updateLearnTargetWpm,
     commitLearnRun,
     updateDailyGoal,

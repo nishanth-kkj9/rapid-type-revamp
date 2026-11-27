@@ -1,14 +1,12 @@
 import { useId, useState } from "react";
-import { Award, Keyboard as KeyboardIcon, Type } from "lucide-react";
-import type { AchievementState } from "@/lib/achievements";
+import { Keyboard as KeyboardIcon, Type } from "lucide-react";
 import type { KeyboardLayoutId, KeyboardStandard } from "@/lib/keyboardLayout";
 import type { KeySpeedMap } from "@/lib/keySpeed";
 import type { RunSlowWord } from "@/lib/typingStats";
-import { AchievementsStrip } from "@/components/AchievementsStrip";
 import { KeyHeatmap } from "@/components/KeyHeatmap";
 import { ProblemKeys } from "@/components/ProblemKeys";
 
-type ResultsTabId = "keys" | "words" | "achievements";
+type ResultsTabId = "keys" | "words";
 
 interface ResultsTabsProps {
   mistakes: Record<string, number>;
@@ -16,11 +14,8 @@ interface ResultsTabsProps {
   allTimeSpeed: KeySpeedMap;
   slowestWords: RunSlowWord[];
   mostMissedWords: { word: string; errors: number }[];
-  unlockedAchievements: AchievementState["unlocked"];
-  achievementCounters?: AchievementState["counters"] | undefined;
   keyboardLayout: KeyboardLayoutId;
   keyboardStandard: KeyboardStandard;
-  onOpenAchievements?: (() => void) | undefined;
 }
 
 export function ResultsTabs({
@@ -29,16 +24,12 @@ export function ResultsTabs({
   allTimeSpeed,
   slowestWords,
   mostMissedWords,
-  unlockedAchievements,
-  achievementCounters,
   keyboardLayout,
   keyboardStandard,
-  onOpenAchievements,
 }: ResultsTabsProps) {
   const [activeTab, setActiveTab] = useState<ResultsTabId>("keys");
   const baseId = useId();
 
-  const unlockedCount = Object.keys(unlockedAchievements).length;
   const wordSignalsCount = slowestWords.length + mostMissedWords.length;
   const tabs: { id: ResultsTabId; label: string; badge?: string; icon: typeof KeyboardIcon }[] = [
     { id: "keys", label: "Keys", icon: KeyboardIcon },
@@ -49,12 +40,6 @@ export function ResultsTabs({
         ? { badge: String(mostMissedWords.length || slowestWords.length) }
         : {}),
       icon: Type,
-    },
-    {
-      id: "achievements",
-      label: "Achievements",
-      ...(unlockedCount > 0 ? { badge: String(unlockedCount) } : {}),
-      icon: Award,
     },
   ];
 
@@ -161,20 +146,6 @@ export function ResultsTabs({
                 </ul>
               )}
             </div>
-          </div>
-        ) : null}
-
-        {activeTab === "achievements" ? (
-          <div
-            id={`${baseId}-panel-achievements`}
-            role="tabpanel"
-            aria-labelledby={`${baseId}-tab-achievements`}
-          >
-            <AchievementsStrip
-              unlocked={unlockedAchievements}
-              counters={achievementCounters}
-              onOpenAchievements={onOpenAchievements}
-            />
           </div>
         ) : null}
       </div>

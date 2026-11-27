@@ -10,18 +10,19 @@ import {
 import {
   DRILL_QUOTE_LENGTHS,
   DRILL_WORD_COUNTS,
+  WORD_LIST_OPTIONS,
   type DrillMode,
   type QuoteLengthOption,
   type WordCountOption,
 } from "@/lib/drillSettings";
 import type { KeyboardLayoutId } from "@/lib/keyboardLayout";
-import type { Difficulty } from "@/lib/sentenceGenerator";
-import type { AppMode, SettingsTabId } from "@/lib/urlState";
+import type { WordListId } from "@/lib/sentenceGenerator";
+import type { AppMode } from "@/lib/urlState";
 import type { Theme } from "@/lib/useTheme";
 import { CommandPaletteLookAndSettings } from "./CommandPaletteAppearanceGroup";
 
 interface Props {
-  difficulty: Difficulty;
+  wordList: WordListId;
   duration: number;
   drillMode: DrillMode;
   wordCount: WordCountOption;
@@ -29,10 +30,9 @@ interface Props {
   keyboardLayout: KeyboardLayoutId;
   theme: Theme;
   dyslexiaFont: boolean;
-  difficulties: Difficulty[];
   durations: readonly number[];
   mode?: AppMode | undefined;
-  onDifficulty: (d: Difficulty) => void;
+  onWordList: (w: WordListId) => void;
   onDuration: (s: number) => void;
   onWordCount: (count: WordCountOption) => void;
   onQuoteLength: (len: QuoteLengthOption) => void;
@@ -42,7 +42,7 @@ interface Props {
   onRestart: () => void;
   onRepeatSameText?: (() => void) | undefined;
   onModeChange: (m: AppMode) => void;
-  onOpenSettingsTab: (tab: SettingsTabId) => void;
+  onOpenSettings: () => void;
   onPracticeMissedWords?: (() => void) | undefined;
   onPracticeWeakKeys?: (() => void) | undefined;
   onPracticeSlowKeys?: (() => void) | undefined;
@@ -50,7 +50,7 @@ interface Props {
 }
 
 export function CommandPalette({
-  difficulty,
+  wordList,
   duration,
   drillMode,
   wordCount,
@@ -58,10 +58,9 @@ export function CommandPalette({
   keyboardLayout,
   theme,
   dyslexiaFont,
-  difficulties,
   durations,
   mode = "drill",
-  onDifficulty,
+  onWordList,
   onDuration,
   onWordCount,
   onQuoteLength,
@@ -71,7 +70,7 @@ export function CommandPalette({
   onRestart,
   onRepeatSameText,
   onModeChange,
-  onOpenSettingsTab,
+  onOpenSettings,
   onPracticeMissedWords,
   onPracticeWeakKeys,
   onPracticeSlowKeys,
@@ -97,7 +96,7 @@ export function CommandPalette({
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Search modes, test types, layouts, colors, settings…" />
+      <CommandInput placeholder="Search modes, test types, layouts, themes, settings…" />
       <CommandList>
         <CommandEmpty>No matching command.</CommandEmpty>
         <CommandGroup heading="Workspace">
@@ -120,29 +119,11 @@ export function CommandPalette({
             ) : null}
           </CommandItem>
           <CommandItem
-            value="mode word shooter arcade game"
-            onSelect={() => run(() => onModeChange("shooter"))}
-          >
-            <span>Word Shooter Arcade</span>
-            {mode === "shooter" ? (
-              <span className="ml-auto text-[13px] text-muted-foreground">current</span>
-            ) : null}
-          </CommandItem>
-          <CommandItem
             value="mode stats progress analytics history heatmap calendar"
             onSelect={() => run(() => onModeChange("stats"))}
           >
             <span>Stats &amp; Progress</span>
             {mode === "stats" ? (
-              <span className="ml-auto text-[13px] text-muted-foreground">current</span>
-            ) : null}
-          </CommandItem>
-          <CommandItem
-            value="mode achievements badges milestones"
-            onSelect={() => run(() => onModeChange("achievements"))}
-          >
-            <span>Achievements</span>
-            {mode === "achievements" ? (
               <span className="ml-auto text-[13px] text-muted-foreground">current</span>
             ) : null}
           </CommandItem>
@@ -187,15 +168,15 @@ export function CommandPalette({
           ))}
         </CommandGroup>
 
-        <CommandGroup heading="Difficulty">
-          {difficulties.map((d) => (
+        <CommandGroup heading="Word list">
+          {WORD_LIST_OPTIONS.map((opt) => (
             <CommandItem
-              key={d}
-              value={`difficulty ${d}`}
-              onSelect={() => run(() => onDifficulty(d))}
+              key={opt.id}
+              value={`word list ${opt.label} ${opt.id}`}
+              onSelect={() => run(() => onWordList(opt.id))}
             >
-              <span className="capitalize">Difficulty: {d}</span>
-              {difficulty === d ? (
+              <span>Word list: {opt.label}</span>
+              {wordList === opt.id ? (
                 <span className="ml-auto text-[13px] text-muted-foreground">current</span>
               ) : null}
             </CommandItem>
@@ -210,7 +191,7 @@ export function CommandPalette({
           onKeyboardLayout={onKeyboardLayout}
           onSelectTheme={onSelectTheme}
           onToggleDyslexiaFont={onToggleDyslexiaFont}
-          onOpenSettingsTab={onOpenSettingsTab}
+          onOpenSettings={onOpenSettings}
         />
 
         <CommandGroup heading="Actions & Data">
@@ -262,9 +243,9 @@ export function CommandPalette({
           ) : null}
           <CommandItem
             value="export full backup import json delete all my data privacy settings"
-            onSelect={() => run(() => onOpenSettingsTab("data"))}
+            onSelect={() => run(onOpenSettings)}
           >
-            Manage data, backups &amp; privacy…
+            Manage backups and local data…
           </CommandItem>
         </CommandGroup>
       </CommandList>

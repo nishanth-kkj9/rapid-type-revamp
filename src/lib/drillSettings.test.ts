@@ -4,6 +4,7 @@ import {
   DRILL_SETTINGS_KEY,
   getQuickRestart,
   loadDrillSettingsFromStorage,
+  resolveTextOptions,
   sanitizeDrillSettings,
   saveDrillSettingsToStorage,
   type DrillSettings,
@@ -19,7 +20,7 @@ describe("drillSettings", () => {
   it("saves and loads custom drill settings", async () => {
     const storage = new MemoryStorage();
     const custom: DrillSettings = {
-      difficulty: "hard",
+      wordList: "1000",
       duration: 60,
       sound: "beep",
       caretStyle: "block",
@@ -35,6 +36,7 @@ describe("drillSettings", () => {
   it("sanitizes invalid or corrupted values", async () => {
     const storage = new MemoryStorage();
     await storage.set(DRILL_SETTINGS_KEY, {
+      wordList: "50000",
       difficulty: "impossible",
       duration: 999,
       sound: "loud",
@@ -44,7 +46,7 @@ describe("drillSettings", () => {
       showKeyboard: "hidden",
     });
     const loaded = await loadDrillSettingsFromStorage(storage);
-    expect(loaded.difficulty).toBe("medium");
+    expect(loaded.wordList).toBe("200");
     expect(loaded.duration).toBe(30);
     expect(loaded.sound).toBe("click");
     expect(loaded.caretStyle).toBe("smooth");
@@ -52,6 +54,42 @@ describe("drillSettings", () => {
     expect(loaded.showLiveWpm).toBe(true);
     expect(loaded.showKeyboard).toBe(true);
     expect(loaded.focusWeakKeys).toBe(false);
+  });
+
+  it("loads old saved settings with difficulty and textStyle cleanly", async () => {
+    const storage = new MemoryStorage();
+    await storage.set(DRILL_SETTINGS_KEY, {
+      difficulty: "easy",
+      textStyle: "sentences",
+      duration: 60,
+      includePunctuation: true,
+    });
+    const easyLoaded = await loadDrillSettingsFromStorage(storage);
+    expect(easyLoaded.wordList).toBe("200");
+    expect(easyLoaded.duration).toBe(60);
+    expect(easyLoaded.includePunctuation).toBe(true);
+    expect("difficulty" in easyLoaded).toBe(false);
+    expect("textStyle" in easyLoaded).toBe(false);
+
+    expect(sanitizeDrillSettings({ difficulty: "medium", textStyle: "words" }).wordList).toBe(
+      "1000",
+    );
+    expect(sanitizeDrillSettings({ difficulty: "hard", textStyle: "sentences" }).wordList).toBe(
+      "1000",
+    );
+    expect(
+      resolveTextOptions(
+        sanitizeDrillSettings({
+          difficulty: "hard",
+          textStyle: "sentences",
+          includeCapitals: true,
+        }),
+      ),
+    ).toEqual({
+      punctuation: false,
+      numbers: false,
+      capitals: true,
+    });
   });
 
   it("persists the showKeyboard toggle", async () => {
@@ -127,5 +165,9 @@ describe("drillSettings", () => {
     expect(sanitizeDrillSettings({ tabToRestart: true }).quickRestart).toBe("tab");
     expect(sanitizeDrillSettings({ tabToRestart: false }).quickRestart).toBe("esc");
     expect(sanitizeDrillSettings({ quickRestart: "space" }).quickRestart).toBeUndefined();
+
+    const legacySaved = sanitizeDrillSettings({ difficulty: "hard", showFingerZones: false });
+    expect(legacySaved.wordList).toBe("1000");
+    expect("showFingerZones" in legacySaved).toBe(false);
   });
 });

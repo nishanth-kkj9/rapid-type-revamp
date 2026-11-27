@@ -56,16 +56,16 @@ export default defineConfig({
       manifest: {
         id: "/",
         name: "Typing Trainer Pro",
-        short_name: "TypeTrainer",
+        short_name: "Typing Trainer",
         description:
-          "Local-first typing trainer with timed drills, Word Shooter arcade mode, per-key heatmap, and adaptive weak-key practice.",
+          "Typing practice with timed and word-count tests and an adaptive Learn mode. Works offline.",
         start_url: "/",
         scope: "/",
         display: "standalone",
         orientation: "any",
         background_color: "#1c1917",
         theme_color: "#1c1917",
-        categories: ["education", "utilities", "games"],
+        categories: ["education", "utilities"],
         icons: [
           {
             src: "pwa-192x192.png",

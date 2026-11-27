@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   buildActivityCalendar,
-  computeArcadePersonalBests,
   computeStatsSummary,
   downsampleProgressPoints,
   formatTotalDuration,
@@ -39,7 +38,6 @@ describe("statsAnalytics", () => {
     expect(computeStatsSummary([])).toEqual({
       totalRuns: 0,
       drillRuns: 0,
-      shooterRuns: 0,
       totalElapsedSec: 0,
       bestWpm: 0,
       avgAccuracyLast20: null,
@@ -70,7 +68,7 @@ describe("statsAnalytics", () => {
         elapsed: 60,
       }),
     );
-    // Excluded PB runs: repeated, learn, shooter
+    // Excluded PB runs: repeated, learn
     runs.push(
       mkRun({
         id: "rep-high",
@@ -88,21 +86,12 @@ describe("statsAnalytics", () => {
         accuracy: 95,
         elapsed: 45,
       }),
-      mkRun({
-        id: "shooter-high",
-        date: 1_500_002,
-        mode: "shooter",
-        wpm: 150,
-        accuracy: 95,
-        elapsed: 90,
-      }),
     );
 
     const summary = computeStatsSummary(runs);
-    expect(summary.totalRuns).toBe(24);
+    expect(summary.totalRuns).toBe(23);
     expect(summary.drillRuns).toBe(23);
-    expect(summary.shooterRuns).toBe(1);
-    expect(summary.totalElapsedSec).toBe(20 * 30 + 60 + 30 + 45 + 90);
+    expect(summary.totalElapsedSec).toBe(20 * 30 + 60 + 30 + 45);
     expect(summary.bestWpm).toBe(78);
     expect(summary.avgAccuracyLast20).toBe(95);
   });
@@ -160,52 +149,5 @@ describe("statsAnalytics", () => {
     expect(sampled).toHaveLength(120);
     expect(sampled[0]).toBe(0);
     expect(sampled[sampled.length - 1]).toBe(1999);
-  });
-
-  it("computes Arcade personal bests from shooter history excluding practice scores", () => {
-    expect(computeArcadePersonalBests([])).toEqual({
-      totalGames: 0,
-      bestScore: 0,
-      bestLevel: 0,
-      bestStreak: 0,
-      bossesDefeated: 0,
-    });
-
-    const runs: HistoryEntry[] = [
-      mkRun({ id: "d1", mode: "30s", score: 9999 }),
-      mkRun({
-        id: "s1",
-        mode: "shooter",
-        score: 2100,
-        level: 6,
-        maxStreak: 14,
-        bossesDefeated: 1,
-      }),
-      mkRun({
-        id: "s2",
-        mode: "shooter",
-        score: 8800,
-        level: 8,
-        maxStreak: 22,
-        bossesDefeated: 2,
-        practiceMode: true,
-      }),
-      mkRun({
-        id: "s3",
-        mode: "shooter",
-        score: 1400,
-        level: 4,
-        maxStreak: 9,
-        bossesDefeated: 0,
-      }),
-    ];
-
-    expect(computeArcadePersonalBests(runs)).toEqual({
-      totalGames: 3,
-      bestScore: 2100,
-      bestLevel: 8,
-      bestStreak: 22,
-      bossesDefeated: 3,
-    });
   });
 });

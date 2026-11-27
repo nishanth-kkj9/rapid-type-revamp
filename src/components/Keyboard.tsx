@@ -12,7 +12,6 @@ interface Props {
   pressedChar?: string | null;
   layout?: KeyboardLayoutId | undefined;
   standard?: KeyboardStandard | undefined;
-  showFingerZones?: boolean | undefined;
   lockedKeys?: ReadonlySet<string> | undefined;
   focusKey?: string | null | undefined;
 }
@@ -43,7 +42,6 @@ export function Keyboard({
   pressedChar,
   layout = "qwerty",
   standard = "ansi",
-  showFingerZones = true,
   lockedKeys,
   focusKey = null,
 }: Props) {
@@ -59,10 +57,7 @@ export function Keyboard({
           : ""}
       </span>
       <div className="panel select-none space-y-1 p-2 sm:space-y-1.5 sm:p-4" aria-hidden="true">
-        {nextChar &&
-        (targetLookup.unmapped ||
-          targetLookup.altGr ||
-          (showFingerZones && targetLookup.finger)) ? (
+        {nextChar && (targetLookup.unmapped || targetLookup.altGr || targetLookup.finger) ? (
           <div className="mb-1 flex flex-wrap items-center justify-between gap-2 px-1 text-[13px] text-muted-foreground">
             {targetLookup.unmapped ? (
               <span className="rounded bg-accent/15 px-2 py-0.5 font-semibold text-foreground">
@@ -70,9 +65,7 @@ export function Keyboard({
               </span>
             ) : (
               <span>
-                {showFingerZones && targetLookup.finger
-                  ? FINGER_LABELS[targetLookup.finger]
-                  : layout.toUpperCase()}
+                {targetLookup.finger ? FINGER_LABELS[targetLookup.finger] : layout.toUpperCase()}
                 {targetLookup.shift ? " · +Shift" : ""}
                 {targetLookup.altGr ? " · +AltGr" : ""}
               </span>
@@ -104,7 +97,7 @@ export function Keyboard({
                   data-state={
                     isTarget ? (errorFlash ? "error" : "active") : isPressed ? "pressed" : undefined
                   }
-                  data-finger={showFingerZones && !cell.isModifier ? cell.finger : undefined}
+                  data-finger={!cell.isModifier ? cell.finger : undefined}
                   data-home={cell.home ? "true" : undefined}
                   data-learn={learnState}
                   className={`keycap relative flex h-9 min-w-0 items-center justify-center px-0.5 font-mono text-[13px] sm:h-12 sm:px-1 ${

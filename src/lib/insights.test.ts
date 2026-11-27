@@ -133,8 +133,8 @@ describe("buildInsight (Coaching v2)", () => {
   it("compares upward non-PB trend against same-type history without mixing modes", () => {
     const history = [
       ...makeHistory([52, 54, 53, 55], { mode: "25w", difficulty: "medium" }),
-      // Much higher shooter & quote runs must not pollute 25w last-10 average
-      ...makeHistory([120, 125], { mode: "shooter", difficulty: "medium" }),
+      // Much higher quote runs must not pollute 25w last-10 average
+      ...makeHistory([120, 125], { mode: "quote", difficulty: "medium" }),
     ];
     const stats: RunStats = { ...baseStats, wpm: 62, accuracy: 97, consistency: 86 };
     const insight = buildInsight(
@@ -178,7 +178,7 @@ describe("buildInsight (Coaching v2)", () => {
   it("agrees with scoped PB comparison across modes and difficulties", () => {
     const stats: RunStats = { ...baseStats, wpm: 72, accuracy: 98, consistency: 90 };
     const history: HistoryEntry[] = [
-      { ...baseStats, id: "s1", date: 1, wpm: 110, mode: "shooter", difficulty: "medium" },
+      { ...baseStats, id: "q1", date: 1, wpm: 110, mode: "quote", difficulty: "medium" },
       { ...baseStats, id: "e1", date: 2, wpm: 100, mode: "30s", difficulty: "easy" },
       { ...baseStats, id: "h1", date: 3, wpm: 68, mode: "30s", difficulty: "hard" },
     ];

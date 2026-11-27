@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Flame, Settings2, Snowflake, Target, Trophy } from "lucide-react";
+import { Flame, Settings2, Target, Trophy } from "lucide-react";
 import { getEffectiveDaily, getLocalDateString, type DailyState } from "@/lib/daily";
 
 interface Props {
@@ -19,10 +19,7 @@ export const DailyGoal = memo(function DailyGoal({ daily, onOpenGoalSettings }: 
   const today = getLocalDateString();
   const eff = getEffectiveDaily(daily, today);
 
-  const progressText =
-    eff.goalType === "minutes"
-      ? `${formatActiveMinutes(eff.activeSecondsToday)}/${eff.goalTarget} min active today`
-      : `${eff.runsToday}/${eff.goalTarget} runs today`;
+  const progressText = `${formatActiveMinutes(eff.activeSecondsToday)}/${eff.goalTarget} min active today`;
 
   return (
     <div
@@ -64,35 +61,6 @@ export const DailyGoal = memo(function DailyGoal({ daily, onOpenGoalSettings }: 
               >
                 <Trophy className="size-3 text-primary/80" />
                 <span>Best {eff.longestStreak}d</span>
-              </span>
-            </>
-          ) : null}
-
-          {eff.freezeEnabled ? (
-            <>
-              <span aria-hidden="true" className="hidden text-muted-foreground sm:inline">
-                ·
-              </span>
-              <span
-                className={`hidden items-center gap-1 text-[13px] sm:inline-flex ${
-                  eff.freezeActive ? "text-accent" : "text-muted-foreground"
-                }`}
-                title={
-                  eff.freezeActive
-                    ? "Weekly freeze is protecting your streak after 1 missed day"
-                    : eff.freezeAvailable
-                      ? "Weekly streak freeze ready (1 missed day forgiven per 7 days)"
-                      : "Weekly streak freeze on cooldown"
-                }
-              >
-                <Snowflake className="size-3" />
-                <span>
-                  {eff.freezeActive
-                    ? "Freeze active"
-                    : eff.freezeAvailable
-                      ? "Freeze ready"
-                      : "Freeze used"}
-                </span>
               </span>
             </>
           ) : null}

@@ -1,41 +1,6 @@
 import { CommandGroup, CommandItem } from "@/components/ui/command";
 import { KEYBOARD_LAYOUTS, type KeyboardLayoutId } from "@/lib/keyboardLayout";
-import type { SettingsTabId } from "@/lib/urlState";
 import { THEME_LABELS, THEMES, type Theme } from "@/lib/useTheme";
-
-const SETTINGS_TAB_ITEMS: { id: SettingsTabId; label: string; keywords: string }[] = [
-  {
-    id: "typing",
-    label: "Settings: Typing & Daily Goal",
-    keywords: "caret target wpm live metrics streak",
-  },
-  {
-    id: "content",
-    label: "Settings: Practice Content",
-    keywords: "difficulty words numbers punctuation custom",
-  },
-  {
-    id: "keyboard",
-    label: "Settings: Keyboard & Layout",
-    keywords: "dvorak colemak iso ansi finger zones",
-  },
-  { id: "sound", label: "Settings: Sound & Audio", keywords: "click beep mute shooter effects" },
-  {
-    id: "game",
-    label: "Settings: Word Shooter Game",
-    keywords: "arcade speed lives practice daily challenge",
-  },
-  {
-    id: "appearance",
-    label: "Settings: Appearance & Accessibility",
-    keywords: "theme high contrast opendyslexic font pwa",
-  },
-  {
-    id: "data",
-    label: "Settings: Data & Privacy",
-    keywords: "export backup import delete local storage indexeddb",
-  },
-];
 
 interface CommandPaletteLookAndSettingsProps {
   keyboardLayout: KeyboardLayoutId;
@@ -45,7 +10,7 @@ interface CommandPaletteLookAndSettingsProps {
   onKeyboardLayout: (layout: KeyboardLayoutId) => void;
   onSelectTheme: (theme: Theme) => void;
   onToggleDyslexiaFont: () => void;
-  onOpenSettingsTab: (tab: SettingsTabId) => void;
+  onOpenSettings: () => void;
 }
 
 export function CommandPaletteLookAndSettings({
@@ -56,7 +21,7 @@ export function CommandPaletteLookAndSettings({
   onKeyboardLayout,
   onSelectTheme,
   onToggleDyslexiaFont,
-  onOpenSettingsTab,
+  onOpenSettings,
 }: CommandPaletteLookAndSettingsProps) {
   return (
     <>
@@ -100,15 +65,12 @@ export function CommandPaletteLookAndSettings({
       </CommandGroup>
 
       <CommandGroup heading="Settings">
-        {SETTINGS_TAB_ITEMS.map((item) => (
-          <CommandItem
-            key={item.id}
-            value={`${item.label} ${item.keywords}`}
-            onSelect={() => onRun(() => onOpenSettingsTab(item.id))}
-          >
-            <span>{item.label}</span>
-          </CommandItem>
-        ))}
+        <CommandItem
+          value="settings typing daily goal target wpm caret sound keyboard layout ansi iso appearance theme opendyslexic export backup import delete data"
+          onSelect={() => onRun(onOpenSettings)}
+        >
+          <span>Open Settings</span>
+        </CommandItem>
       </CommandGroup>
     </>
   );
